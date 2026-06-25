@@ -1,0 +1,256 @@
+.page {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.loading {
+  text-align: center;
+  padding: 40px;
+  color: var(--text2, #6b6b6b);
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+}
+
+.meta {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+  margin: 4px 0 12px;
+}
+
+.tabs {
+  display: flex;
+  background: var(--cream2, #f5e8c0);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 13px;
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 7px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2, #6b6b6b);
+}
+
+.tabBtnOn {
+  background: var(--card, #fffef9);
+  color: var(--navy, #0d2347);
+  font-weight: 700;
+}
+
+.table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+}
+
+.table th {
+  padding: 7px 5px;
+  text-align: left;
+  font-size: 9px;
+  color: var(--text2, #6b6b6b);
+  border-bottom: 1.5px solid var(--border, #ddd0a8);
+  text-transform: uppercase;
+}
+
+.table td {
+  padding: 8px 5px;
+  border-bottom: 1px solid var(--border, #ddd0a8);
+}
+
+.nameCell {
+  display: flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.meRow {
+  background: #eef5ff;
+}
+
+.positive {
+  color: #065f46;
+}
+
+.negative {
+  color: #9b1c1c;
+}
+
+.roundLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2, #6b6b6b);
+  text-transform: uppercase;
+  margin: 12px 0 6px;
+}
+
+.matchRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 10px 12px;
+  background: var(--cream2, #f5e8c0);
+  border-radius: 11px;
+  margin-bottom: 7px;
+  font-size: 12px;
+}
+
+.matchRowPending {
+  background: var(--card, #fffef9);
+  border: 1px solid var(--sand2, #d4a017);
+  cursor: pointer;
+}
+
+.matchScore {
+  font-weight: 700;
+  color: var(--navy, #0d2347);
+}
+
+.finishBtn {
+  width: 100%;
+  padding: 14px;
+  background: var(--navy, #0d2347);
+  color: var(--sand, #f0c040);
+  border: none;
+  border-radius: 14px;
+  font-weight: 700;
+  margin-top: 12px;
+  cursor: pointer;
+}
+
+.chatBox {
+  background: var(--cream2, #f5e8c0);
+  border-radius: 12px;
+  padding: 10px;
+  max-height: 300px;
+  overflow-y: auto;
+  margin-bottom: 8px;
+}
+
+.chatMsg,
+.chatMsgMine {
+  margin-bottom: 8px;
+}
+
+.chatMsgMine {
+  text-align: right;
+}
+
+.chatName {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--navy, #0d2347);
+}
+
+.chatText {
+  font-size: 13px;
+  background: var(--card, #fffef9);
+  padding: 8px 11px;
+  border-radius: 12px;
+  display: inline-block;
+}
+
+.chatMsgMine .chatText {
+  background: var(--navy, #0d2347);
+  color: #fff;
+}
+
+.chatBar {
+  display: flex;
+  gap: 8px;
+}
+
+.chatInput {
+  flex: 1;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border, #ddd0a8);
+  border-radius: 24px;
+  font-size: 14px;
+}
+
+.chatSend {
+  width: 40px;
+  height: 40px;
+  border-radius: 50%;
+  background: var(--navy, #0d2347);
+  color: #fff;
+  border: none;
+  cursor: pointer;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(0, 0, 0, 0.65);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 20px;
+}
+
+.modalBox {
+  background: var(--card, #fffef9);
+  border-radius: 20px;
+  padding: 22px 18px;
+  width: 100%;
+  max-width: 360px;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modalSub {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+  text-align: center;
+  margin-bottom: 14px;
+}
+
+.scoreInputs {
+  display: grid;
+  grid-template-columns: 1fr auto 1fr;
+  gap: 12px;
+  align-items: center;
+  margin-bottom: 14px;
+}
+
+.scoreInput {
+  text-align: center;
+  padding: 12px 0;
+  font-size: 28px;
+  font-weight: 700;
+  border: 1.5px solid var(--border, #ddd0a8);
+  border-radius: 12px;
+}
+
+.errMsg {
+  font-size: 12px;
+  color: #9b1c1c;
+  margin-bottom: 10px;
+  padding: 10px 13px;
+  background: #fef2f2;
+  border-radius: 9px;
+}
+
+.btnPrimary {
+  width: 100%;
+  padding: 13px;
+  background: var(--navy, #0d2347);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}

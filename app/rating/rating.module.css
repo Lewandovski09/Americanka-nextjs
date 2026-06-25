@@ -1,0 +1,155 @@
+.page {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.row {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.genderBtn {
+  flex: 1;
+  padding: 10px;
+  border-radius: 10px;
+  border: 1.5px solid var(--border, #ddd0a8);
+  background: var(--card, #fffef9);
+  cursor: pointer;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.genderBtnOn {
+  border-color: var(--navy, #0d2347);
+  background: #eef3ff;
+  color: var(--navy, #0d2347);
+}
+
+.chipsRow {
+  display: flex;
+  gap: 5px;
+  margin-bottom: 12px;
+}
+
+.chip {
+  padding: 5px 13px;
+  border-radius: 20px;
+  font-size: 11px;
+  border: 1px solid var(--border, #ddd0a8);
+  background: var(--card, #fffef9);
+  cursor: pointer;
+}
+
+.chipOn {
+  background: var(--navy, #0d2347);
+  border-color: var(--navy, #0d2347);
+  color: #fff;
+}
+
+.genderLabel {
+  font-size: 11px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  margin-bottom: 8px;
+  text-transform: uppercase;
+}
+
+.empty {
+  text-align: center;
+  padding: 12px;
+  color: var(--text2, #6b6b6b);
+  font-size: 13px;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--card, #fffef9);
+  border: 1px solid var(--border, #ddd0a8);
+  border-radius: 13px;
+  margin-bottom: 6px;
+}
+
+.meRow {
+  background: #eef5ff;
+}
+
+.rank {
+  width: 24px;
+  text-align: center;
+}
+
+.playerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.playerName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerMeta {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+}
+
+.playerEloBox {
+  text-align: right;
+}
+
+.playerElo {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--navy, #0d2347);
+}
+
+.playerCat {
+  font-size: 10px;
+  color: var(--text2, #6b6b6b);
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2, #6b6b6b);
+  text-transform: uppercase;
+  margin: 16px 0 8px;
+}
+
+.scaleCard {
+  background: var(--card, #fffef9);
+  border: 1px solid var(--border, #ddd0a8);
+  border-radius: 14px;
+  padding: 14px;
+}
+
+.scaleRow {
+  margin-bottom: 9px;
+}
+
+.scaleHeader {
+  display: flex;
+  justify-content: space-between;
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+  margin-bottom: 3px;
+}
+
+.scaleBar {
+  height: 6px;
+  border-radius: 3px;
+  background: var(--cream2, #f5e8c0);
+}
+
+.scaleFill {
+  height: 6px;
+  border-radius: 3px;
+}

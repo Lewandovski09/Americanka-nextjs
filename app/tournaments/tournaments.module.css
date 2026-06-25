@@ -1,0 +1,105 @@
+.page {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.tabs {
+  display: flex;
+  background: var(--cream2, #f5e8c0);
+  border-radius: 10px;
+  padding: 3px;
+  margin-bottom: 13px;
+  border: 1px solid var(--border, #ddd0a8);
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 7px;
+  border: none;
+  border-radius: 8px;
+  background: transparent;
+  font-size: 12px;
+  cursor: pointer;
+  color: var(--text2, #6b6b6b);
+  font-weight: 500;
+}
+
+.tabBtnOn {
+  background: var(--card, #fffef9);
+  color: var(--navy, #0d2347);
+  font-weight: 700;
+}
+
+.createBtn {
+  display: block;
+  text-align: center;
+  width: 100%;
+  padding: 13px;
+  background: var(--navy, #0d2347);
+  color: #fff;
+  border-radius: 12px;
+  font-size: 14px;
+  font-weight: 700;
+  text-decoration: none;
+  margin-bottom: 14px;
+}
+
+.empty {
+  text-align: center;
+  padding: 20px;
+  color: var(--text2, #6b6b6b);
+  font-size: 13px;
+}
+
+.card {
+  display: block;
+  background: var(--card, #fffef9);
+  border: 1px solid var(--border, #ddd0a8);
+  border-radius: 13px;
+  padding: 13px;
+  margin-bottom: 8px;
+  text-decoration: none;
+  color: inherit;
+}
+
+.cardHeader {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 4px;
+}
+
+.cardName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.badge {
+  font-size: 10px;
+  padding: 3px 9px;
+  border-radius: 20px;
+  font-weight: 700;
+}
+
+.badgeM {
+  background: #dbeafe;
+  color: #1e40af;
+}
+
+.badgeF {
+  background: #fce7f3;
+  color: #9d174d;
+}
+
+.cardMeta {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+  margin-bottom: 8px;
+}
+
+.avatarRow {
+  display: flex;
+  gap: 4px;
+  flex-wrap: wrap;
+}

@@ -1,0 +1,31 @@
+:root {
+  --navy: #0d2347;
+  --navy2: #1a3a7a;
+  --navy3: #0a1b36;
+  --sand: #f0c040;
+  --sand2: #d4a017;
+  --cream: #fef9ec;
+  --cream2: #f5e8c0;
+  --text: #1a1a1a;
+  --text2: #6b6b6b;
+  --border: #ddd0a8;
+  --card: #fffef9;
+  --bg: #fbf0cc;
+  --rust: #c0392b;
+}
+
+* {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+body {
+  font-family: 'Inter', -apple-system, sans-serif;
+  background: var(--bg);
+  color: var(--text);
+}
+
+button {
+  font-family: inherit;
+}

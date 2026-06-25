@@ -1,0 +1,31 @@
+.nav {
+  display: flex;
+  background: var(--navy, #0d2347);
+  border-top: 2px solid var(--sand2, #d4a017);
+  position: sticky;
+  bottom: 0;
+  z-index: 10;
+}
+
+.navBtn {
+  flex: 1;
+  padding: 9px 2px 11px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  background: none;
+  border: none;
+  border-top: 3px solid transparent;
+  cursor: pointer;
+  font-size: 8px;
+  color: rgba(255, 255, 255, 0.45);
+  font-weight: 600;
+  letter-spacing: 0.4px;
+  text-decoration: none;
+}
+
+.navBtnOn {
+  color: var(--sand, #f0c040);
+  border-top-color: var(--sand, #f0c040);
+}

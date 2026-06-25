@@ -1,0 +1,129 @@
+.page {
+  max-width: 430px;
+  margin: 0 auto;
+  padding: 14px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  margin-bottom: 16px;
+}
+
+.sectionLabel {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2, #6b6b6b);
+  text-transform: uppercase;
+  margin: 16px 0 8px;
+}
+
+.countBadge {
+  background: #e74c3c;
+  color: #fff;
+  border-radius: 20px;
+  padding: 1px 8px;
+  font-size: 10px;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text2, #6b6b6b);
+}
+
+.pendingCard {
+  background: var(--card, #fffef9);
+  border-left: 3px solid var(--rust, #c0392b);
+  border-radius: 12px;
+  padding: 12px;
+  margin-bottom: 10px;
+}
+
+.pendingHeader {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.pendingName {
+  font-size: 14px;
+  font-weight: 700;
+}
+
+.pendingMeta {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+}
+
+.eloInput {
+  width: 100%;
+  padding: 9px 12px;
+  border: 1.5px solid var(--border, #ddd0a8);
+  border-radius: 10px;
+  margin-bottom: 8px;
+}
+
+.actionRow {
+  display: flex;
+  gap: 8px;
+}
+
+.approveBtn {
+  flex: 1;
+  padding: 9px;
+  background: var(--navy, #0d2347);
+  color: #fff;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.rejectBtn {
+  flex: 1;
+  padding: 9px;
+  background: transparent;
+  color: var(--rust, #c0392b);
+  border: 1.5px solid var(--rust, #c0392b);
+  border-radius: 10px;
+  cursor: pointer;
+}
+
+.playerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  background: var(--card, #fffef9);
+  border: 1px solid var(--border, #ddd0a8);
+  border-radius: 12px;
+  margin-bottom: 6px;
+}
+
+.playerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.playerName {
+  font-size: 13px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.playerMeta {
+  font-size: 11px;
+  color: var(--text2, #6b6b6b);
+}
+
+.editEloBtn {
+  font-size: 10px;
+  color: var(--navy, #0d2347);
+  background: none;
+  border: none;
+  font-weight: 700;
+  cursor: pointer;
+}
