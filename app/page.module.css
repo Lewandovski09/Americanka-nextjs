@@ -122,12 +122,6 @@
   margin-bottom: 8px;
 }
 
-@media (min-width: 700px) {
-  .statsGrid {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-  }
-}
-
 .statBox {
   background: rgba(255, 255, 255, 0.06);
   border-radius: 12px;
@@ -242,7 +236,26 @@
   border: 1px solid rgba(240, 192, 64, 0.25);
   border-radius: 14px;
   padding: 14px;
+  padding-right: 36px;
   margin-bottom: 8px;
+  position: relative;
+}
+
+.announcementClose {
+  position: absolute;
+  top: 10px;
+  right: 10px;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.6);
+  border: none;
+  font-size: 11px;
+  cursor: pointer;
+  display: flex;
+  align-items: center;
+  justify-content: center;
 }
 
 .announcementTitle {

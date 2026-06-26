@@ -12,6 +12,7 @@ export default function HomePage() {
   const { player, loading } = useCurrentPlayer();
   const [nextTournament, setNextTournament] = useState(null);
   const [announcements, setAnnouncements] = useState([]);
+  const [readIds, setReadIds] = useState(new Set());
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
 
   // If nobody is logged in, send them straight to the login/register
@@ -38,19 +39,36 @@ export default function HomePage() {
     }
 
     async function loadAnnouncements() {
-      const { data } = await supabase
+      const { data: notifs } = await supabase
         .from('admin_notifications')
         .select('*')
         .order('created_at', { ascending: false })
-        .limit(5);
-      setAnnouncements(data || []);
+        .limit(10);
+
+      const { data: reads } = await supabase
+        .from('notification_reads')
+        .select('notification_id')
+        .eq('player_id', player.id);
+
+      setReadIds(new Set((reads || []).map((r) => r.notification_id)));
+      setAnnouncements(notifs || []);
     }
 
     loadNextTournament();
     loadAnnouncements();
   }, [player]);
 
+  async function dismissAnnouncement(notificationId) {
+    setReadIds((prev) => new Set([...prev, notificationId]));
+    const supabase = createClient();
+    await supabase
+      .from('notification_reads')
+      .upsert({ player_id: player.id, notification_id: notificationId });
+  }
+
   if (loading || !player) return <div className={styles.loading}>Завантаження...</div>;
+
+  const visibleAnnouncements = announcements.filter((a) => !readIds.has(a.id));
 
   return (
     <div className={styles.page}>
@@ -63,11 +81,14 @@ export default function HomePage() {
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
       )}
 
-      {announcements.length > 0 && (
+      {visibleAnnouncements.length > 0 && (
         <>
           <div className={styles.sectionLabel}>Оголошення</div>
-          {announcements.map((a) => (
+          {visibleAnnouncements.map((a) => (
             <div key={a.id} className={styles.announcementCard}>
+              <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)}>
+                ✕
+              </button>
               <div className={styles.announcementTitle}>📢 {a.title}</div>
               <div className={styles.announcementBody}>{a.body}</div>
               <div className={styles.announcementDate}>
@@ -110,15 +131,25 @@ export default function HomePage() {
       {eloExplainerOpen && (
         <div className={styles.eloExplainerBody}>
           <p>
-            Рейтинг Ело — це система оцінки сили гравця, яка змінюється після кожного турніру залежно від результатів.
+            <b>Рейтинг Ело</b> — це числова оцінка сили гравця (від 800 до 2000+), яка автоматично змінюється після
+            кожного зіграного матчу залежно від результату та сили суперника.
           </p>
           <p>
-            Якщо ви перемагаєте сильнішого суперника — отримуєте більше очок. Якщо втрачаєте слабшому — втрачаєте
-            більше очок. Перемога над рівним за силою суперником дає приблизно <b>+16</b> очок.
+            <b>Як рахується:</b> перед матчем система оцінює ймовірність вашої перемоги, виходячи з різниці рейтингів
+            команд. Якщо ваш рейтинг нижчий за суперника, а ви перемагаєте — ви отримуєте <b>більше</b> очок, бо це
+            несподіваний результат. Якщо перемагає очікуваний фаворит — він отримує менше очок, а слабший суперник
+            втрачає менше.
           </p>
           <p>
-            Категорії за рейтингом: <b>D</b> (новачки, ~950), <b>C</b> (любителі, ~1250), <b>B</b> (досвідчені, ~1550),{' '}
-            <b>A</b> (просунуті, ~1850).
+            Перемога над рівним за силою суперником дає приблизно <b>+16</b> очок, поразка — приблизно <b>-16</b>{' '}
+            очок. Перемога над набагато сильнішим суперником може дати <b>+25–30</b> очок, а поразка від набагато
+            слабшого забере стільки ж.
+          </p>
+          <p>
+            Рейтинг впливає на вашу категорію: <b>D</b> — новачки (800–1100, старт ~950), <b>C</b> — любителі
+            (1100–1400, старт ~1250), <b>B</b> — досвідчені (1400–1700, старт ~1550), <b>A</b> — просунуті (1700+,
+            старт ~1850). Адмін призначає початкову категорію при підтвердженні реєстрації, а далі рейтинг росте або
+            падає залежно від ваших результатів у турнірах.
           </p>
         </div>
       )}

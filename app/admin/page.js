@@ -22,9 +22,6 @@ export default function AdminPage() {
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
   const [notifSent, setNotifSent] = useState(false);
-  const [adminSearchLogin, setAdminSearchLogin] = useState('');
-  const [adminSearchError, setAdminSearchError] = useState('');
-  const [adminSearchResult, setAdminSearchResult] = useState(null);
 
   async function load() {
     const supabase = createClient();
@@ -128,26 +125,6 @@ export default function AdminPage() {
       body: JSON.stringify({ elo }),
     });
     load();
-    if (adminSearchResult?.id === playerId) handleAdminSearch();
-  }
-
-  async function handleAdminSearch() {
-    setAdminSearchError('');
-    setAdminSearchResult(null);
-    if (!adminSearchLogin.trim()) return;
-
-    const supabase = createClient();
-    const { data, error } = await supabase
-      .from('players')
-      .select('*')
-      .eq('login', adminSearchLogin.trim().toLowerCase())
-      .maybeSingle();
-
-    if (error || !data) {
-      setAdminSearchError('Гравця з таким логіном не знайдено');
-      return;
-    }
-    setAdminSearchResult(data);
   }
 
   async function handleSendNotification() {
@@ -227,37 +204,6 @@ export default function AdminPage() {
           </div>
         </div>
       )}
-
-      <div className={styles.sectionLabel}>Пошук гравця</div>
-      <div className={styles.searchCard}>
-        <div className={styles.searchRow}>
-          <input
-            className={styles.searchInput}
-            placeholder="Логін гравця..."
-            value={adminSearchLogin}
-            onChange={(e) => setAdminSearchLogin(e.target.value)}
-            onKeyDown={(e) => e.key === 'Enter' && handleAdminSearch()}
-          />
-          <button className={styles.searchBtn} onClick={handleAdminSearch}>
-            Знайти
-          </button>
-        </div>
-        {adminSearchError && <div className={styles.searchError}>{adminSearchError}</div>}
-        {adminSearchResult && (
-          <div className={styles.searchResultRow}>
-            <PlayerAvatar player={adminSearchResult} size={32} />
-            <div className={styles.playerInfo}>
-              <div className={styles.playerName}>{adminSearchResult.full_name}</div>
-              <div className={styles.playerMeta}>
-                @{adminSearchResult.login} · {adminSearchResult.elo ?? '—'} Ело · Кат. {adminSearchResult.category ?? '—'}
-              </div>
-            </div>
-            <button className={styles.editEloBtn} onClick={() => handleEditCategory(adminSearchResult.id)}>
-              Змінити категорію
-            </button>
-          </div>
-        )}
-      </div>
 
       {showFormatBreakdown && (
         <div className={styles.quickList}>

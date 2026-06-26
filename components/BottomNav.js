@@ -29,7 +29,23 @@ function StarIcon({ active }) {
   );
 }
 
-function ProfileIcon({ active }) {
+function ProfileIcon({ active, photoUrl }) {
+  if (photoUrl) {
+    return (
+      <span
+        style={{
+          width: 22,
+          height: 22,
+          borderRadius: '50%',
+          overflow: 'hidden',
+          display: 'inline-block',
+          border: active ? '2px solid #f0c040' : '1.5px solid rgba(255,255,255,0.4)',
+        }}
+      >
+        <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+      </span>
+    );
+  }
   return (
     <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#f0c040' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <circle cx="12" cy="8" r="4" />
@@ -51,12 +67,12 @@ const ITEMS = [
   { href: '/', label: 'ГОЛОВНА', Icon: HomeIcon },
   { href: '/tournaments', label: 'ТУРНІРИ', Icon: TrophyIcon },
   { href: '/rating', label: 'РЕЙТИНГ', Icon: StarIcon },
-  { href: '/profile', label: 'ПРОФІЛЬ', Icon: ProfileIcon },
+  { href: '/profile', label: 'ПРОФІЛЬ', Icon: ProfileIcon, isProfile: true },
 ];
 
-export default function BottomNav({ isAdmin }) {
+export default function BottomNav({ player }) {
   const pathname = usePathname();
-  const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'АДМІН', Icon: AdminIcon }] : ITEMS;
+  const items = player?.is_admin ? [...ITEMS, { href: '/admin', label: 'АДМІН', Icon: AdminIcon }] : ITEMS;
   const [shrunk, setShrunk] = useState(false);
   const lastScrollY = useRef(0);
 
@@ -84,7 +100,11 @@ export default function BottomNav({ isAdmin }) {
             className={`${styles.navBtn} ${active ? styles.navBtnOn : ''} ${shrunk ? styles.navBtnShrunk : ''}`}
           >
             <span className={styles.navTile}>
-              <item.Icon active={active} />
+              {item.isProfile ? (
+                <item.Icon active={active} photoUrl={player?.photo_url} />
+              ) : (
+                <item.Icon active={active} />
+              )}
             </span>
             <span className={styles.navLabel}>{item.label}</span>
           </Link>

@@ -32,7 +32,7 @@ export default function AppShell({ children }) {
       <div style={{ flex: 1, position: 'relative', zIndex: 1, maxWidth: 900, width: '100%', margin: '0 auto' }}>
         {children}
       </div>
-      {showNav && <BottomNav isAdmin={player.is_admin} />}
+      {showNav && <BottomNav player={player} />}
     </div>
   );
 }
