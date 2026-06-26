@@ -6,6 +6,12 @@ export const metadata = {
   description: 'Турніри американка для пляжного волейболу. Пляж 13, Станція Фонтана, Одеса.',
 };
 
+export const viewport = {
+  width: 'device-width',
+  initialScale: 1,
+  maximumScale: 1,
+};
+
 export default function RootLayout({ children }) {
   return (
     <html lang="uk">

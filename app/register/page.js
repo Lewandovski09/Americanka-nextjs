@@ -56,20 +56,21 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
 
-    const { data: playerRow, error: lookupError } = await supabase
-      .from('players')
-      .select('email')
-      .eq('login', loginField.trim().toLowerCase())
-      .maybeSingle();
+    const lookupRes = await fetch('/api/auth/lookup-email', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: loginField }),
+    });
+    const lookupData = await lookupRes.json();
 
-    if (lookupError || !playerRow) {
+    if (!lookupData.success) {
       setLoading(false);
       setError('Невірний логін або пароль');
       return;
     }
 
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: playerRow.email,
+      email: lookupData.email,
       password: loginPassword,
     });
 
@@ -244,6 +245,16 @@ export default function AuthPage() {
         <span className={styles.star} style={{ top: '92%', left: '12%', opacity: 0.15 }}>★</span>
         <span className={styles.star} style={{ top: '5%', left: '35%', opacity: 0.15 }}>★</span>
         <span className={styles.star} style={{ top: '50%', left: '50%', opacity: 0.1 }}>★</span>
+
+        {/* Extra stars, shown only on tablet/desktop via CSS media query */}
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '12%', left: '25%', opacity: 0.2 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '22%', left: '65%', opacity: 0.18 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '40%', left: '40%', opacity: 0.15 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '55%', left: '15%', opacity: 0.2 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '65%', left: '60%', opacity: 0.16 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '75%', left: '45%', opacity: 0.18 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '88%', left: '85%', opacity: 0.15 }}>★</span>
+        <span className={`${styles.star} ${styles.starWide}`} style={{ top: '8%', left: '95%', opacity: 0.2 }}>★</span>
       </div>
 
       <div className={styles.brandHeader}>
@@ -367,19 +378,31 @@ export default function AuthPage() {
 }
 
 function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword, error, loading, onSubmit }) {
+  const [showPw, setShowPw] = useState(false);
   return (
     <div>
       <label className={styles.label}>Логін</label>
       <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login" />
 
       <label className={styles.label}>Пароль</label>
-      <input
-        className={styles.input}
-        type="password"
-        value={loginPassword}
-        onChange={(e) => setLoginPassword(e.target.value)}
-        placeholder="Password"
-      />
+      <div className={styles.passwordWrap}>
+        <input
+          className={styles.input}
+          type={showPw ? 'text' : 'password'}
+          value={loginPassword}
+          onChange={(e) => setLoginPassword(e.target.value)}
+          placeholder="Password"
+          style={{ marginBottom: 0 }}
+        />
+        <button
+          type="button"
+          className={styles.eyeBtn}
+          onClick={() => setShowPw((s) => !s)}
+          aria-label={showPw ? 'Сховати пароль' : 'Показати пароль'}
+        >
+          {showPw ? '🙈' : '👁️'}
+        </button>
+      </div>
 
       {error && <div className={styles.errMsg}>{error}</div>}
 
@@ -489,16 +512,40 @@ function VerifyStep({ icon, title, description, code, setCode, error, hint, load
 }
 
 function Field({ label, value, onChange, placeholder, type = 'text' }) {
+  const [show, setShow] = useState(false);
+  const isPassword = type === 'password';
+
   return (
     <>
       <label className={styles.label}>{label}</label>
-      <input
-        className={styles.input}
-        type={type}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        placeholder={placeholder}
-      />
+      {isPassword ? (
+        <div className={styles.passwordWrap}>
+          <input
+            className={styles.input}
+            type={show ? 'text' : 'password'}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            placeholder={placeholder}
+            style={{ marginBottom: 0 }}
+          />
+          <button
+            type="button"
+            className={styles.eyeBtn}
+            onClick={() => setShow((s) => !s)}
+            aria-label={show ? 'Сховати пароль' : 'Показати пароль'}
+          >
+            {show ? '🙈' : '👁️'}
+          </button>
+        </div>
+      ) : (
+        <input
+          className={styles.input}
+          type={type}
+          value={value}
+          onChange={(e) => onChange(e.target.value)}
+          placeholder={placeholder}
+        />
+      )}
     </>
   );
 }
