@@ -100,11 +100,6 @@ export default function HomePage() {
       <div className={styles.statsGrid}>
         <StatBox value={player.elo ?? '—'} label="Рейтинг Ело" />
         <StatBox value={player.elo ? categoryForElo(player.elo)?.label : '—'} label="Категорія" />
-        <StatBox value={player.tournaments_played} label="Турнірів" />
-        <StatBox
-          value={`${player.tournaments_played > 0 ? Math.round((player.tournaments_won / player.tournaments_played) * 100) : 0}%`}
-          label="Перемог"
-        />
       </div>
 
       <button className={styles.eloExplainerToggle} onClick={() => setEloExplainerOpen((o) => !o)}>
@@ -129,9 +124,9 @@ export default function HomePage() {
       )}
 
       <div className={styles.formatsCard}>
-        <div className={styles.formatsTitle}>🚀 Старт сезону — Американка</div>
+        <div className={styles.formatsTitle}>🚀 Старт сезону — AMERICANKA</div>
         <div className={styles.formatsText}>
-          Зараз стартує класичний формат <b>Американка 2x2</b>. Найближчим часом до рейтингу додадуться нові формати
+          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом до рейтингу додадуться нові формати
           турнірів: <b>мікс</b>, <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші —
           слідкуйте за оголошеннями!
         </div>

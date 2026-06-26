@@ -416,3 +416,26 @@
   border-color: #f0c040;
   color: #0d2347;
 }
+
+.supportCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 14px;
+  padding: 6px;
+  margin-bottom: 30px;
+}
+
+.supportRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  color: #fff;
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.supportIcon {
+  font-size: 16px;
+}

@@ -71,19 +71,19 @@
   .nav {
     border-radius: 0;
     justify-content: center;
-    gap: 18px;
-    padding: 14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    gap: 48px;
+    padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
     border-top: 1px solid rgba(240, 192, 64, 0.3);
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
   }
 
   .navBtn {
     flex: 0 0 auto;
-    min-width: 90px;
+    min-width: 100px;
   }
 
   .navTile {
-    padding: 11px 18px;
+    padding: 12px 22px;
   }
 
   .navLabel {

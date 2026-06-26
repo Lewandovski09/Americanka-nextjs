@@ -22,6 +22,9 @@ export default function AdminPage() {
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
   const [notifSent, setNotifSent] = useState(false);
+  const [adminSearchLogin, setAdminSearchLogin] = useState('');
+  const [adminSearchError, setAdminSearchError] = useState('');
+  const [adminSearchResult, setAdminSearchResult] = useState(null);
 
   async function load() {
     const supabase = createClient();
@@ -54,9 +57,13 @@ export default function AdminPage() {
       .select('id', { count: 'exact', head: true })
       .eq('played', true);
 
-    const categoryCounts = { D: 0, C: 0, B: 0, A: 0 };
-    [...(m || []), ...(f || [])].forEach((pl) => {
-      if (pl.category && categoryCounts[pl.category] !== undefined) categoryCounts[pl.category]++;
+    const categoryCountsMale = { D: 0, C: 0, B: 0, A: 0 };
+    (m || []).forEach((pl) => {
+      if (pl.category && categoryCountsMale[pl.category] !== undefined) categoryCountsMale[pl.category]++;
+    });
+    const categoryCountsFemale = { D: 0, C: 0, B: 0, A: 0 };
+    (f || []).forEach((pl) => {
+      if (pl.category && categoryCountsFemale[pl.category] !== undefined) categoryCountsFemale[pl.category]++;
     });
 
     setStats({
@@ -65,7 +72,8 @@ export default function AdminPage() {
       pendingCount: (p || []).length,
       doneCount: doneCount || 0,
       matchesPlayed: matchesPlayed || 0,
-      categoryCounts,
+      categoryCountsMale,
+      categoryCountsFemale,
     });
   }
 
@@ -120,6 +128,26 @@ export default function AdminPage() {
       body: JSON.stringify({ elo }),
     });
     load();
+    if (adminSearchResult?.id === playerId) handleAdminSearch();
+  }
+
+  async function handleAdminSearch() {
+    setAdminSearchError('');
+    setAdminSearchResult(null);
+    if (!adminSearchLogin.trim()) return;
+
+    const supabase = createClient();
+    const { data, error } = await supabase
+      .from('players')
+      .select('*')
+      .eq('login', adminSearchLogin.trim().toLowerCase())
+      .maybeSingle();
+
+    if (error || !data) {
+      setAdminSearchError('Гравця з таким логіном не знайдено');
+      return;
+    }
+    setAdminSearchResult(data);
   }
 
   async function handleSendNotification() {
@@ -178,15 +206,58 @@ export default function AdminPage() {
       )}
 
       {stats && (
-        <div className={styles.categoryStatsRow}>
-          {CATEGORY_LETTERS.map((cat) => (
-            <div key={cat} className={styles.categoryStatBox}>
-              <div className={styles.categoryStatLetter}>{cat}</div>
-              <div className={styles.categoryStatCount}>{stats.categoryCounts[cat]}</div>
-            </div>
-          ))}
+        <div className={styles.genderCategoryBlock}>
+          <div className={styles.genderCategoryLabel}>Чоловіки за категоріями</div>
+          <div className={styles.categoryStatsRow}>
+            {CATEGORY_LETTERS.map((cat) => (
+              <div key={cat} className={styles.categoryStatBox}>
+                <div className={styles.categoryStatLetter}>{cat}</div>
+                <div className={styles.categoryStatCount}>{stats.categoryCountsMale[cat]}</div>
+              </div>
+            ))}
+          </div>
+          <div className={styles.genderCategoryLabel}>Жінки за категоріями</div>
+          <div className={styles.categoryStatsRow}>
+            {CATEGORY_LETTERS.map((cat) => (
+              <div key={cat} className={styles.categoryStatBox}>
+                <div className={styles.categoryStatLetter}>{cat}</div>
+                <div className={styles.categoryStatCount}>{stats.categoryCountsFemale[cat]}</div>
+              </div>
+            ))}
+          </div>
         </div>
       )}
+
+      <div className={styles.sectionLabel}>Пошук гравця</div>
+      <div className={styles.searchCard}>
+        <div className={styles.searchRow}>
+          <input
+            className={styles.searchInput}
+            placeholder="Логін гравця..."
+            value={adminSearchLogin}
+            onChange={(e) => setAdminSearchLogin(e.target.value)}
+            onKeyDown={(e) => e.key === 'Enter' && handleAdminSearch()}
+          />
+          <button className={styles.searchBtn} onClick={handleAdminSearch}>
+            Знайти
+          </button>
+        </div>
+        {adminSearchError && <div className={styles.searchError}>{adminSearchError}</div>}
+        {adminSearchResult && (
+          <div className={styles.searchResultRow}>
+            <PlayerAvatar player={adminSearchResult} size={32} />
+            <div className={styles.playerInfo}>
+              <div className={styles.playerName}>{adminSearchResult.full_name}</div>
+              <div className={styles.playerMeta}>
+                @{adminSearchResult.login} · {adminSearchResult.elo ?? '—'} Ело · Кат. {adminSearchResult.category ?? '—'}
+              </div>
+            </div>
+            <button className={styles.editEloBtn} onClick={() => handleEditCategory(adminSearchResult.id)}>
+              Змінити категорію
+            </button>
+          </div>
+        )}
+      </div>
 
       {showFormatBreakdown && (
         <div className={styles.quickList}>

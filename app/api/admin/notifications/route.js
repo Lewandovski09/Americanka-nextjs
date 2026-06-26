@@ -41,17 +41,24 @@ export async function POST(request) {
   // Best-effort push to everyone's Telegram too — failures here
   // don't fail the request, since the in-app notification feed
   // (admin_notifications table) is the source of truth.
-  const { data: allPlayers } = await supabaseAdmin
+  const { data: allPlayers, error: playersError } = await supabaseAdmin
     .from('players')
-    .select('telegram_chat_id')
+    .select('telegram_chat_id, full_name')
     .eq('approval_status', 'approved')
     .not('telegram_chat_id', 'is', null);
 
+  console.log('[send-notification] Telegram recipients found:', (allPlayers || []).length, playersError?.message);
+
   const text = `📢 <b>${title}</b>\n\n${body}`;
 
-  await Promise.allSettled(
+  const results = await Promise.allSettled(
     (allPlayers || []).map((p) => sendTelegramMessage(p.telegram_chat_id, text))
   );
+  results.forEach((r, i) => {
+    if (r.status === 'rejected') {
+      console.error('[send-notification] Failed to send to', allPlayers[i]?.full_name, r.reason?.message);
+    }
+  });
 
   return Response.json({ success: true, notification });
 }

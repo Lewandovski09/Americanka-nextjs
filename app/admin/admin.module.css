@@ -312,3 +312,62 @@
   font-weight: 800;
   color: #f0c040;
 }
+
+.genderCategoryBlock {
+  margin-bottom: 6px;
+}
+
+.genderCategoryLabel {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  margin: 10px 0 6px;
+}
+
+.searchCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 6px;
+}
+
+.searchRow {
+  display: flex;
+  gap: 8px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 10px 13px;
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.06);
+  color: #fff;
+  font-size: 14px;
+}
+
+.searchBtn {
+  padding: 10px 16px;
+  background: #f0c040;
+  color: #0d2347;
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.searchError {
+  font-size: 12px;
+  color: #fca5a5;
+  margin-top: 10px;
+}
+
+.searchResultRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-top: 12px;
+  padding-top: 12px;
+  border-top: 1px solid rgba(255, 255, 255, 0.1);
+}

@@ -1,0 +1,25 @@
+.sideDecor {
+  display: none;
+  position: fixed;
+  top: 80px;
+  bottom: 80px;
+  width: 200px;
+  z-index: 0;
+  pointer-events: none;
+}
+
+.left {
+  left: 0;
+}
+
+.right {
+  right: 0;
+}
+
+/* Only show once there's actually enough empty margin beyond the
+   900px centered content column to fit this decor without overlap. */
+@media (min-width: 1320px) {
+  .sideDecor {
+    display: block;
+  }
+}

@@ -118,7 +118,11 @@ export default function ProfilePage() {
     const path = `${player.id}.${ext}`;
     await supabase.storage.from('player-photos').upload(path, file, { upsert: true });
     const { data: urlData } = supabase.storage.from('player-photos').getPublicUrl(path);
-    await supabase.from('players').update({ photo_url: urlData.publicUrl }).eq('id', player.id);
+    // Cache-bust: the URL itself doesn't change on re-upload (same
+    // path), so without this the browser/CDN may keep showing the
+    // OLD photo even though a new one was uploaded.
+    const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
+    await supabase.from('players').update({ photo_url: bustedUrl }).eq('id', player.id);
     router.refresh();
   }
 
@@ -267,6 +271,18 @@ export default function ProfilePage() {
           )}
         </div>
       ))}
+
+      <div className={styles.sectionLabel}>Підтримка</div>
+      <div className={styles.supportCard}>
+        <a href="mailto:a921488799327z@gmail.com" className={styles.supportRow}>
+          <span className={styles.supportIcon}>✉️</span>
+          <span>a921488799327z@gmail.com</span>
+        </a>
+        <a href="https://t.me/one_gogi" target="_blank" rel="noopener noreferrer" className={styles.supportRow}>
+          <span className={styles.supportIcon}>💬</span>
+          <span>@one_gogi (Telegram)</span>
+        </a>
+      </div>
 
       {editOpen && (
         <div className={styles.modalOverlay} onClick={() => setEditOpen(false)}>
