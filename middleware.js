@@ -2,9 +2,7 @@ import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
 
 // Wrap any promise with a timeout so a slow/hanging Supabase call
-// can never block the entire site from loading. If Supabase is
-// slow to respond, we'd rather serve the page (possibly with a
-// stale session) than hang forever.
+// can never block the entire site from loading.
 function withTimeout(promise, ms) {
   return Promise.race([
     promise,
@@ -13,7 +11,17 @@ function withTimeout(promise, ms) {
 }
 
 export async function middleware(request) {
-  let response = NextResponse.next({ request: { headers: request.headers } });
+  // IMPORTANT: response must be re-created any time cookies are
+  // set, and built from the (possibly updated) request — otherwise
+  // a refreshed session token never actually reaches the browser,
+  // which causes the exact symptom we're fixing: the user IS
+  // logged in (their old cookie is valid), but every page load
+  // looks logged-out because the refreshed session cookie silently
+  // gets dropped. This mirrors Supabase's official Next.js
+  // middleware recipe exactly.
+  let response = NextResponse.next({
+    request: { headers: request.headers },
+  });
 
   try {
     const supabase = createServerClient(
@@ -21,14 +29,15 @@ export async function middleware(request) {
       process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY,
       {
         cookies: {
-          get(name) {
-            return request.cookies.get(name)?.value;
+          getAll() {
+            return request.cookies.getAll();
           },
-          set(name, value, options) {
-            response.cookies.set({ name, value, ...options });
-          },
-          remove(name, options) {
-            response.cookies.set({ name, value: '', ...options });
+          setAll(cookiesToSet) {
+            cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value));
+            response = NextResponse.next({ request: { headers: request.headers } });
+            cookiesToSet.forEach(({ name, value, options }) => {
+              response.cookies.set(name, value, options);
+            });
           },
         },
       }
@@ -42,9 +51,6 @@ export async function middleware(request) {
       console.error('[middleware] supabase.auth.getUser() timed out after 5s');
     }
   } catch (err) {
-    // Never let an auth refresh failure break the entire site —
-    // worst case, the user sees a logged-out state, which is
-    // recoverable, instead of an infinitely hanging page.
     console.error('[middleware] Unexpected error:', err.message);
   }
 
