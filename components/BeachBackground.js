@@ -16,7 +16,7 @@ export default function BeachBackground() {
         zIndex: 0,
         pointerEvents: 'none',
       }}
-      viewBox="0 0 430 900"
+      viewBox="-150 0 900 900"
       preserveAspectRatio="xMidYMid slice"
       xmlns="http://www.w3.org/2000/svg"
     >
@@ -52,11 +52,20 @@ export default function BeachBackground() {
 
       <circle cx="45" cy="620" r="16" fill="none" stroke="#c0392b" strokeWidth="0.9" opacity="0.06" />
 
-      {/* Stars */}
+      {/* Stars — generous coverage so density holds up even when this
+          SVG is stretched wide on tablet/desktop screens. */}
       {[
         [40, 40, 0.18], [390, 50, 0.15], [10, 150, 0.12], [410, 180, 0.14],
         [300, 90, 0.1], [150, 350, 0.12], [380, 600, 0.15], [30, 750, 0.13],
         [200, 850, 0.1], [350, 820, 0.12],
+        // Extra stars for wide/landscape viewports — these sit outside
+        // the original 430-wide "phone" frame and only become visible
+        // once preserveAspectRatio="slice" stretches the canvas.
+        [480, 30, 0.16], [560, 120, 0.13], [640, 70, 0.15], [720, 200, 0.12],
+        [500, 300, 0.14], [610, 400, 0.1], [690, 480, 0.13], [550, 550, 0.15],
+        [630, 650, 0.12], [490, 700, 0.16], [700, 750, 0.1], [560, 820, 0.13],
+        [-40, 50, 0.14], [-90, 250, 0.12], [-60, 450, 0.15], [-100, 650, 0.11],
+        [-30, 800, 0.13],
       ].map(([cx, cy, op], i) => (
         <text key={i} x={cx} y={cy} fontSize="13" fill="#f0c040" opacity={op}>
           ★

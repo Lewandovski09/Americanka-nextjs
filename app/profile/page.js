@@ -11,32 +11,69 @@ import styles from './profile.module.css';
 export default function ProfilePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
-  const [history, setHistory] = useState([]);
+  const [tournamentHistory, setTournamentHistory] = useState([]);
   const [partners, setPartners] = useState([]);
   const [opponentElo, setOpponentElo] = useState(1200);
+
+  const [openTournamentId, setOpenTournamentId] = useState(null);
+  const [tournamentMatches, setTournamentMatches] = useState([]);
+  const [tournamentPlayersMap, setTournamentPlayersMap] = useState({});
+
+  const [openPartner, setOpenPartner] = useState(null);
+  const [partnerMatches, setPartnerMatches] = useState([]);
 
   useEffect(() => {
     if (!player) return;
     async function load() {
       const supabase = createClient();
 
-      const { data: h } = await supabase
-        .from('elo_history')
-        .select('*, tournaments(name)')
-        .eq('player_id', player.id)
-        .order('created_at', { ascending: false });
-      setHistory(h || []);
+      const { data: th } = await supabase.rpc('get_player_tournament_history', { p_player_id: player.id });
+      setTournamentHistory(th || []);
 
       const { data: p } = await supabase
         .from('partner_stats')
-        .select('*, partner:players!partner_stats_partner_id_fkey(full_name, photo_url)')
+        .select('*, partner:players!partner_stats_partner_id_fkey(id, full_name, photo_url)')
         .eq('player_id', player.id)
-        .order('games_together', { ascending: false })
-        .limit(4);
+        .order('games_together', { ascending: false });
       setPartners(p || []);
     }
     load();
   }, [player]);
+
+  async function openTournamentDetails(tournamentId) {
+    setOpenTournamentId(tournamentId);
+    const supabase = createClient();
+
+    const { data: matches } = await supabase
+      .from('matches')
+      .select('*')
+      .eq('tournament_id', tournamentId)
+      .eq('played', true)
+      .order('round_number');
+
+    const { data: tps } = await supabase
+      .from('tournament_players')
+      .select('player_id, players(full_name)')
+      .eq('tournament_id', tournamentId);
+
+    const map = {};
+    (tps || []).forEach((tp) => {
+      map[tp.player_id] = tp.players.full_name.split(' ')[0];
+    });
+
+    setTournamentPlayersMap(map);
+    setTournamentMatches(matches || []);
+  }
+
+  async function openPartnerHistory(partner) {
+    setOpenPartner(partner);
+    const supabase = createClient();
+    const { data } = await supabase.rpc('get_partner_match_history', {
+      p_player_id: player.id,
+      p_partner_id: partner.id,
+    });
+    setPartnerMatches(data || []);
+  }
 
   async function handlePhotoChange(e) {
     const file = e.target.files[0];
@@ -53,7 +90,7 @@ export default function ProfilePage() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/login');
+    router.push('/register');
   }
 
   if (loading) return <div className={styles.loading}>Завантаження...</div>;
@@ -62,7 +99,7 @@ export default function ProfilePage() {
   const e = expectedScore(player.elo || 1200, opponentElo);
   const winGain = Math.round(32 * (1 - e));
   const lossDelta = Math.round(32 * (0 - e));
-  const gainThisYear = history.reduce((sum, h) => sum + h.delta, 0);
+  const totalEloGain = tournamentHistory.reduce((sum, h) => sum + (h.elo_delta || 0), 0);
 
   return (
     <div className={styles.page}>
@@ -95,7 +132,7 @@ export default function ProfilePage() {
             <StatBox value={player.elo ?? '—'} label="Рейтинг Ело" />
             <StatBox value={player.tournaments_played} label="Турнірів" />
             <StatBox value={player.tournaments_won} label="Перемог" />
-            <StatBox value={gainThisYear >= 0 ? `+${gainThisYear}` : gainThisYear} label="Ело за рік" />
+            <StatBox value={totalEloGain >= 0 ? `+${totalEloGain}` : totalEloGain} label="Ело всього" />
           </div>
 
           <div className={styles.sectionLabel}>Калькулятор Ело</div>
@@ -113,9 +150,9 @@ export default function ProfilePage() {
               className={styles.slider}
             />
             <div className={styles.calcGrid}>
-              <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="#0d2347" />
-              <CalcBox value={`+${winGain}`} label="перемога" color="#065f46" />
-              <CalcBox value={lossDelta} label="поразка" color="#9b1c1c" />
+              <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="#f0c040" />
+              <CalcBox value={`+${winGain}`} label="перемога" color="#6ee7b7" />
+              <CalcBox value={lossDelta} label="поразка" color="#fca5a5" />
             </div>
           </div>
 
@@ -123,31 +160,100 @@ export default function ProfilePage() {
           <div className={styles.card}>
             {partners.length === 0 && <div className={styles.empty}>Дані після турнірів</div>}
             {partners.map((p) => (
-              <div key={p.partner_id} className={styles.partnerRow}>
+              <div
+                key={p.partner_id}
+                className={styles.partnerRow}
+                onClick={() => openPartnerHistory(p.partner)}
+                style={{ cursor: 'pointer' }}
+              >
                 <PlayerAvatar player={p.partner} size={28} />
                 <div className={styles.partnerName}>{p.partner.full_name}</div>
-                <div className={styles.partnerMeta}>{p.games_together} разом</div>
+                <div className={styles.partnerMeta}>
+                  {p.wins_together}/{p.games_together} перемог
+                </div>
               </div>
             ))}
           </div>
 
-          <div className={styles.sectionLabel}>Історія</div>
-          {history.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}
-          {history.map((h) => (
-            <div key={h.id} className={styles.historyCard}>
+          <div className={styles.sectionLabel}>Історія турнірів</div>
+          {tournamentHistory.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}
+          {tournamentHistory.map((h) => (
+            <div
+              key={h.tournament_id}
+              className={styles.historyCard}
+              onClick={() => openTournamentDetails(h.tournament_id)}
+              style={{ cursor: 'pointer' }}
+            >
               <div>
-                <div className={styles.historyName}>{h.tournaments?.name || 'Турнір'}</div>
+                <div className={styles.historyName}>{h.tournament_name}</div>
                 <div className={styles.historyPlace}>
-                  {['🥇', '🥈', '🥉'][h.placement - 1] || ''} {h.placement}-є місце
+                  {h.placement ? `${['🥇', '🥈', '🥉'][h.placement - 1] || ''} ${h.placement}-є місце` : 'В процесі'}
                 </div>
               </div>
-              <div className={h.delta >= 0 ? styles.positive : styles.negative}>
-                {h.delta >= 0 ? '+' : ''}
-                {h.delta} Ело
-              </div>
+              {h.elo_delta !== null && (
+                <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
+                  {h.elo_delta >= 0 ? '+' : ''}
+                  {h.elo_delta} Ело
+                </div>
+              )}
             </div>
           ))}
         </>
+      )}
+
+      {openTournamentId && (
+        <div className={styles.modalOverlay} onClick={() => setOpenTournamentId(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalTitle}>Матчі турніру</div>
+            <div className={styles.modalScroll}>
+              {tournamentMatches.length === 0 && <div className={styles.empty}>Ще немає зіграних матчів</div>}
+              {tournamentMatches.map((m) => {
+                const nameA = m.team_a_players.map((id) => tournamentPlayersMap[id] || '?').join(' + ');
+                const nameB = m.team_b_players.map((id) => tournamentPlayersMap[id] || '?').join(' + ');
+                return (
+                  <div key={m.id} className={styles.matchRow}>
+                    <span className={styles.matchRound}>Р{m.round_number}</span>
+                    <span>{nameA}</span>
+                    <span className={styles.matchScore}>
+                      {m.score_a}:{m.score_b}
+                    </span>
+                    <span>{nameB}</span>
+                  </div>
+                );
+              })}
+            </div>
+            <button className={styles.modalCloseBtn} onClick={() => setOpenTournamentId(null)}>
+              Закрити
+            </button>
+          </div>
+        </div>
+      )}
+
+      {openPartner && (
+        <div className={styles.modalOverlay} onClick={() => setOpenPartner(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalHeader}>
+              <PlayerAvatar player={openPartner} size={36} />
+              <div className={styles.modalTitle}>{openPartner.full_name}</div>
+            </div>
+            <div className={styles.modalSub}>Всі спільні гри за весь час</div>
+            <div className={styles.modalScroll}>
+              {partnerMatches.length === 0 && <div className={styles.empty}>Ще немає спільних ігор</div>}
+              {partnerMatches.map((m) => (
+                <div key={m.match_id} className={styles.matchRow}>
+                  <span className={styles.matchTournament}>{m.tournament_name}</span>
+                  <span className={styles.matchScore}>
+                    {m.score_a}:{m.score_b}
+                  </span>
+                  <span className={m.won ? styles.positive : styles.negative}>{m.won ? 'Перемога' : 'Поразка'}</span>
+                </div>
+              ))}
+            </div>
+            <button className={styles.modalCloseBtn} onClick={() => setOpenPartner(null)}>
+              Закрити
+            </button>
+          </div>
+        </div>
       )}
     </div>
   );

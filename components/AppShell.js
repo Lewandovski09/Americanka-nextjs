@@ -4,6 +4,7 @@ import { usePathname } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import BottomNav from './BottomNav';
 import BeachBackground from './BeachBackground';
+import GlobalNotice from './GlobalNotice';
 
 // Pages where the bottom nav AND the dark background card should
 // NEVER show — these are the public/auth screens, which have their
@@ -25,6 +26,7 @@ export default function AppShell({ children }) {
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative' }}>
       <BeachBackground />
+      <GlobalNotice player={player} />
       <div style={{ flex: 1, position: 'relative', zIndex: 1, maxWidth: 900, width: '100%', margin: '0 auto' }}>
         {children}
       </div>

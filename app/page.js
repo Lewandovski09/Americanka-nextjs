@@ -10,8 +10,9 @@ import styles from './page.module.css';
 export default function HomePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
-  const [notice, setNotice] = useState(null);
-  const [topPlayers, setTopPlayers] = useState([]);
+  const [nextTournament, setNextTournament] = useState(null);
+  const [announcements, setAnnouncements] = useState([]);
+  const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
 
   // If nobody is logged in, send them straight to the login/register
   // screen — that screen IS the app's front door now.
@@ -21,80 +22,79 @@ export default function HomePage() {
     }
   }, [loading, player, router]);
 
-  // Show a one-time fullscreen notice based on flags stored in the
-  // database (so it works correctly even across devices/sessions,
-  // unlike the old localStorage-flag approach).
-  useEffect(() => {
-    if (!player) return;
-
-    const supabase = createClient();
-
-    async function showNoticeIfNeeded() {
-      if (!player.just_registered_notified && player.approval_status === 'pending') {
-        setNotice({
-          icon: '🎉',
-          title: 'Акаунт успішно створено!',
-          text: 'Очікуйте підтвердження рейтингу адміністратором.',
-        });
-        await supabase.from('players').update({ just_registered_notified: true }).eq('id', player.id);
-      } else if (!player.rating_approved_notified && player.approval_status === 'approved') {
-        setNotice({
-          icon: '✅',
-          title: 'Рейтинг підтверджено!',
-          text: `Стартовий рейтинг Ело: ${player.elo}. Категорія: ${categoryForElo(player.elo)?.label}.`,
-        });
-        await supabase.from('players').update({ rating_approved_notified: true }).eq('id', player.id);
-      }
-    }
-
-    showNoticeIfNeeded();
-  }, [player]);
-
   useEffect(() => {
     if (!player) return;
     const supabase = createClient();
 
-    async function loadTop() {
+    async function loadNextTournament() {
       const { data } = await supabase
-        .from('players')
-        .select('id, full_name, elo, category, photo_url, tournaments_played')
-        .eq('gender', player.gender)
-        .eq('approval_status', 'approved')
-        .order('elo', { ascending: false })
-        .limit(5);
-      setTopPlayers(data || []);
+        .from('tournaments')
+        .select('id, name, scheduled_at, location, category, gender')
+        .in('status', ['scheduled', 'live'])
+        .order('scheduled_at', { ascending: true })
+        .limit(1)
+        .maybeSingle();
+      setNextTournament(data || null);
     }
 
-    loadTop();
+    async function loadAnnouncements() {
+      const { data } = await supabase
+        .from('admin_notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(5);
+      setAnnouncements(data || []);
+    }
+
+    loadNextTournament();
+    loadAnnouncements();
   }, [player]);
 
   if (loading || !player) return <div className={styles.loading}>Завантаження...</div>;
 
   return (
     <div className={styles.page}>
-      {notice && (
-        <div className={styles.overlay} onClick={() => setNotice(null)}>
-          <div className={styles.noticeBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.noticeIcon}>{notice.icon}</div>
-            <div className={styles.noticeTitle}>{notice.title}</div>
-            <div className={styles.noticeText}>{notice.text}</div>
-            <button className={styles.noticeBtn} onClick={() => setNotice(null)}>
-              Зрозуміло
-            </button>
-          </div>
-        </div>
-      )}
-
       <div className={styles.hero}>
         <div className={styles.heroBrand}>★ AMERICANKA ★</div>
         <div className={styles.heroSub}>ПЛЯЖ 13 · СТАНЦІЯ ФОНТАНА · ОДЕСА</div>
-        <div className={styles.heroInfo}>
-          Американка 2x2 · 8 гравців · 7 раундів · Сума рахунку <b>31</b>
-        </div>
       </div>
 
       {player.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
+      )}
+
+      {announcements.length > 0 && (
+        <>
+          <div className={styles.sectionLabel}>Оголошення</div>
+          {announcements.map((a) => (
+            <div key={a.id} className={styles.announcementCard}>
+              <div className={styles.announcementTitle}>📢 {a.title}</div>
+              <div className={styles.announcementBody}>{a.body}</div>
+              <div className={styles.announcementDate}>
+                {new Date(a.created_at).toLocaleDateString('uk', { day: 'numeric', month: 'long' })}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
+
+      <div className={styles.sectionLabel}>Найближчий турнір</div>
+      {nextTournament ? (
+        <div className={styles.nextTournamentCard}>
+          <div className={styles.nextTournamentName}>{nextTournament.name}</div>
+          <div className={styles.nextTournamentMeta}>
+            {new Date(nextTournament.scheduled_at).toLocaleString('uk', {
+              dateStyle: 'full',
+              timeStyle: 'short',
+            })}
+          </div>
+          <div className={styles.nextTournamentMeta}>
+            {nextTournament.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {nextTournament.category} ·{' '}
+            {nextTournament.gender === 'M' ? 'Чоловіки' : 'Жінки'}
+          </div>
+        </div>
+      ) : (
+        <div className={styles.empty}>Найближчих турнірів немає</div>
       )}
 
       <div className={styles.statsGrid}>
@@ -107,22 +107,26 @@ export default function HomePage() {
         />
       </div>
 
-      <div className={styles.sectionLabel}>Топ {player.gender === 'M' ? 'чоловіки' : 'жінки'}</div>
-      <div>
-        {topPlayers.map((p, i) => (
-          <div key={p.id} className={styles.playerRow}>
-            <div className={styles.rank}>{['🥇', '🥈', '🥉'][i] || i + 1}</div>
-            <div className={styles.avatar}>{p.photo_url ? <img src={p.photo_url} alt="" /> : p.full_name[0]}</div>
-            <div className={styles.playerInfo}>
-              <div className={styles.playerName}>{p.full_name}</div>
-              <div className={styles.playerMeta}>
-                {categoryForElo(p.elo)?.label} · {p.tournaments_played} турн.
-              </div>
-            </div>
-            <div className={styles.playerElo}>{p.elo}</div>
-          </div>
-        ))}
-      </div>
+      <button className={styles.eloExplainerToggle} onClick={() => setEloExplainerOpen((o) => !o)}>
+        <span>Що таке рейтинг Ело і як він рахується?</span>
+        <span className={styles.eloExplainerArrow}>{eloExplainerOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {eloExplainerOpen && (
+        <div className={styles.eloExplainerBody}>
+          <p>
+            Рейтинг Ело — це система оцінки сили гравця, яка змінюється після кожного турніру залежно від результатів.
+          </p>
+          <p>
+            Якщо ви перемагаєте сильнішого суперника — отримуєте більше очок. Якщо втрачаєте слабшому — втрачаєте
+            більше очок. Перемога над рівним за силою суперником дає приблизно <b>+16</b> очок.
+          </p>
+          <p>
+            Категорії за рейтингом: <b>D</b> (новачки, ~950), <b>C</b> (любителі, ~1250), <b>B</b> (досвідчені, ~1550),{' '}
+            <b>A</b> (просунуті, ~1850).
+          </p>
+        </div>
+      )}
     </div>
   );
 }

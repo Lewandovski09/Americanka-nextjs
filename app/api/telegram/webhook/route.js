@@ -4,6 +4,7 @@
 // then need in order to push them verification codes.
 
 import { createAdminClient } from '@/lib/supabase/admin';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 export async function POST(request) {
   const update = await request.json();
@@ -41,6 +42,23 @@ export async function POST(request) {
   await supabaseAdmin
     .from('telegram_pending_links')
     .upsert({ telegram_username: username.toLowerCase(), chat_id: chatId, updated_at: new Date().toISOString() });
+
+  // Welcome message, only for the initial /start (not every message
+  // the user sends afterwards) — guides them back to the app to
+  // request the code.
+  const isStartCommand = message.text === '/start';
+  if (isStartCommand) {
+    try {
+      await sendTelegramMessage(
+        chatId,
+        '★ <b>Вітаємо в AMERICANKA!</b> ★\n\n' +
+          'Тепер поверніться у застосунок і натисніть «Отримати код» — код прийде сюди, в Telegram.'
+      );
+    } catch (e) {
+      console.error('[Telegram webhook] Failed to send welcome message:', e.message);
+      // Non-fatal — the chat_id link itself already succeeded above.
+    }
+  }
 
   return Response.json({ ok: true });
 }

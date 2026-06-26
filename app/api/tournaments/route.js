@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { buildMatchesForTournament } from '@/lib/tournamentEngine';
+import { sendTelegramMessage } from '@/lib/telegram';
 
 export async function POST(request) {
   const supabase = createClient();
@@ -87,6 +88,25 @@ export async function POST(request) {
   }));
 
   await supabaseAdmin.from('matches').insert(matchRows);
+
+  // Notify the invited players in Telegram, best-effort — failures
+  // here don't fail the tournament creation itself.
+  const { data: invitedPlayers } = await supabaseAdmin
+    .from('players')
+    .select('telegram_chat_id, full_name')
+    .in('id', playerIds)
+    .not('telegram_chat_id', 'is', null);
+
+  const text =
+    `🏆 <b>Новий турнір!</b>\n\n` +
+    `<b>${name}</b>\n` +
+    `${new Date(scheduledAt).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })}\n` +
+    `${location === 'beach13' ? 'Beach 13' : 'Dynamo SC'}\n\n` +
+    `Ви запрошені! Заходьте в застосунок, щоб переглянути деталі.`;
+
+  await Promise.allSettled(
+    (invitedPlayers || []).map((p) => sendTelegramMessage(p.telegram_chat_id, text))
+  );
 
   return Response.json({ success: true, tournament });
 }

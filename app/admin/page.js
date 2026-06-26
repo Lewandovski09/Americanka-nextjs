@@ -13,6 +13,13 @@ export default function AdminPage() {
   const [males, setMales] = useState([]);
   const [females, setFemales] = useState([]);
   const [selectedCategory, setSelectedCategory] = useState({});
+  const [stats, setStats] = useState(null);
+  const [showMaleList, setShowMaleList] = useState(false);
+  const [showFemaleList, setShowFemaleList] = useState(false);
+  const [notifTitle, setNotifTitle] = useState('');
+  const [notifBody, setNotifBody] = useState('');
+  const [notifSending, setNotifSending] = useState(false);
+  const [notifSent, setNotifSent] = useState(false);
 
   async function load() {
     const supabase = createClient();
@@ -35,14 +42,45 @@ export default function AdminPage() {
       .neq('approval_status', 'pending')
       .order('elo', { ascending: false });
     setFemales(f || []);
+
+    const { count: doneCount } = await supabase
+      .from('tournaments')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'done');
+    const { count: liveCount } = await supabase
+      .from('tournaments')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'live');
+    const { count: scheduledCount } = await supabase
+      .from('tournaments')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', 'scheduled');
+    const { count: matchesPlayed } = await supabase
+      .from('matches')
+      .select('id', { count: 'exact', head: true })
+      .eq('played', true);
+
+    setStats({
+      maleCount: (m || []).length,
+      femaleCount: (f || []).length,
+      pendingCount: (p || []).length,
+      doneCount: doneCount || 0,
+      liveCount: liveCount || 0,
+      scheduledCount: scheduledCount || 0,
+      matchesPlayed: matchesPlayed || 0,
+    });
   }
 
   useEffect(() => {
     load();
   }, []);
 
-  async function handleApprove(playerId, suggestedCategory) {
-    const category = selectedCategory[playerId] || suggestedCategory || 'C';
+  async function handleApprove(playerId) {
+    const category = selectedCategory[playerId];
+    if (!category) {
+      alert('Спочатку оберіть категорію рейтингу для цього гравця');
+      return;
+    }
     const elo = CATEGORY_STARTING_ELO[category];
 
     await fetch(`/api/admin/players/${playerId}/approve`, {
@@ -71,9 +109,106 @@ export default function AdminPage() {
     load();
   }
 
+  async function handleSendNotification() {
+    if (!notifTitle.trim() || !notifBody.trim()) {
+      alert("Заповніть заголовок і текст повідомлення");
+      return;
+    }
+    setNotifSending(true);
+    const res = await fetch('/api/admin/notifications', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ title: notifTitle, body: notifBody }),
+    });
+    const data = await res.json();
+    setNotifSending(false);
+
+    if (data.success) {
+      setNotifTitle('');
+      setNotifBody('');
+      setNotifSent(true);
+      setTimeout(() => setNotifSent(false), 3000);
+    } else {
+      alert(data.error || 'Не вдалося надіслати повідомлення');
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Адмін-панель</h2>
+
+      {stats && (
+        <div className={styles.statsGrid}>
+          <button className={styles.statBox} onClick={() => setShowMaleList((s) => !s)}>
+            <div className={styles.statValue}>{stats.maleCount}</div>
+            <div className={styles.statLabel}>Чоловіків</div>
+          </button>
+          <button className={styles.statBox} onClick={() => setShowFemaleList((s) => !s)}>
+            <div className={styles.statValue}>{stats.femaleCount}</div>
+            <div className={styles.statLabel}>Жінок</div>
+          </button>
+          <div className={styles.statBox}>
+            <div className={styles.statValue}>{stats.doneCount}</div>
+            <div className={styles.statLabel}>Завершено турнірів</div>
+          </div>
+          <div className={styles.statBox}>
+            <div className={styles.statValue}>{stats.liveCount}</div>
+            <div className={styles.statLabel}>Активних турнірів</div>
+          </div>
+          <div className={styles.statBox}>
+            <div className={styles.statValue}>{stats.scheduledCount}</div>
+            <div className={styles.statLabel}>Запланованих</div>
+          </div>
+          <div className={styles.statBox}>
+            <div className={styles.statValue}>{stats.matchesPlayed}</div>
+            <div className={styles.statLabel}>Зіграних ігор</div>
+          </div>
+        </div>
+      )}
+
+      {showMaleList && (
+        <div className={styles.quickList}>
+          {males.map((p) => (
+            <div key={p.id} className={styles.quickListRow}>
+              <PlayerAvatar player={p} size={26} />
+              <span>{p.full_name}</span>
+              <span className={styles.quickListElo}>{p.elo}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showFemaleList && (
+        <div className={styles.quickList}>
+          {females.map((p) => (
+            <div key={p.id} className={styles.quickListRow}>
+              <PlayerAvatar player={p} size={26} />
+              <span>{p.full_name}</span>
+              <span className={styles.quickListElo}>{p.elo}</span>
+            </div>
+          ))}
+        </div>
+      )}
+
+      <div className={styles.sectionLabel}>Надіслати оголошення</div>
+      <div className={styles.notifCard}>
+        <input
+          className={styles.notifInput}
+          placeholder="Заголовок"
+          value={notifTitle}
+          onChange={(e) => setNotifTitle(e.target.value)}
+        />
+        <textarea
+          className={styles.notifTextarea}
+          placeholder="Текст повідомлення для всіх учасників..."
+          value={notifBody}
+          onChange={(e) => setNotifBody(e.target.value)}
+          rows={3}
+        />
+        <button className={styles.notifSendBtn} disabled={notifSending} onClick={handleSendNotification}>
+          {notifSending ? 'Надсилання...' : notifSent ? '✓ Надіслано!' : 'Надіслати всім'}
+        </button>
+      </div>
 
       <div className={styles.sectionLabel}>
         Нові реєстрації {pending.length > 0 && <span className={styles.countBadge}>{pending.length}</span>}
@@ -90,16 +225,17 @@ export default function AdminPage() {
               <div className={styles.pendingMeta}>
                 @{p.login} · {p.gender === 'M' ? 'Чоловік' : 'Жінка'}
               </div>
+              {p.requested_category && (
+                <div className={styles.requestedBadge}>Запросив категорію: {p.requested_category}</div>
+              )}
             </div>
           </div>
-          <div className={styles.categoryLabel}>Оберіть категорію рейтингу:</div>
+          <div className={styles.categoryLabel}>Оберіть категорію рейтингу (обов&apos;язково):</div>
           <div className={styles.categoryRow}>
             {CATEGORY_LETTERS.map((cat) => (
               <button
                 key={cat}
-                className={`${styles.categoryChip} ${
-                  (selectedCategory[p.id] || p.category) === cat ? styles.categoryChipOn : ''
-                }`}
+                className={`${styles.categoryChip} ${selectedCategory[p.id] === cat ? styles.categoryChipOn : ''}`}
                 onClick={() => setSelectedCategory((prev) => ({ ...prev, [p.id]: cat }))}
               >
                 {cat}
@@ -107,7 +243,11 @@ export default function AdminPage() {
             ))}
           </div>
           <div className={styles.actionRow}>
-            <button className={styles.approveBtn} onClick={() => handleApprove(p.id, p.category)}>
+            <button
+              className={styles.approveBtn}
+              disabled={!selectedCategory[p.id]}
+              onClick={() => handleApprove(p.id)}
+            >
               Підтвердити
             </button>
             <button className={styles.rejectBtn} onClick={() => handleReject(p.id)}>

@@ -164,3 +164,124 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+.statsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 16px;
+}
+
+@media (min-width: 700px) {
+  .statsGrid {
+    grid-template-columns: 1fr 1fr 1fr;
+  }
+}
+
+.statBox {
+  background: rgba(255, 255, 255, 0.06);
+  border-radius: 12px;
+  padding: 14px;
+  border: 1px solid rgba(240, 192, 64, 0.18);
+  text-align: left;
+  cursor: pointer;
+  font-family: inherit;
+}
+
+.statValue {
+  font-size: 22px;
+  font-weight: 800;
+  color: #f0c040;
+}
+
+.statLabel {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  text-transform: uppercase;
+  font-weight: 600;
+  margin-top: 2px;
+}
+
+.quickList {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 12px;
+  padding: 10px;
+  margin-bottom: 14px;
+  max-height: 240px;
+  overflow-y: auto;
+}
+
+.quickListRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 13px;
+  color: #fff;
+}
+
+.quickListElo {
+  margin-left: auto;
+  color: #f0c040;
+  font-weight: 700;
+}
+
+.notifCard {
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 6px;
+}
+
+.notifInput {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.notifTextarea {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border-radius: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  font-size: 14px;
+  margin-bottom: 10px;
+  resize: vertical;
+  font-family: inherit;
+}
+
+.notifSendBtn {
+  width: 100%;
+  padding: 12px;
+  background: linear-gradient(135deg, #f0c040, #d4a017);
+  color: #0d2347;
+  border: none;
+  border-radius: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.notifSendBtn:disabled {
+  opacity: 0.5;
+}
+
+.requestedBadge {
+  font-size: 11px;
+  color: #f0c040;
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.approveBtn:disabled {
+  opacity: 0.4;
+  cursor: not-allowed;
+}

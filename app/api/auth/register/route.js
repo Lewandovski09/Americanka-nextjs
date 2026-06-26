@@ -83,8 +83,7 @@ export async function POST(request) {
       photo_url: photoUrl,
       gender,
       approval_status: 'pending',
-      // category is the player's SELF-reported guess; admin sets the
-      // real elo/category on approval.
+      requested_category: category, // what the player asked for; admin sets the real category/elo on approval
     });
 
     if (profileError) {
