@@ -22,7 +22,7 @@
 
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--bg);
+  background: var(--navy);
   color: var(--text);
 }
 

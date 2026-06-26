@@ -5,27 +5,40 @@
   position: sticky;
   bottom: 0;
   z-index: 10;
+  /* Account for iOS home indicator / Android gesture bar so the
+     real tappable buttons aren't hidden behind system UI. */
+  padding-bottom: env(safe-area-inset-bottom, 0px);
 }
 
 .navBtn {
   flex: 1;
-  padding: 9px 2px 11px;
+  min-height: 56px;
+  padding: 10px 4px;
   display: flex;
+  flex-direction: column;
   align-items: center;
   justify-content: center;
+  gap: 3px;
   text-align: center;
   background: none;
   border: none;
   border-top: 3px solid transparent;
   cursor: pointer;
-  font-size: 8px;
-  color: rgba(255, 255, 255, 0.45);
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
   font-weight: 600;
-  letter-spacing: 0.4px;
+  letter-spacing: 0.3px;
   text-decoration: none;
 }
 
 .navBtnOn {
   color: var(--sand, #f0c040);
   border-top-color: var(--sand, #f0c040);
+}
+
+@media (min-width: 700px) {
+  .navBtn {
+    min-height: 64px;
+    font-size: 13px;
+  }
 }

@@ -1,136 +1,157 @@
 .page {
-  max-width: 430px;
   margin: 0 auto;
   padding: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 700px) {
+  .page {
+    padding: 28px;
+    max-width: 600px;
+  }
 }
 
 .title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 16px;
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 18px;
 }
 
 .label {
   font-size: 11px;
-  color: var(--text2, #6b6b6b);
+  color: rgba(255, 255, 255, 0.5);
   display: block;
-  margin-bottom: 5px;
+  margin-bottom: 6px;
   font-weight: 700;
   text-transform: uppercase;
+  letter-spacing: 0.3px;
 }
 
 .input {
   width: 100%;
-  padding: 11px 13px;
-  border: 1.5px solid var(--border, #ddd0a8);
+  padding: 12px 14px;
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
   border-radius: 10px;
-  font-size: 13px;
-  background: var(--card, #fffef9);
-  margin-bottom: 12px;
+  font-size: 16px;
+  background: rgba(255, 255, 255, 0.05);
+  color: #fff;
+  margin-bottom: 14px;
+}
+
+.input:focus {
+  outline: none;
+  border-color: #f0c040;
 }
 
 .row {
   display: flex;
   gap: 8px;
-  margin-bottom: 12px;
+  margin-bottom: 14px;
 }
 
 .optionBtn {
   flex: 1;
-  padding: 10px;
+  padding: 11px;
   border-radius: 10px;
-  border: 1.5px solid var(--border, #ddd0a8);
-  background: var(--card, #fffef9);
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
+  color: rgba(255, 255, 255, 0.6);
 }
 
 .optionBtnOn {
-  border-color: var(--navy, #0d2347);
-  background: #eef3ff;
-  color: var(--navy, #0d2347);
+  border-color: #f0c040;
+  background: rgba(240, 192, 64, 0.15);
+  color: #f0c040;
 }
 
 .chipsRow {
   display: flex;
-  gap: 5px;
-  margin-bottom: 12px;
+  gap: 6px;
+  margin-bottom: 14px;
   flex-wrap: wrap;
 }
 
 .chip {
-  padding: 5px 13px;
+  padding: 6px 16px;
   border-radius: 20px;
-  font-size: 11px;
-  border: 1px solid var(--border, #ddd0a8);
-  background: var(--card, #fffef9);
+  font-size: 12px;
+  border: 1px solid rgba(240, 192, 64, 0.2);
+  background: rgba(255, 255, 255, 0.05);
   cursor: pointer;
+  color: rgba(255, 255, 255, 0.6);
+  font-weight: 600;
 }
 
 .chipOn {
-  background: var(--navy, #0d2347);
-  border-color: var(--navy, #0d2347);
-  color: #fff;
+  background: #f0c040;
+  border-color: #f0c040;
+  color: #0d2347;
 }
 
 .playerRow {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  padding: 10px 13px;
-  background: var(--card, #fffef9);
-  border: 1.5px solid var(--border, #ddd0a8);
+  padding: 12px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid rgba(240, 192, 64, 0.15);
   border-radius: 12px;
-  margin-bottom: 6px;
+  margin-bottom: 7px;
   cursor: pointer;
 }
 
 .playerRowOn {
-  border-color: var(--navy, #0d2347);
-  background: #eef3ff;
+  border-color: #f0c040;
+  background: rgba(240, 192, 64, 0.12);
 }
 
 .playerName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
+  color: #fff;
 }
 
 .playerElo {
   font-size: 12px;
-  color: var(--text2, #6b6b6b);
+  color: rgba(255, 255, 255, 0.5);
 }
 
 .empty {
   text-align: center;
-  padding: 12px;
-  color: var(--text2, #6b6b6b);
+  padding: 14px;
+  color: rgba(255, 255, 255, 0.4);
   font-size: 13px;
 }
 
 .errMsg {
   font-size: 12px;
-  color: #9b1c1c;
+  color: #fca5a5;
   margin: 10px 0;
-  padding: 10px 13px;
-  background: #fef2f2;
-  border-radius: 9px;
-  border: 1px solid #fecaca;
+  padding: 11px 14px;
+  background: rgba(252, 165, 165, 0.1);
+  border-radius: 10px;
+  border: 1px solid rgba(252, 165, 165, 0.3);
 }
 
 .btnPrimary {
   width: 100%;
-  padding: 13px;
-  background: var(--navy, #0d2347);
-  color: #fff;
+  padding: 14px;
+  background: linear-gradient(135deg, #f0c040, #d4a017);
+  color: #0d2347;
   border: none;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
+  border-radius: 14px;
+  font-size: 15px;
+  font-weight: 800;
   cursor: pointer;
-  margin-top: 8px;
+  margin-top: 10px;
 }
 
 .btnPrimary:disabled {
-  background: #bbb;
+  background: rgba(255, 255, 255, 0.1);
+  color: rgba(255, 255, 255, 0.3);
 }

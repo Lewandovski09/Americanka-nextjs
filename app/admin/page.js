@@ -6,11 +6,13 @@ import { CATEGORY_STARTING_ELO } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './admin.module.css';
 
+const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
+
 export default function AdminPage() {
   const [pending, setPending] = useState([]);
   const [males, setMales] = useState([]);
   const [females, setFemales] = useState([]);
-  const [eloInputs, setEloInputs] = useState({});
+  const [selectedCategory, setSelectedCategory] = useState({});
 
   async function load() {
     const supabase = createClient();
@@ -39,14 +41,14 @@ export default function AdminPage() {
     load();
   }, []);
 
-  async function handleApprove(playerId) {
-    const category = pending.find((p) => p.id === playerId)?.category || 'C';
-    const elo = eloInputs[playerId] || CATEGORY_STARTING_ELO[category];
+  async function handleApprove(playerId, suggestedCategory) {
+    const category = selectedCategory[playerId] || suggestedCategory || 'C';
+    const elo = CATEGORY_STARTING_ELO[category];
 
     await fetch(`/api/admin/players/${playerId}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ elo: Number(elo), category }),
+      body: JSON.stringify({ elo, category }),
     });
     load();
   }
@@ -57,13 +59,14 @@ export default function AdminPage() {
     load();
   }
 
-  async function handleEditElo(playerId, currentElo) {
-    const newElo = prompt(`Новий Ело (поточний: ${currentElo}):`);
-    if (!newElo) return;
+  async function handleEditCategory(playerId) {
+    const newCategory = prompt('Нова категорія (D, C, B або A):');
+    if (!newCategory || !CATEGORY_LETTERS.includes(newCategory.toUpperCase())) return;
+    const elo = CATEGORY_STARTING_ELO[newCategory.toUpperCase()];
     await fetch(`/api/admin/players/${playerId}/edit-elo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ elo: Number(newElo) }),
+      body: JSON.stringify({ elo }),
     });
     load();
   }
@@ -85,18 +88,26 @@ export default function AdminPage() {
             <div>
               <div className={styles.pendingName}>{p.full_name}</div>
               <div className={styles.pendingMeta}>
-                @{p.login} · {p.gender === 'M' ? 'Чоловік' : 'Жінка'} · Кат. {p.category}
+                @{p.login} · {p.gender === 'M' ? 'Чоловік' : 'Жінка'}
               </div>
             </div>
           </div>
-          <input
-            type="number"
-            className={styles.eloInput}
-            placeholder={`Ело (за замовч. ${CATEGORY_STARTING_ELO[p.category]})`}
-            onChange={(e) => setEloInputs((prev) => ({ ...prev, [p.id]: e.target.value }))}
-          />
+          <div className={styles.categoryLabel}>Оберіть категорію рейтингу:</div>
+          <div className={styles.categoryRow}>
+            {CATEGORY_LETTERS.map((cat) => (
+              <button
+                key={cat}
+                className={`${styles.categoryChip} ${
+                  (selectedCategory[p.id] || p.category) === cat ? styles.categoryChipOn : ''
+                }`}
+                onClick={() => setSelectedCategory((prev) => ({ ...prev, [p.id]: cat }))}
+              >
+                {cat}
+              </button>
+            ))}
+          </div>
           <div className={styles.actionRow}>
-            <button className={styles.approveBtn} onClick={() => handleApprove(p.id)}>
+            <button className={styles.approveBtn} onClick={() => handleApprove(p.id, p.category)}>
               Підтвердити
             </button>
             <button className={styles.rejectBtn} onClick={() => handleReject(p.id)}>
@@ -108,29 +119,29 @@ export default function AdminPage() {
 
       <div className={styles.sectionLabel}>Гравці · Чоловіки</div>
       {males.map((p) => (
-        <PlayerRow key={p.id} player={p} onEditElo={() => handleEditElo(p.id, p.elo)} />
+        <PlayerRow key={p.id} player={p} onEditCategory={() => handleEditCategory(p.id)} />
       ))}
 
       <div className={styles.sectionLabel}>Гравці · Жінки</div>
       {females.map((p) => (
-        <PlayerRow key={p.id} player={p} onEditElo={() => handleEditElo(p.id, p.elo)} />
+        <PlayerRow key={p.id} player={p} onEditCategory={() => handleEditCategory(p.id)} />
       ))}
     </div>
   );
 }
 
-function PlayerRow({ player, onEditElo }) {
+function PlayerRow({ player, onEditCategory }) {
   return (
     <div className={styles.playerRow}>
       <PlayerAvatar player={player} size={32} />
       <div className={styles.playerInfo}>
         <div className={styles.playerName}>{player.full_name}</div>
         <div className={styles.playerMeta}>
-          @{player.login} · {player.elo ?? '—'} Ело
+          @{player.login} · {player.elo ?? '—'} Ело · Кат. {player.category ?? '—'}
         </div>
       </div>
-      <button className={styles.editEloBtn} onClick={onEditElo}>
-        Змінити Ело
+      <button className={styles.editEloBtn} onClick={onEditCategory}>
+        Змінити категорію
       </button>
     </div>
   );

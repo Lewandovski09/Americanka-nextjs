@@ -1,21 +1,30 @@
 .page {
-  max-width: 430px;
   margin: 0 auto;
   padding: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 700px) {
+  .page {
+    padding: 28px;
+  }
 }
 
 .title {
-  font-size: 16px;
-  font-weight: 700;
-  margin-bottom: 16px;
+  font-size: 18px;
+  font-weight: 800;
+  color: #fff;
+  margin-bottom: 18px;
 }
 
 .sectionLabel {
-  font-size: 10px;
+  font-size: 11px;
   font-weight: 700;
-  color: var(--text2, #6b6b6b);
+  color: rgba(255, 255, 255, 0.45);
   text-transform: uppercase;
-  margin: 16px 0 8px;
+  letter-spacing: 1px;
+  margin: 18px 0 10px;
 }
 
 .countBadge {
@@ -28,40 +37,65 @@
 
 .empty {
   font-size: 13px;
-  color: var(--text2, #6b6b6b);
+  color: rgba(255, 255, 255, 0.4);
 }
 
 .pendingCard {
-  background: var(--card, #fffef9);
-  border-left: 3px solid var(--rust, #c0392b);
-  border-radius: 12px;
-  padding: 12px;
-  margin-bottom: 10px;
+  background: rgba(255, 255, 255, 0.05);
+  border-left: 3px solid #c0392b;
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 14px;
+  padding: 14px;
+  margin-bottom: 12px;
 }
 
 .pendingHeader {
   display: flex;
   align-items: center;
   gap: 10px;
-  margin-bottom: 10px;
+  margin-bottom: 12px;
 }
 
 .pendingName {
-  font-size: 14px;
+  font-size: 15px;
   font-weight: 700;
+  color: #fff;
 }
 
 .pendingMeta {
-  font-size: 11px;
-  color: var(--text2, #6b6b6b);
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.45);
 }
 
-.eloInput {
-  width: 100%;
-  padding: 9px 12px;
-  border: 1.5px solid var(--border, #ddd0a8);
-  border-radius: 10px;
+.categoryLabel {
+  font-size: 11px;
+  color: rgba(255, 255, 255, 0.5);
   margin-bottom: 8px;
+  font-weight: 600;
+}
+
+.categoryRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.categoryChip {
+  flex: 1;
+  padding: 11px;
+  border-radius: 10px;
+  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  background: rgba(255, 255, 255, 0.05);
+  cursor: pointer;
+  font-size: 16px;
+  font-weight: 700;
+  color: rgba(255, 255, 255, 0.6);
+}
+
+.categoryChipOn {
+  border-color: #f0c040;
+  background: #f0c040;
+  color: #0d2347;
 }
 
 .actionRow {
@@ -71,9 +105,9 @@
 
 .approveBtn {
   flex: 1;
-  padding: 9px;
-  background: var(--navy, #0d2347);
-  color: #fff;
+  padding: 11px;
+  background: #f0c040;
+  color: #0d2347;
   border: none;
   border-radius: 10px;
   font-weight: 700;
@@ -82,10 +116,10 @@
 
 .rejectBtn {
   flex: 1;
-  padding: 9px;
+  padding: 11px;
   background: transparent;
-  color: var(--rust, #c0392b);
-  border: 1.5px solid var(--rust, #c0392b);
+  color: #fca5a5;
+  border: 1.5px solid #fca5a5;
   border-radius: 10px;
   cursor: pointer;
 }
@@ -94,11 +128,11 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 9px 12px;
-  background: var(--card, #fffef9);
-  border: 1px solid var(--border, #ddd0a8);
-  border-radius: 12px;
-  margin-bottom: 6px;
+  padding: 11px 14px;
+  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid rgba(240, 192, 64, 0.12);
+  border-radius: 14px;
+  margin-bottom: 7px;
 }
 
 .playerInfo {
@@ -107,8 +141,9 @@
 }
 
 .playerName {
-  font-size: 13px;
+  font-size: 14px;
   font-weight: 700;
+  color: #fff;
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -116,14 +151,16 @@
 
 .playerMeta {
   font-size: 11px;
-  color: var(--text2, #6b6b6b);
+  color: rgba(255, 255, 255, 0.45);
 }
 
 .editEloBtn {
-  font-size: 10px;
-  color: var(--navy, #0d2347);
+  font-size: 11px;
+  color: #f0c040;
   background: none;
-  border: none;
+  border: 1px solid rgba(240, 192, 64, 0.3);
+  border-radius: 8px;
+  padding: 6px 10px;
   font-weight: 700;
   cursor: pointer;
 }

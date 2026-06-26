@@ -3,7 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { categoryForElo } from '@/lib/elo';
+import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
 import styles from './create.module.css';
 
 export default function CreateTournamentPage() {
@@ -36,14 +36,7 @@ export default function CreateTournamentPage() {
   useEffect(() => {
     async function loadPlayers() {
       const supabase = createClient();
-      const range = categoryForElo(1000)?.range; // placeholder, real filter below
-      const catDef = [
-        { id: 'D', range: [800, 1000] },
-        { id: 'C', range: [1000, 1200] },
-        { id: 'B', range: [1200, 1500] },
-        { id: 'A', range: [1500, 1800] },
-        { id: 'Open', range: [1800, 2200] },
-      ].find((c) => c.id === category);
+      const catDef = SKILL_CATEGORIES.find((c) => c.id === category);
 
       const { data } = await supabase
         .from('players')
@@ -159,7 +152,7 @@ export default function CreateTournamentPage() {
 
       <label className={styles.label}>Категорія</label>
       <div className={styles.chipsRow}>
-        {['D', 'C', 'B', 'A', 'Open'].map((c) => (
+        {['D', 'C', 'B', 'A'].map((c) => (
           <button key={c} className={`${styles.chip} ${category === c ? styles.chipOn : ''}`} onClick={() => setCategory(c)}>
             {c}
           </button>
