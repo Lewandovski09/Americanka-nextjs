@@ -2,6 +2,7 @@
 
 import Link from 'next/link';
 import { usePathname } from 'next/navigation';
+import { useEffect, useRef, useState } from 'react';
 import styles from './BottomNav.module.css';
 
 function HomeIcon({ active }) {
@@ -56,15 +57,36 @@ const ITEMS = [
 export default function BottomNav({ isAdmin }) {
   const pathname = usePathname();
   const items = isAdmin ? [...ITEMS, { href: '/admin', label: 'АДМІН', Icon: AdminIcon }] : ITEMS;
+  const [shrunk, setShrunk] = useState(false);
+  const lastScrollY = useRef(0);
+
+  useEffect(() => {
+    function handleScroll() {
+      const currentY = window.scrollY;
+      const scrollingDown = currentY > lastScrollY.current;
+      // Shrink only once the user has scrolled a meaningful amount,
+      // so tiny jitters near the top don't trigger it.
+      setShrunk(scrollingDown && currentY > 80);
+      lastScrollY.current = currentY;
+    }
+    window.addEventListener('scroll', handleScroll, { passive: true });
+    return () => window.removeEventListener('scroll', handleScroll);
+  }, []);
 
   return (
-    <nav className={styles.nav}>
+    <nav className={`${styles.nav} ${shrunk ? styles.navShrunk : ''}`}>
       {items.map((item) => {
         const active = pathname === item.href;
         return (
-          <Link key={item.href} href={item.href} className={`${styles.navBtn} ${active ? styles.navBtnOn : ''}`}>
-            <item.Icon active={active} />
-            <span>{item.label}</span>
+          <Link
+            key={item.href}
+            href={item.href}
+            className={`${styles.navBtn} ${active ? styles.navBtnOn : ''} ${shrunk ? styles.navBtnShrunk : ''}`}
+          >
+            <span className={styles.navTile}>
+              <item.Icon active={active} />
+            </span>
+            <span className={styles.navLabel}>{item.label}</span>
           </Link>
         );
       })}

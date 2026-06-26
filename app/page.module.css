@@ -73,9 +73,10 @@
 .hero {
   background: linear-gradient(135deg, #16306b 0%, #0d2347 100%);
   border-radius: 18px;
-  padding: 20px 22px;
+  padding: 22px;
   margin-bottom: 14px;
   border: 1px solid rgba(240, 192, 64, 0.25);
+  text-align: center;
 }
 
 .heroBrand {
@@ -323,4 +324,25 @@
 
 .eloExplainerBody p:last-child {
   margin-bottom: 0;
+}
+
+.formatsCard {
+  background: rgba(255, 255, 255, 0.04);
+  border: 1px solid rgba(240, 192, 64, 0.15);
+  border-radius: 14px;
+  padding: 16px;
+  margin-top: 14px;
+}
+
+.formatsTitle {
+  font-size: 14px;
+  font-weight: 700;
+  color: #f0c040;
+  margin-bottom: 8px;
+}
+
+.formatsText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.6;
 }

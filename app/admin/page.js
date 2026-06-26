@@ -16,6 +16,8 @@ export default function AdminPage() {
   const [stats, setStats] = useState(null);
   const [showMaleList, setShowMaleList] = useState(false);
   const [showFemaleList, setShowFemaleList] = useState(false);
+  const [showFormatBreakdown, setShowFormatBreakdown] = useState(false);
+  const [formatBreakdown, setFormatBreakdown] = useState([]);
   const [notifTitle, setNotifTitle] = useState('');
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
@@ -47,28 +49,39 @@ export default function AdminPage() {
       .from('tournaments')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'done');
-    const { count: liveCount } = await supabase
-      .from('tournaments')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'live');
-    const { count: scheduledCount } = await supabase
-      .from('tournaments')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'scheduled');
     const { count: matchesPlayed } = await supabase
       .from('matches')
       .select('id', { count: 'exact', head: true })
       .eq('played', true);
+
+    const categoryCounts = { D: 0, C: 0, B: 0, A: 0 };
+    [...(m || []), ...(f || [])].forEach((pl) => {
+      if (pl.category && categoryCounts[pl.category] !== undefined) categoryCounts[pl.category]++;
+    });
 
     setStats({
       maleCount: (m || []).length,
       femaleCount: (f || []).length,
       pendingCount: (p || []).length,
       doneCount: doneCount || 0,
-      liveCount: liveCount || 0,
-      scheduledCount: scheduledCount || 0,
       matchesPlayed: matchesPlayed || 0,
+      categoryCounts,
     });
+  }
+
+  async function loadFormatBreakdown() {
+    const supabase = createClient();
+    const { data: tournaments } = await supabase
+      .from('tournaments')
+      .select('tournament_formats(display_name)')
+      .eq('status', 'done');
+
+    const counts = {};
+    (tournaments || []).forEach((t) => {
+      const name = t.tournament_formats?.display_name || 'Невідомий формат';
+      counts[name] = (counts[name] || 0) + 1;
+    });
+    setFormatBreakdown(Object.entries(counts).map(([name, count]) => ({ name, count })));
   }
 
   useEffect(() => {
@@ -147,22 +160,43 @@ export default function AdminPage() {
             <div className={styles.statValue}>{stats.femaleCount}</div>
             <div className={styles.statLabel}>Жінок</div>
           </button>
-          <div className={styles.statBox}>
+          <button
+            className={styles.statBox}
+            onClick={() => {
+              setShowFormatBreakdown((s) => !s);
+              if (!showFormatBreakdown) loadFormatBreakdown();
+            }}
+          >
             <div className={styles.statValue}>{stats.doneCount}</div>
             <div className={styles.statLabel}>Завершено турнірів</div>
-          </div>
-          <div className={styles.statBox}>
-            <div className={styles.statValue}>{stats.liveCount}</div>
-            <div className={styles.statLabel}>Активних турнірів</div>
-          </div>
-          <div className={styles.statBox}>
-            <div className={styles.statValue}>{stats.scheduledCount}</div>
-            <div className={styles.statLabel}>Запланованих</div>
-          </div>
+          </button>
           <div className={styles.statBox}>
             <div className={styles.statValue}>{stats.matchesPlayed}</div>
             <div className={styles.statLabel}>Зіграних ігор</div>
           </div>
+        </div>
+      )}
+
+      {stats && (
+        <div className={styles.categoryStatsRow}>
+          {CATEGORY_LETTERS.map((cat) => (
+            <div key={cat} className={styles.categoryStatBox}>
+              <div className={styles.categoryStatLetter}>{cat}</div>
+              <div className={styles.categoryStatCount}>{stats.categoryCounts[cat]}</div>
+            </div>
+          ))}
+        </div>
+      )}
+
+      {showFormatBreakdown && (
+        <div className={styles.quickList}>
+          {formatBreakdown.length === 0 && <div className={styles.empty}>Ще немає завершених турнірів</div>}
+          {formatBreakdown.map((f) => (
+            <div key={f.name} className={styles.quickListRow}>
+              <span>{f.name}</span>
+              <span className={styles.quickListElo}>{f.count}</span>
+            </div>
+          ))}
         </div>
       )}
 

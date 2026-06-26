@@ -127,6 +127,15 @@ export default function HomePage() {
           </p>
         </div>
       )}
+
+      <div className={styles.formatsCard}>
+        <div className={styles.formatsTitle}>🚀 Старт сезону — Американка</div>
+        <div className={styles.formatsText}>
+          Зараз стартує класичний формат <b>Американка 2x2</b>. Найближчим часом до рейтингу додадуться нові формати
+          турнірів: <b>мікс</b>, <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші —
+          слідкуйте за оголошеннями!
+        </div>
+      </div>
     </div>
   );
 }

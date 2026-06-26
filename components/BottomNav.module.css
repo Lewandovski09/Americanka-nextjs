@@ -7,54 +7,86 @@
   bottom: 0;
   z-index: 10;
   border-radius: 18px 18px 0 0;
-  /* Extra bottom padding (beyond the safe-area) lifts the bar well
-     clear of mobile browser chrome (URL bar / gesture handle). */
-  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 10px);
+  padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 10px);
+  gap: 4px;
+  transition: padding 0.25s ease;
+}
+
+.navShrunk {
+  padding-top: 4px;
+  padding-bottom: calc(env(safe-area-inset-bottom, 0px) + 4px);
 }
 
 .navBtn {
   flex: 1;
-  min-height: 60px;
-  padding: 10px 4px 6px;
   display: flex;
   flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 4px;
-  text-align: center;
-  background: none;
-  border: none;
-  cursor: pointer;
+  text-decoration: none;
+  padding: 4px 2px;
+}
+
+.navTile {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 9px 0;
+  border-radius: 12px;
+  background: transparent;
+  transition: background 0.2s ease, padding 0.25s ease;
+}
+
+.navBtnShrunk .navTile {
+  padding: 5px 0;
+}
+
+/* Instagram-style: the whole tile lights up, not just the icon. */
+.navBtnOn .navTile {
+  background: rgba(240, 192, 64, 0.18);
+}
+
+.navLabel {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 700;
   letter-spacing: 0.3px;
-  text-decoration: none;
-  position: relative;
+  transition: opacity 0.2s ease, max-height 0.2s ease;
+  max-height: 14px;
+  overflow: hidden;
 }
 
-.navBtn::before {
-  content: '';
-  position: absolute;
-  top: 0;
-  left: 20%;
-  right: 20%;
-  height: 2.5px;
-  background: transparent;
-  border-radius: 0 0 4px 4px;
+.navBtnShrunk .navLabel {
+  opacity: 0;
+  max-height: 0;
 }
 
-.navBtnOn {
+.navBtnOn .navLabel {
   color: #f0c040;
 }
 
-.navBtnOn::before {
-  background: #f0c040;
-}
-
 @media (min-width: 700px) {
+  .nav {
+    border-radius: 0;
+    justify-content: center;
+    gap: 18px;
+    padding: 14px 20px calc(env(safe-area-inset-bottom, 0px) + 14px);
+    border-top: 1px solid rgba(240, 192, 64, 0.3);
+    box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
+  }
+
   .navBtn {
-    min-height: 68px;
+    flex: 0 0 auto;
+    min-width: 90px;
+  }
+
+  .navTile {
+    padding: 11px 18px;
+  }
+
+  .navLabel {
     font-size: 12px;
   }
 }
