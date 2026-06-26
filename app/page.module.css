@@ -15,225 +15,95 @@
 .loading {
   text-align: center;
   padding: 60px 20px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
 }
 
-.overlay {
-  position: fixed;
-  inset: 0;
-  background: rgba(13, 35, 71, 0.96);
-  z-index: 999;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  padding: 24px;
-}
-
-.noticeBox {
-  background: #fffef9;
-  border-radius: 20px;
-  padding: 32px 26px;
-  max-width: 360px;
+.brandStrip {
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
-  border-top: 5px solid #f0c040;
-}
-
-.noticeIcon {
-  font-size: 52px;
-  margin-bottom: 14px;
-}
-
-.noticeTitle {
-  font-size: 22px;
-  font-weight: 700;
-  color: #0d2347;
-  margin-bottom: 10px;
-}
-
-.noticeText {
-  font-size: 14px;
-  color: #6b6b6b;
-  line-height: 1.5;
-  margin-bottom: 20px;
-}
-
-.noticeBtn {
-  width: 100%;
-  padding: 13px;
-  background: #0d2347;
-  color: #fff;
-  border: none;
-  border-radius: 12px;
-  font-size: 14px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.hero {
-  background: linear-gradient(135deg, #16306b 0%, #0d2347 100%);
-  border-radius: 18px;
-  padding: 22px;
-  margin-bottom: 14px;
-  border: 1px solid rgba(240, 192, 64, 0.25);
-  text-align: center;
-}
-
-.heroBrand {
-  font-size: 26px;
-  font-weight: 800;
-  color: #f0c040;
-  letter-spacing: 2px;
-}
-
-.heroSub {
-  color: rgba(255, 255, 255, 0.45);
-  font-size: 10px;
-  letter-spacing: 1.2px;
-  margin-top: 2px;
-}
-
-.heroInfo {
-  margin-top: 12px;
-  padding-top: 12px;
-  border-top: 1px solid rgba(255, 255, 255, 0.12);
-  font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
-}
-
-.heroInfo b {
-  color: #f0c040;
-}
-
-.warnMsg {
-  font-size: 12px;
-  color: #fde68a;
-  padding: 10px 13px;
-  background: rgba(253, 230, 138, 0.1);
-  border-radius: 9px;
-  border: 1px solid rgba(253, 230, 138, 0.3);
-  margin-bottom: 10px;
-}
-
-.statsGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 8px;
-}
-
-.statBox {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
-  padding: 14px;
-  border: 1px solid rgba(240, 192, 64, 0.18);
-}
-
-.statValue {
-  font-size: 24px;
-  font-weight: 800;
-  color: #f0c040;
-}
-
-.statLabel {
-  font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
-  margin-top: 2px;
-  font-weight: 600;
-  text-transform: uppercase;
-  letter-spacing: 0.3px;
-}
-
-.sectionLabel {
   font-size: 11px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
-  letter-spacing: 1.2px;
-  text-transform: uppercase;
-  margin: 18px 0 10px;
+  color: var(--sand2);
+  letter-spacing: 1px;
+  margin-bottom: 12px;
+}
+
+.playerCard {
   display: flex;
   align-items: center;
-  gap: 8px;
+  gap: 12px;
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 14px 16px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
-.sectionLabel::after {
-  content: '';
-  flex: 1;
-  height: 1px;
-  background: rgba(255, 255, 255, 0.1);
-}
-
-.playerRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 11px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.12);
-  border-radius: 14px;
-  margin-bottom: 7px;
-}
-
-.rank {
-  width: 24px;
-  text-align: center;
-}
-
-.avatar {
-  width: 38px;
-  height: 38px;
-  border-radius: 50%;
-  background: rgba(240, 192, 64, 0.15);
-  color: #f0c040;
-  display: flex;
-  align-items: center;
-  justify-content: center;
-  font-weight: 700;
-  overflow: hidden;
-  flex-shrink: 0;
-}
-
-.avatar img {
-  width: 100%;
-  height: 100%;
-  object-fit: cover;
-}
-
-.playerInfo {
+.playerCardInfo {
   flex: 1;
   min-width: 0;
 }
 
-.playerName {
-  font-size: 14px;
-  font-weight: 700;
-  color: #fff;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
-}
-
-.playerMeta {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
-}
-
-.playerElo {
-  font-size: 17px;
+.playerCardName {
+  font-size: 16px;
   font-weight: 800;
-  color: #f0c040;
+  color: var(--text);
+}
+
+.playerCardSub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+  font-weight: 600;
+}
+
+.playerCardElo {
+  text-align: center;
+  background: var(--navy);
+  border-radius: 12px;
+  padding: 8px 14px;
+}
+
+.playerCardEloValue {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--sand);
+}
+
+.playerCardEloLabel {
+  font-size: 9px;
+  color: rgba(255, 255, 255, 0.5);
+  letter-spacing: 0.5px;
+}
+
+.warnMsg {
+  font-size: 12px;
+  color: #92400e;
+  padding: 10px 13px;
+  background: #fef3c7;
+  border-radius: 12px;
+  margin-bottom: 12px;
+  font-weight: 600;
 }
 
 .empty {
   text-align: center;
   padding: 16px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
   font-size: 13px;
 }
 
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text2);
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  margin: 16px 0 8px;
+}
+
 .announcementCard {
-  background: rgba(240, 192, 64, 0.08);
-  border: 1px solid rgba(240, 192, 64, 0.25);
+  background: #fff7e6;
+  border: 1px solid #f3deab;
   border-radius: 14px;
   padding: 14px;
   padding-right: 36px;
@@ -248,8 +118,8 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.6);
+  background: rgba(13, 35, 71, 0.06);
+  color: var(--text2);
   border: none;
   font-size: 11px;
   cursor: pointer;
@@ -261,41 +131,115 @@
 .announcementTitle {
   font-size: 14px;
   font-weight: 700;
-  color: #f0c040;
+  color: var(--sand2);
   margin-bottom: 4px;
 }
 
 .announcementBody {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.85);
+  color: var(--text);
   line-height: 1.5;
 }
 
 .announcementDate {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
   margin-top: 6px;
 }
 
 .nextTournamentCard {
-  background: linear-gradient(135deg, #16306b 0%, #0d2347 100%);
-  border: 1px solid rgba(240, 192, 64, 0.3);
-  border-radius: 16px;
+  display: block;
+  background: var(--surface);
+  border-radius: 18px;
   padding: 16px;
-  margin-bottom: 16px;
+  margin-bottom: 12px;
+  text-decoration: none;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+}
+
+.nextTournamentTop {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-start;
+  margin-bottom: 6px;
 }
 
 .nextTournamentName {
   font-size: 16px;
   font-weight: 800;
-  color: #fff;
-  margin-bottom: 6px;
+  color: var(--text);
+}
+
+.statusBadge {
+  background: #dcfce7;
+  color: var(--accent-green);
+  font-size: 10px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 20px;
+  white-space: nowrap;
 }
 
 .nextTournamentMeta {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   margin-bottom: 3px;
+}
+
+.slotsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 12px;
+  margin-bottom: 8px;
+}
+
+.avatarStack {
+  display: flex;
+}
+
+.avatarStackItem {
+  margin-left: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+
+.avatarStackItem:first-child {
+  margin-left: 0;
+}
+
+.slotsCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.progressBar {
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: linear-gradient(90deg, var(--sand2), var(--sand));
+  border-radius: 4px;
+}
+
+.ctaBtn {
+  display: block;
+  text-align: center;
+  width: 100%;
+  padding: 15px;
+  background: linear-gradient(135deg, var(--rust), #d44a37);
+  color: #fff;
+  border-radius: 16px;
+  font-size: 15px;
+  font-weight: 800;
+  text-decoration: none;
+  margin-bottom: 16px;
+  box-shadow: 0 4px 16px rgba(232, 93, 74, 0.35);
 }
 
 .eloExplainerToggle {
@@ -304,30 +248,29 @@
   justify-content: space-between;
   align-items: center;
   padding: 14px 16px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
+  border: none;
   border-radius: 14px;
-  color: #fff;
+  color: var(--text);
   font-size: 13px;
-  font-weight: 600;
+  font-weight: 700;
   cursor: pointer;
-  margin-top: 8px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .eloExplainerArrow {
-  color: #f0c040;
+  color: var(--sand2);
   font-size: 11px;
 }
 
 .eloExplainerBody {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(240, 192, 64, 0.1);
+  background: var(--surface-alt);
   border-radius: 0 0 14px 14px;
   padding: 14px 16px;
   margin-top: -2px;
   margin-bottom: 8px;
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: var(--text2);
   line-height: 1.6;
 }
 
@@ -340,22 +283,25 @@
 }
 
 .formatsCard {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(240, 192, 64, 0.15);
-  border-radius: 14px;
+  background: var(--navy);
+  border-radius: 16px;
   padding: 16px;
   margin-top: 14px;
 }
 
 .formatsTitle {
   font-size: 14px;
-  font-weight: 700;
-  color: #f0c040;
+  font-weight: 800;
+  color: var(--sand);
   margin-bottom: 8px;
 }
 
 .formatsText {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.7);
+  color: rgba(255, 255, 255, 0.8);
   line-height: 1.6;
+}
+
+.formatsText b {
+  color: var(--sand);
 }

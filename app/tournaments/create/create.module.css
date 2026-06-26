@@ -15,13 +15,13 @@
 .title {
   font-size: 17px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text);
   margin-bottom: 18px;
 }
 
 .label {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
   display: block;
   margin-bottom: 6px;
   font-weight: 700;
@@ -32,17 +32,17 @@
 .input {
   width: 100%;
   padding: 12px 14px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border: 1.5px solid var(--border-light);
   border-radius: 10px;
   font-size: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: var(--surface);
+  color: var(--text);
   margin-bottom: 14px;
 }
 
 .input:focus {
   outline: none;
-  border-color: #f0c040;
+  border-color: var(--sand2);
 }
 
 .row {
@@ -55,18 +55,18 @@
   flex: 1;
   padding: 11px;
   border-radius: 10px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1.5px solid var(--border-light);
+  background: var(--surface);
   cursor: pointer;
   font-size: 13px;
   font-weight: 600;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
 }
 
 .optionBtnOn {
-  border-color: #f0c040;
-  background: rgba(240, 192, 64, 0.15);
-  color: #f0c040;
+  border-color: var(--sand2);
+  background: #fff7e6;
+  color: var(--sand2);
 }
 
 .chipsRow {
@@ -80,17 +80,17 @@
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 12px;
-  border: 1px solid rgba(240, 192, 64, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  background: var(--surface);
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   font-weight: 600;
 }
 
 .chipOn {
-  background: #f0c040;
-  border-color: #f0c040;
-  color: #0d2347;
+  background: var(--sand);
+  border-color: var(--sand);
+  color: var(--navy);
 }
 
 .playerRow {
@@ -98,51 +98,50 @@
   justify-content: space-between;
   align-items: center;
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1.5px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
   border-radius: 12px;
   margin-bottom: 7px;
   cursor: pointer;
+  box-shadow: 0 2px 8px rgba(13, 35, 71, 0.05);
 }
 
 .playerRowOn {
-  border-color: #f0c040;
-  background: rgba(240, 192, 64, 0.12);
+  background: #fff7e6;
+  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
 }
 
 .playerName {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
 }
 
 .playerElo {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
 }
 
 .empty {
   text-align: center;
   padding: 14px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
   font-size: 13px;
 }
 
 .errMsg {
   font-size: 12px;
-  color: #fca5a5;
+  color: #b91c1c;
   margin: 10px 0;
   padding: 11px 14px;
-  background: rgba(252, 165, 165, 0.1);
+  background: #fef2f2;
   border-radius: 10px;
-  border: 1px solid rgba(252, 165, 165, 0.3);
 }
 
 .btnPrimary {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, #f0c040, #d4a017);
-  color: #0d2347;
+  background: linear-gradient(135deg, var(--rust), #d44a37);
+  color: #fff;
   border: none;
   border-radius: 14px;
   font-size: 15px;
@@ -152,6 +151,6 @@
 }
 
 .btnPrimary:disabled {
-  background: rgba(255, 255, 255, 0.1);
-  color: rgba(255, 255, 255, 0.3);
+  background: var(--border-light);
+  color: var(--text2);
 }

@@ -1,17 +1,31 @@
 :root {
+  /* Brand core */
   --navy: #0d2347;
   --navy2: #1a3a7a;
   --navy3: #0a1b36;
   --sand: #f0c040;
   --sand2: #d4a017;
+  --rust: #e85d4a;
+
+  /* New light, professional surface palette */
+  --bg-light: #f3f6fb;
+  --surface: #ffffff;
+  --surface-alt: #f8f5ee;
+  --text: #14213d;
+  --text2: #6b7280;
+  --border-light: #e6eaf2;
+
+  /* Status accents */
+  --accent-green: #1ea672;
+  --accent-blue: #2563eb;
+  --accent-pink: #d6336c;
+
+  /* Legacy dark-mode tokens (still used by /register auth screen) */
   --cream: #fef9ec;
   --cream2: #f5e8c0;
-  --text: #1a1a1a;
-  --text2: #6b6b6b;
   --border: #ddd0a8;
   --card: #fffef9;
   --bg: #fbf0cc;
-  --rust: #c0392b;
 }
 
 * {
@@ -22,7 +36,7 @@
 
 body {
   font-family: 'Inter', -apple-system, sans-serif;
-  background: var(--navy);
+  background: var(--bg-light);
   color: var(--text);
 }
 

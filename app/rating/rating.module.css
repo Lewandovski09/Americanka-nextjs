@@ -11,6 +11,58 @@
   }
 }
 
+.pageTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 14px;
+}
+
+.tabs {
+  display: flex;
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 4px;
+  margin-bottom: 14px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+}
+
+.tabBtn {
+  flex: 1;
+  padding: 10px;
+  border: none;
+  border-radius: 11px;
+  background: transparent;
+  font-size: 13px;
+  cursor: pointer;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.tabBtnOn {
+  background: var(--navy);
+  color: var(--sand);
+  font-weight: 700;
+}
+
+.searchInput {
+  width: 100%;
+  padding: 11px 14px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 12px;
+  background: var(--surface);
+  color: var(--text);
+  font-size: 15px;
+  margin-bottom: 10px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.04);
+}
+
+.searchError {
+  font-size: 12px;
+  color: #b91c1c;
+  margin-top: 8px;
+}
+
 .row {
   display: flex;
   gap: 8px;
@@ -21,18 +73,18 @@
   flex: 1;
   padding: 12px;
   border-radius: 12px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: none;
+  background: var(--surface);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
+  box-shadow: 0 2px 8px rgba(13, 35, 71, 0.05);
 }
 
 .genderBtnOn {
-  border-color: #f0c040;
-  background: rgba(240, 192, 64, 0.15);
-  color: #f0c040;
+  background: var(--navy);
+  color: var(--sand);
 }
 
 .chipsRow {
@@ -46,17 +98,17 @@
   padding: 6px 16px;
   border-radius: 20px;
   font-size: 12px;
-  border: 1px solid rgba(240, 192, 64, 0.2);
-  background: rgba(255, 255, 255, 0.05);
+  border: 1px solid var(--border-light);
+  background: var(--surface);
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   font-weight: 600;
 }
 
 .chipOn {
-  background: #f0c040;
-  border-color: #f0c040;
-  color: #0d2347;
+  background: var(--sand);
+  border-color: var(--sand);
+  color: var(--navy);
 }
 
 .genderLabel {
@@ -65,12 +117,13 @@
   letter-spacing: 0.8px;
   margin-bottom: 10px;
   text-transform: uppercase;
+  color: var(--text2);
 }
 
 .empty {
   text-align: center;
   padding: 16px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
   font-size: 13px;
 }
 
@@ -79,15 +132,15 @@
   align-items: center;
   gap: 10px;
   padding: 11px 14px;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.12);
+  background: var(--surface);
   border-radius: 14px;
   margin-bottom: 7px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .meRow {
-  background: rgba(240, 192, 64, 0.1);
-  border-color: rgba(240, 192, 64, 0.4);
+  background: #fff7e6;
+  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.2);
 }
 
 .rank {
@@ -103,7 +156,7 @@
 .playerName {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   white-space: nowrap;
   overflow: hidden;
   text-overflow: ellipsis;
@@ -111,7 +164,7 @@
 
 .playerMeta {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
 }
 
 .playerEloBox {
@@ -121,28 +174,28 @@
 .playerElo {
   font-size: 17px;
   font-weight: 800;
-  color: #f0c040;
+  color: var(--navy);
 }
 
 .playerCat {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
 }
 
 .sectionLabel {
   font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
+  font-weight: 800;
+  color: var(--text2);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 18px 0 10px;
 }
 
 .scaleCard {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
   border-radius: 16px;
   padding: 16px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .scaleRow {
@@ -153,7 +206,7 @@
   display: flex;
   justify-content: space-between;
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   margin-bottom: 4px;
   font-weight: 600;
 }
@@ -161,7 +214,7 @@
 .scaleBar {
   height: 7px;
   border-radius: 4px;
-  background: rgba(255, 255, 255, 0.08);
+  background: var(--border-light);
 }
 
 .scaleFill {
@@ -169,65 +222,21 @@
   border-radius: 4px;
 }
 
-.tabs {
-  display: flex;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
-  padding: 4px;
-  margin-bottom: 14px;
-  border: 1px solid rgba(240, 192, 64, 0.15);
-}
-
-.tabBtn {
-  flex: 1;
-  padding: 10px;
-  border: none;
-  border-radius: 9px;
-  background: transparent;
-  font-size: 13px;
-  cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
-  font-weight: 600;
-}
-
-.tabBtnOn {
-  background: #f0c040;
-  color: #0d2347;
-  font-weight: 700;
-}
-
-.searchInput {
-  width: 100%;
-  padding: 11px 14px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-size: 15px;
-  margin-bottom: 10px;
-}
-
-.searchError {
-  font-size: 12px;
-  color: #fca5a5;
-  margin-top: 8px;
-}
-
 .compareCard {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
-  border-radius: 14px;
-  padding: 14px;
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
   margin-bottom: 16px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .compareInput {
   width: 100%;
   padding: 11px 14px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border: 1.5px solid var(--border-light);
   border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
+  background: var(--surface-alt);
+  color: var(--text);
   font-size: 15px;
   margin-bottom: 8px;
 }
@@ -235,8 +244,8 @@
 .compareBtn {
   width: 100%;
   padding: 12px;
-  background: linear-gradient(135deg, #f0c040, #d4a017);
-  color: #0d2347;
+  background: linear-gradient(135deg, var(--sand), var(--sand2));
+  color: var(--navy);
   border: none;
   border-radius: 12px;
   font-weight: 800;
@@ -248,10 +257,10 @@
 }
 
 .compareResultCard {
-  background: rgba(255, 255, 255, 0.04);
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
   border-radius: 16px;
   padding: 16px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .compareHeaderRow {
@@ -260,7 +269,7 @@
   justify-content: space-around;
   margin-bottom: 16px;
   padding-bottom: 16px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.1);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .comparePlayerCol {
@@ -273,20 +282,20 @@
 .comparePlayerName {
   font-size: 12px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
   max-width: 100px;
   text-align: center;
 }
 
 .comparePlayerElo {
   font-size: 11px;
-  color: #f0c040;
+  color: var(--sand2);
 }
 
 .compareVs {
   font-size: 14px;
   font-weight: 800;
-  color: rgba(255, 255, 255, 0.3);
+  color: var(--text2);
 }
 
 .compareFormatRow {
@@ -296,7 +305,7 @@
 .compareFormatName {
   font-size: 12px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   margin-bottom: 8px;
 }
 
@@ -307,7 +316,7 @@
 }
 
 .compareStatCol {
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-alt);
   border-radius: 10px;
   padding: 10px;
   text-align: center;
@@ -316,18 +325,11 @@
 .compareStatBig {
   font-size: 18px;
   font-weight: 800;
-  color: #f0c040;
+  color: var(--navy);
 }
 
 .compareStatSmall {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
   margin-top: 2px;
-}
-
-.pageTitle {
-  font-size: 17px;
-  font-weight: 800;
-  color: #fff;
-  margin-bottom: 14px;
 }

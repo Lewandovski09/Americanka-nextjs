@@ -5,18 +5,18 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
+import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './page.module.css';
 
 export default function HomePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
   const [nextTournament, setNextTournament] = useState(null);
+  const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
 
-  // If nobody is logged in, send them straight to the login/register
-  // screen — that screen IS the app's front door now.
   useEffect(() => {
     if (!loading && !player) {
       router.replace('/register');
@@ -36,6 +36,14 @@ export default function HomePage() {
         .limit(1)
         .maybeSingle();
       setNextTournament(data || null);
+
+      if (data) {
+        const { data: tps } = await supabase
+          .from('tournament_players')
+          .select('players(id, full_name, photo_url)')
+          .eq('tournament_id', data.id);
+        setNextTournamentPlayers((tps || []).map((tp) => tp.players));
+      }
     }
 
     async function loadAnnouncements() {
@@ -61,20 +69,31 @@ export default function HomePage() {
   async function dismissAnnouncement(notificationId) {
     setReadIds((prev) => new Set([...prev, notificationId]));
     const supabase = createClient();
-    await supabase
-      .from('notification_reads')
-      .upsert({ player_id: player.id, notification_id: notificationId });
+    await supabase.from('notification_reads').upsert({ player_id: player.id, notification_id: notificationId });
   }
 
   if (loading || !player) return <div className={styles.loading}>Завантаження...</div>;
 
   const visibleAnnouncements = announcements.filter((a) => !readIds.has(a.id));
+  const slotsTotal = 8; // current format size; will read from format data once multiple formats are live
+  const slotsTaken = nextTournamentPlayers.length;
 
   return (
     <div className={styles.page}>
-      <div className={styles.hero}>
-        <div className={styles.heroBrand}>★ AMERICANKA ★</div>
-        <div className={styles.heroSub}>ПЛЯЖ 13 · СТАНЦІЯ ФОНТАНА · ОДЕСА</div>
+      <div className={styles.brandStrip}>★ AMERICANKA · Пляж 13 · Одеса ★</div>
+
+      <div className={styles.playerCard}>
+        <PlayerAvatar player={player} size={56} />
+        <div className={styles.playerCardInfo}>
+          <div className={styles.playerCardName}>{player.full_name}</div>
+          <div className={styles.playerCardSub}>
+            {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
+          </div>
+        </div>
+        <div className={styles.playerCardElo}>
+          <div className={styles.playerCardEloValue}>{player.elo ?? '—'}</div>
+          <div className={styles.playerCardEloLabel}>ELO</div>
+        </div>
       </div>
 
       {player.approval_status === 'pending' && (
@@ -101,27 +120,42 @@ export default function HomePage() {
 
       <div className={styles.sectionLabel}>Найближчий турнір</div>
       {nextTournament ? (
-        <div className={styles.nextTournamentCard}>
-          <div className={styles.nextTournamentName}>{nextTournament.name}</div>
+        <a href={`/tournaments/${nextTournament.id}`} className={styles.nextTournamentCard}>
+          <div className={styles.nextTournamentTop}>
+            <div className={styles.nextTournamentName}>{nextTournament.name}</div>
+            <span className={styles.statusBadge}>Реєстрація відкрита</span>
+          </div>
           <div className={styles.nextTournamentMeta}>
-            {new Date(nextTournament.scheduled_at).toLocaleString('uk', {
-              dateStyle: 'full',
-              timeStyle: 'short',
-            })}
+            {new Date(nextTournament.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
           </div>
           <div className={styles.nextTournamentMeta}>
             {nextTournament.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {nextTournament.category} ·{' '}
             {nextTournament.gender === 'M' ? 'Чоловіки' : 'Жінки'}
           </div>
-        </div>
+
+          <div className={styles.slotsRow}>
+            <div className={styles.avatarStack}>
+              {nextTournamentPlayers.slice(0, 6).map((p, i) => (
+                <span key={p.id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
+                  <PlayerAvatar player={p} size={28} />
+                </span>
+              ))}
+            </div>
+            <div className={styles.slotsCount}>
+              {slotsTaken}/{slotsTotal} гравців
+            </div>
+          </div>
+          <div className={styles.progressBar}>
+            <div className={styles.progressFill} style={{ width: `${Math.min(100, (slotsTaken / slotsTotal) * 100)}%` }} />
+          </div>
+        </a>
       ) : (
         <div className={styles.empty}>Найближчих турнірів немає</div>
       )}
 
-      <div className={styles.statsGrid}>
-        <StatBox value={player.elo ?? '—'} label="Рейтинг Ело" />
-        <StatBox value={player.elo ? categoryForElo(player.elo)?.label : '—'} label="Категорія" />
-      </div>
+      <a href="/tournaments" className={styles.ctaBtn}>
+        Дивитись усі турніри →
+      </a>
 
       <button className={styles.eloExplainerToggle} onClick={() => setEloExplainerOpen((o) => !o)}>
         <span>Що таке рейтинг Ело і як він рахується?</span>
@@ -137,19 +171,15 @@ export default function HomePage() {
           <p>
             <b>Як рахується:</b> перед матчем система оцінює ймовірність вашої перемоги, виходячи з різниці рейтингів
             команд. Якщо ваш рейтинг нижчий за суперника, а ви перемагаєте — ви отримуєте <b>більше</b> очок, бо це
-            несподіваний результат. Якщо перемагає очікуваний фаворит — він отримує менше очок, а слабший суперник
-            втрачає менше.
+            несподіваний результат.
           </p>
           <p>
-            Перемога над рівним за силою суперником дає приблизно <b>+16</b> очок, поразка — приблизно <b>-16</b>{' '}
-            очок. Перемога над набагато сильнішим суперником може дати <b>+25–30</b> очок, а поразка від набагато
-            слабшого забере стільки ж.
+            Перемога над рівним суперником дає приблизно <b>+16</b> очок, поразка — приблизно <b>-16</b>. Перемога над
+            набагато сильнішим суперником може дати <b>+25–30</b> очок.
           </p>
           <p>
-            Рейтинг впливає на вашу категорію: <b>D</b> — новачки (800–1100, старт ~950), <b>C</b> — любителі
-            (1100–1400, старт ~1250), <b>B</b> — досвідчені (1400–1700, старт ~1550), <b>A</b> — просунуті (1700+,
-            старт ~1850). Адмін призначає початкову категорію при підтвердженні реєстрації, а далі рейтинг росте або
-            падає залежно від ваших результатів у турнірах.
+            Категорії: <b>D</b> (800–1100, старт ~950), <b>C</b> (1100–1400, старт ~1250), <b>B</b> (1400–1700, старт
+            ~1550), <b>A</b> (1700+, старт ~1850).
           </p>
         </div>
       )}
@@ -157,20 +187,10 @@ export default function HomePage() {
       <div className={styles.formatsCard}>
         <div className={styles.formatsTitle}>🚀 Старт сезону — AMERICANKA</div>
         <div className={styles.formatsText}>
-          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом до рейтингу додадуться нові формати
-          турнірів: <b>мікс</b>, <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші —
-          слідкуйте за оголошеннями!
+          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
+          <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
         </div>
       </div>
-    </div>
-  );
-}
-
-function StatBox({ value, label }) {
-  return (
-    <div className={styles.statBox}>
-      <div className={styles.statValue}>{value}</div>
-      <div className={styles.statLabel}>{label}</div>
     </div>
   );
 }

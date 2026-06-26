@@ -58,25 +58,44 @@ export default function TournamentsPage() {
       {!loading && tournaments.length === 0 && <div className={styles.empty}>Немає турнірів</div>}
 
       {!loading &&
-        tournaments.map((t) => (
-          <Link key={t.id} href={`/tournaments/${t.id}`} className={styles.card}>
-            <div className={styles.cardHeader}>
-              <div className={styles.cardName}>{t.name}</div>
-              <span className={`${styles.badge} ${t.gender === 'M' ? styles.badgeM : styles.badgeF}`}>
-                {t.gender === 'M' ? 'Чоловіки' : 'Жінки'}
-              </span>
-            </div>
-            <div className={styles.cardMeta}>
-              {new Date(t.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-              {t.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {t.category}
-            </div>
-            <div className={styles.avatarRow}>
-              {(t.tournament_players || []).map((tp) => (
-                <PlayerAvatar key={tp.player_id} player={tp.players} size={28} />
-              ))}
-            </div>
-          </Link>
-        ))}
+        tournaments.map((t) => {
+          const playersList = t.tournament_players || [];
+          const slotsTotal = 8;
+          const slotsTaken = playersList.length;
+          return (
+            <Link key={t.id} href={`/tournaments/${t.id}`} className={styles.card}>
+              <div className={styles.cardHeader}>
+                <div className={styles.cardName}>{t.name}</div>
+                <span className={`${styles.badge} ${t.gender === 'M' ? styles.badgeM : styles.badgeF}`}>
+                  {t.gender === 'M' ? 'Чоловіки' : 'Жінки'}
+                </span>
+              </div>
+              <div className={styles.cardMeta}>
+                {new Date(t.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+                {t.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {t.category}
+              </div>
+
+              <div className={styles.slotsRow}>
+                <div className={styles.avatarStack}>
+                  {playersList.slice(0, 6).map((tp, i) => (
+                    <span key={tp.player_id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
+                      <PlayerAvatar player={tp.players} size={26} />
+                    </span>
+                  ))}
+                </div>
+                <div className={styles.slotsCount}>
+                  {slotsTaken}/{slotsTotal}
+                </div>
+              </div>
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${Math.min(100, (slotsTaken / slotsTotal) * 100)}%` }}
+                />
+              </div>
+            </Link>
+          );
+        })}
     </div>
   );
 }

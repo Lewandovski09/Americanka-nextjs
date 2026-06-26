@@ -15,45 +15,45 @@
 .loading {
   text-align: center;
   padding: 40px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
 }
 
 .title {
   font-size: 18px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text);
 }
 
 .meta {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
   margin: 4px 0 14px;
 }
 
 .tabs {
   display: flex;
-  background: rgba(255, 255, 255, 0.05);
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: 14px;
   padding: 4px;
   margin-bottom: 14px;
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .tabBtn {
   flex: 1;
   padding: 10px;
   border: none;
-  border-radius: 9px;
+  border-radius: 11px;
   background: transparent;
   font-size: 13px;
   cursor: pointer;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
   font-weight: 600;
 }
 
 .tabBtnOn {
-  background: #f0c040;
-  color: #0d2347;
+  background: var(--navy);
+  color: var(--sand);
   font-weight: 700;
 }
 
@@ -61,21 +61,25 @@
   width: 100%;
   border-collapse: collapse;
   font-size: 12px;
-  color: #fff;
+  color: var(--text);
+  background: var(--surface);
+  border-radius: 14px;
+  overflow: hidden;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .table th {
   padding: 9px 6px;
   text-align: left;
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.4);
-  border-bottom: 1.5px solid rgba(240, 192, 64, 0.2);
+  color: var(--text2);
+  border-bottom: 1.5px solid var(--border-light);
   text-transform: uppercase;
 }
 
 .table td {
   padding: 10px 6px;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-light);
 }
 
 .nameCell {
@@ -85,23 +89,23 @@
 }
 
 .meRow {
-  background: rgba(240, 192, 64, 0.08);
+  background: #fff7e6;
 }
 
 .positive {
-  color: #6ee7b7;
+  color: var(--accent-green);
   font-weight: 700;
 }
 
 .negative {
-  color: #fca5a5;
+  color: #dc2626;
   font-weight: 700;
 }
 
 .roundLabel {
   font-size: 10px;
   font-weight: 700;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
   text-transform: uppercase;
   margin: 14px 0 7px;
   letter-spacing: 0.5px;
@@ -112,30 +116,30 @@
   align-items: center;
   justify-content: space-between;
   padding: 12px 14px;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface);
   border-radius: 12px;
   margin-bottom: 8px;
   font-size: 13px;
-  color: #fff;
-  border: 1px solid transparent;
+  color: var(--text);
+  box-shadow: 0 2px 8px rgba(13, 35, 71, 0.05);
 }
 
 .matchRowPending {
-  background: rgba(240, 192, 64, 0.08);
-  border-color: rgba(240, 192, 64, 0.3);
+  background: #fff7e6;
   cursor: pointer;
+  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
 }
 
 .matchScore {
   font-weight: 800;
-  color: #f0c040;
+  color: var(--sand2);
 }
 
 .finishBtn {
   width: 100%;
   padding: 16px;
-  background: linear-gradient(135deg, #f0c040, #d4a017);
-  color: #0d2347;
+  background: linear-gradient(135deg, var(--rust), #d44a37);
+  color: #fff;
   border: none;
   border-radius: 16px;
   font-weight: 800;
@@ -145,13 +149,13 @@
 }
 
 .chatBox {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
   border-radius: 14px;
   padding: 12px;
   max-height: 320px;
   overflow-y: auto;
   margin-bottom: 10px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .chatMsg,
@@ -166,21 +170,21 @@
 .chatName {
   font-size: 10px;
   font-weight: 700;
-  color: #f0c040;
+  color: var(--sand2);
 }
 
 .chatText {
   font-size: 13px;
-  background: rgba(255, 255, 255, 0.08);
-  color: #fff;
+  background: var(--surface-alt);
+  color: var(--text);
   padding: 9px 12px;
   border-radius: 12px;
   display: inline-block;
 }
 
 .chatMsgMine .chatText {
-  background: #f0c040;
-  color: #0d2347;
+  background: var(--navy);
+  color: var(--sand);
 }
 
 .chatBar {
@@ -191,19 +195,19 @@
 .chatInput {
   flex: 1;
   padding: 12px 16px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
+  border: 1.5px solid var(--border-light);
   border-radius: 24px;
   font-size: 16px;
-  background: rgba(255, 255, 255, 0.05);
-  color: #fff;
+  background: var(--surface);
+  color: var(--text);
 }
 
 .chatSend {
   width: 44px;
   height: 44px;
   border-radius: 50%;
-  background: #f0c040;
-  color: #0d2347;
+  background: var(--sand);
+  color: var(--navy);
   border: none;
   cursor: pointer;
   font-size: 16px;
@@ -212,7 +216,7 @@
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 35, 71, 0.85);
+  background: rgba(13, 35, 71, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -221,7 +225,7 @@
 }
 
 .modalBox {
-  background: #fffef9;
+  background: var(--surface);
   border-radius: 20px;
   padding: 24px 20px;
   width: 100%;
@@ -232,12 +236,12 @@
   font-size: 17px;
   font-weight: 700;
   text-align: center;
-  color: #0d2347;
+  color: var(--text);
 }
 
 .modalSub {
   font-size: 12px;
-  color: #6b6b6b;
+  color: var(--text2);
   text-align: center;
   margin-bottom: 16px;
 }
@@ -255,13 +259,14 @@
   padding: 14px 0;
   font-size: 30px;
   font-weight: 700;
-  border: 1.5px solid #ddd0a8;
+  border: 1.5px solid var(--border-light);
   border-radius: 14px;
+  color: var(--text);
 }
 
 .errMsg {
   font-size: 12px;
-  color: #9b1c1c;
+  color: #b91c1c;
   margin-bottom: 10px;
   padding: 11px 14px;
   background: #fef2f2;
@@ -271,8 +276,8 @@
 .btnPrimary {
   width: 100%;
   padding: 14px;
-  background: #0d2347;
-  color: #fff;
+  background: var(--navy);
+  color: var(--sand);
   border: none;
   border-radius: 14px;
   font-weight: 700;

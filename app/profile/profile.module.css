@@ -14,16 +14,18 @@
 .loading {
   text-align: center;
   padding: 40px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
 }
 
 .header {
   display: flex;
   align-items: center;
   gap: 14px;
-  padding-bottom: 18px;
-  border-bottom: 1px solid rgba(240, 192, 64, 0.15);
-  margin-bottom: 18px;
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 16px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .avatarWrap {
@@ -37,13 +39,14 @@
   width: 22px;
   height: 22px;
   border-radius: 50%;
-  background: #f0c040;
-  color: #0d2347;
+  background: var(--sand);
+  color: var(--navy);
   display: flex;
   align-items: center;
   justify-content: center;
   font-size: 11px;
   cursor: pointer;
+  border: 2px solid var(--surface);
 }
 
 .headerInfo {
@@ -51,24 +54,36 @@
 }
 
 .name {
-  font-size: 18px;
+  font-size: 17px;
   font-weight: 800;
-  color: #fff;
+  color: var(--text);
 }
 
 .cat {
   font-size: 12px;
-  color: #f0c040;
-  font-weight: 600;
+  color: var(--sand2);
+  font-weight: 700;
   margin-top: 2px;
+}
+
+.editProfileBtn {
+  margin-top: 6px;
+  font-size: 11px;
+  color: var(--accent-blue);
+  background: #eff6ff;
+  border: none;
+  border-radius: 8px;
+  padding: 5px 10px;
+  cursor: pointer;
+  font-weight: 700;
 }
 
 .logoutBtn {
   background: none;
-  border: 1.5px solid rgba(255, 255, 255, 0.2);
+  border: 1.5px solid var(--border-light);
   border-radius: 10px;
   padding: 7px 12px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   font-size: 12px;
   cursor: pointer;
 }
@@ -77,65 +92,59 @@
   display: grid;
   grid-template-columns: 1fr 1fr;
   gap: 10px;
-  margin-bottom: 18px;
-}
-
-@media (min-width: 700px) {
-  .statsGrid {
-    grid-template-columns: 1fr 1fr 1fr 1fr;
-  }
+  margin-bottom: 16px;
 }
 
 .statBox {
-  background: rgba(255, 255, 255, 0.06);
-  border-radius: 12px;
+  background: var(--surface);
+  border-radius: 14px;
   padding: 14px;
-  border: 1px solid rgba(240, 192, 64, 0.18);
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .statValue {
-  font-size: 24px;
+  font-size: 22px;
   font-weight: 800;
-  color: #f0c040;
+  color: var(--navy);
 }
 
 .statLabel {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
   text-transform: uppercase;
-  font-weight: 600;
+  font-weight: 700;
 }
 
 .sectionLabel {
   font-size: 11px;
-  font-weight: 700;
-  color: rgba(255, 255, 255, 0.45);
+  font-weight: 800;
+  color: var(--text2);
   text-transform: uppercase;
   letter-spacing: 1px;
   margin: 18px 0 10px;
 }
 
 .card {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
+  background: var(--surface);
   border-radius: 16px;
   padding: 16px;
-  margin-bottom: 18px;
+  margin-bottom: 16px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
 }
 
 .sliderLabel {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.6);
+  color: var(--text2);
   margin-bottom: 6px;
 }
 
 .sliderLabel b {
-  color: #f0c040;
+  color: var(--text);
 }
 
 .slider {
   width: 100%;
-  accent-color: #f0c040;
+  accent-color: var(--sand2);
 }
 
 .calcGrid {
@@ -149,7 +158,7 @@
   padding: 10px;
   border-radius: 10px;
   text-align: center;
-  background: rgba(255, 255, 255, 0.05);
+  background: var(--surface-alt);
 }
 
 .calcValue {
@@ -159,20 +168,53 @@
 
 .calcLabel {
   font-size: 10px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
 }
 
 .empty {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.4);
+  color: var(--text2);
+}
+
+.searchRow {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.searchInput {
+  flex: 1;
+  padding: 10px 13px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.searchBtn {
+  padding: 10px 16px;
+  background: var(--navy);
+  color: var(--sand);
+  border: none;
+  border-radius: 10px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.searchError {
+  font-size: 12px;
+  color: #b91c1c;
+  margin-bottom: 10px;
 }
 
 .partnerRow {
   display: flex;
   align-items: center;
-  gap: 10px;
+  gap: 8px;
   padding: 10px 0;
-  border-bottom: 1px solid rgba(255, 255, 255, 0.08);
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
 }
 
 .partnerRow:last-child {
@@ -182,53 +224,82 @@
 .partnerName {
   flex: 1;
   font-size: 14px;
-  font-weight: 600;
-  color: #fff;
+  font-weight: 700;
+  color: var(--text);
 }
 
 .partnerMeta {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
 }
 
 .historyCard {
   display: flex;
   justify-content: space-between;
   align-items: center;
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.12);
+  background: var(--surface);
   border-radius: 14px;
   padding: 14px;
   margin-bottom: 8px;
+  cursor: pointer;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
 }
 
 .historyName {
   font-size: 14px;
   font-weight: 700;
-  color: #fff;
+  color: var(--text);
 }
 
 .historyPlace {
   font-size: 11px;
-  color: rgba(255, 255, 255, 0.45);
+  color: var(--text2);
 }
 
 .positive {
   font-size: 16px;
   font-weight: 800;
-  color: #6ee7b7;
+  color: var(--accent-green);
 }
 
 .negative {
   font-size: 16px;
   font-weight: 800;
-  color: #fca5a5;
+  color: #dc2626;
 }
 
+.supportCard {
+  background: var(--surface);
+  border-radius: 14px;
+  padding: 6px;
+  margin-bottom: 30px;
+  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+}
+
+.supportRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 12px 10px;
+  color: var(--text);
+  text-decoration: none;
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.supportIcon {
+  font-size: 16px;
+}
+
+.editProfileBtnRow {
+  display: flex;
+}
+
+/* ── Modals (kept on navy for visual punch, matching the brand) ── */
 .modalOverlay {
   position: fixed;
   inset: 0;
-  background: rgba(13, 35, 71, 0.85);
+  background: rgba(13, 35, 71, 0.6);
   display: flex;
   align-items: center;
   justify-content: center;
@@ -237,8 +308,7 @@
 }
 
 .modalBox {
-  background: #16306b;
-  border: 1px solid rgba(240, 192, 64, 0.3);
+  background: var(--surface);
   border-radius: 20px;
   padding: 20px;
   width: 100%;
@@ -257,13 +327,13 @@
 
 .modalTitle {
   font-size: 16px;
-  font-weight: 700;
-  color: #fff;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .modalSub {
   font-size: 12px;
-  color: rgba(255, 255, 255, 0.5);
+  color: var(--text2);
   margin-bottom: 12px;
 }
 
@@ -278,17 +348,17 @@
   align-items: center;
   justify-content: space-between;
   padding: 10px 12px;
-  background: rgba(255, 255, 255, 0.06);
+  background: var(--surface-alt);
   border-radius: 10px;
   margin-bottom: 6px;
   font-size: 12px;
-  color: #fff;
+  color: var(--text);
   gap: 8px;
 }
 
 .matchRound {
-  background: rgba(240, 192, 64, 0.2);
-  color: #f0c040;
+  background: #fff7e6;
+  color: var(--sand2);
   padding: 2px 7px;
   border-radius: 6px;
   font-weight: 700;
@@ -302,95 +372,18 @@
 
 .matchScore {
   font-weight: 800;
-  color: #f0c040;
+  color: var(--sand2);
 }
 
 .modalCloseBtn {
   width: 100%;
   padding: 12px;
-  background: rgba(255, 255, 255, 0.1);
-  color: #fff;
+  background: var(--surface-alt);
+  color: var(--text);
   border: none;
   border-radius: 12px;
   font-weight: 700;
   cursor: pointer;
-}
-
-.editProfileBtn {
-  margin-top: 6px;
-  font-size: 11px;
-  color: #f0c040;
-  background: none;
-  border: 1px solid rgba(240, 192, 64, 0.3);
-  border-radius: 8px;
-  padding: 5px 10px;
-  cursor: pointer;
-  font-weight: 600;
-}
-
-.fieldLabel {
-  font-size: 11px;
-  color: rgba(255, 255, 255, 0.5);
-  display: block;
-  margin-bottom: 5px;
-  font-weight: 700;
-  text-transform: uppercase;
-  margin-top: 10px;
-}
-
-.fieldInput {
-  width: 100%;
-  padding: 11px 13px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-size: 15px;
-}
-
-.saveBtn {
-  width: 100%;
-  padding: 13px;
-  background: linear-gradient(135deg, #f0c040, #d4a017);
-  color: #0d2347;
-  border: none;
-  border-radius: 12px;
-  font-weight: 800;
-  cursor: pointer;
-  margin-top: 14px;
-  margin-bottom: 8px;
-}
-
-.searchRow {
-  display: flex;
-  gap: 8px;
-  margin-bottom: 10px;
-}
-
-.searchInput {
-  flex: 1;
-  padding: 10px 13px;
-  border: 1.5px solid rgba(240, 192, 64, 0.2);
-  border-radius: 10px;
-  background: rgba(255, 255, 255, 0.06);
-  color: #fff;
-  font-size: 14px;
-}
-
-.searchBtn {
-  padding: 10px 16px;
-  background: #f0c040;
-  color: #0d2347;
-  border: none;
-  border-radius: 10px;
-  font-weight: 700;
-  cursor: pointer;
-}
-
-.searchError {
-  font-size: 12px;
-  color: #fca5a5;
-  margin-bottom: 10px;
 }
 
 .matchupTabs {
@@ -403,39 +396,49 @@
   flex: 1;
   padding: 8px;
   border-radius: 9px;
-  border: 1px solid rgba(240, 192, 64, 0.2);
-  background: rgba(255, 255, 255, 0.05);
-  color: rgba(255, 255, 255, 0.6);
+  border: 1px solid var(--border-light);
+  background: var(--surface-alt);
+  color: var(--text2);
   font-size: 12px;
   font-weight: 600;
   cursor: pointer;
 }
 
 .matchupTabOn {
-  background: #f0c040;
-  border-color: #f0c040;
-  color: #0d2347;
+  background: var(--navy);
+  border-color: var(--navy);
+  color: var(--sand);
 }
 
-.supportCard {
-  background: rgba(255, 255, 255, 0.05);
-  border: 1px solid rgba(240, 192, 64, 0.15);
-  border-radius: 14px;
-  padding: 6px;
-  margin-bottom: 30px;
+.fieldLabel {
+  font-size: 11px;
+  color: var(--text2);
+  display: block;
+  margin-bottom: 5px;
+  font-weight: 700;
+  text-transform: uppercase;
+  margin-top: 10px;
 }
 
-.supportRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 12px 10px;
-  color: #fff;
-  text-decoration: none;
-  font-size: 13px;
-  font-weight: 600;
+.fieldInput {
+  width: 100%;
+  padding: 11px 13px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 10px;
+  background: var(--surface-alt);
+  color: var(--text);
+  font-size: 15px;
 }
 
-.supportIcon {
-  font-size: 16px;
+.saveBtn {
+  width: 100%;
+  padding: 13px;
+  background: linear-gradient(135deg, var(--sand), var(--sand2));
+  color: var(--navy);
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+  margin-top: 14px;
+  margin-bottom: 8px;
 }
