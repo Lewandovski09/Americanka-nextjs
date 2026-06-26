@@ -16,6 +16,8 @@ export default function HomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
+  const [communityCount, setCommunityCount] = useState(0);
+  const [recentJoiners, setRecentJoiners] = useState([]);
 
   useEffect(() => {
     if (!loading && !player) {
@@ -62,8 +64,25 @@ export default function HomePage() {
       setAnnouncements(notifs || []);
     }
 
+    async function loadCommunity() {
+      const { count } = await supabase
+        .from('players')
+        .select('id', { count: 'exact', head: true })
+        .eq('approval_status', 'approved');
+      setCommunityCount(count || 0);
+
+      const { data: recent } = await supabase
+        .from('players')
+        .select('id, full_name, photo_url')
+        .eq('approval_status', 'approved')
+        .order('created_at', { ascending: false })
+        .limit(8);
+      setRecentJoiners(recent || []);
+    }
+
     loadNextTournament();
     loadAnnouncements();
+    loadCommunity();
   }, [player]);
 
   async function dismissAnnouncement(notificationId) {
@@ -80,7 +99,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.brandStrip}>★ AMERICANKA · Пляж 13 · Одеса ★</div>
+      <div className={styles.brandStrip}>AMERICANKA · Пляж 13 · Одеса</div>
 
       <div className={styles.playerCard}>
         <PlayerAvatar player={player} size={56} />
@@ -108,7 +127,10 @@ export default function HomePage() {
               <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)}>
                 ✕
               </button>
-              <div className={styles.announcementTitle}>📢 {a.title}</div>
+              <div className={styles.announcementHeader}>
+                <span className={styles.announcementIconBadge}>📢</span>
+                <div className={styles.announcementTitle}>{a.title}</div>
+              </div>
               <div className={styles.announcementBody}>{a.body}</div>
               <div className={styles.announcementDate}>
                 {new Date(a.created_at).toLocaleDateString('uk', { day: 'numeric', month: 'long' })}
@@ -150,8 +172,32 @@ export default function HomePage() {
           </div>
         </a>
       ) : (
-        <div className={styles.empty}>Найближчих турнірів немає</div>
+        <div className={styles.emptyTournamentCard}>
+          <div className={styles.emptyTournamentIcon}>🏐</div>
+          <div className={styles.emptyTournamentTitle}>Турнірів ще немає</div>
+          <div className={styles.emptyTournamentText}>
+            Адміністратор готує перший турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
+            його тут першими.
+          </div>
+        </div>
       )}
+
+      <div className={styles.sectionLabel}>Спільнота</div>
+      <div className={styles.communityCard}>
+        <div className={styles.communityCountRow}>
+          <div className={styles.communityCountValue}>{communityCount}</div>
+          <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
+        </div>
+        {recentJoiners.length > 0 && (
+          <div className={styles.communityAvatarRow}>
+            {recentJoiners.map((p, i) => (
+              <span key={p.id} className={styles.communityAvatarItem} style={{ zIndex: recentJoiners.length - i }}>
+                <PlayerAvatar player={p} size={32} />
+              </span>
+            ))}
+          </div>
+        )}
+      </div>
 
       <a href="/tournaments" className={styles.ctaBtn}>
         Дивитись усі турніри →
@@ -185,7 +231,10 @@ export default function HomePage() {
       )}
 
       <div className={styles.formatsCard}>
-        <div className={styles.formatsTitle}>🚀 Старт сезону — AMERICANKA</div>
+        <div className={styles.formatsIconRow}>
+          <span className={styles.formatsIcon}>🚀</span>
+          <div className={styles.formatsTitle}>Старт сезону — AMERICANKA</div>
+        </div>
         <div className={styles.formatsText}>
           Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
           <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.

@@ -130,9 +130,8 @@
 
 .announcementTitle {
   font-size: 14px;
-  font-weight: 700;
-  color: var(--sand2);
-  margin-bottom: 4px;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .announcementBody {
@@ -283,25 +282,124 @@
 }
 
 .formatsCard {
-  background: var(--navy);
+  background: var(--surface);
   border-radius: 16px;
   padding: 16px;
   margin-top: 14px;
+  border: 1.5px solid #fde9b0;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.06);
+}
+
+.formatsIconRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 8px;
+}
+
+.formatsIcon {
+  font-size: 18px;
 }
 
 .formatsTitle {
   font-size: 14px;
   font-weight: 800;
-  color: var(--sand);
-  margin-bottom: 8px;
+  color: var(--text);
 }
 
 .formatsText {
   font-size: 13px;
-  color: rgba(255, 255, 255, 0.8);
+  color: var(--text2);
   line-height: 1.6;
 }
 
 .formatsText b {
-  color: var(--sand);
+  color: var(--sand2);
+}
+
+.emptyTournamentCard {
+  background: var(--surface);
+  border-radius: 18px;
+  padding: 24px 20px;
+  text-align: center;
+  margin-bottom: 12px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+}
+
+.emptyTournamentIcon {
+  font-size: 36px;
+  margin-bottom: 8px;
+}
+
+.emptyTournamentTitle {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.emptyTournamentText {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.5;
+}
+
+.communityCard {
+  background: var(--surface);
+  border-radius: 16px;
+  padding: 16px;
+  margin-bottom: 4px;
+  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+}
+
+.communityCountRow {
+  display: flex;
+  align-items: baseline;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.communityCountValue {
+  font-size: 28px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.communityCountLabel {
+  font-size: 12px;
+  color: var(--text2);
+  font-weight: 600;
+}
+
+.communityAvatarRow {
+  display: flex;
+}
+
+.communityAvatarItem {
+  margin-left: -10px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+
+.communityAvatarItem:first-child {
+  margin-left: 0;
+}
+
+.announcementHeader {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  margin-bottom: 6px;
+}
+
+.announcementIconBadge {
+  width: 26px;
+  height: 26px;
+  border-radius: 50%;
+  background: var(--sand);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  font-size: 13px;
+  flex-shrink: 0;
 }
