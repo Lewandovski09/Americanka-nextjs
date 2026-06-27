@@ -13,6 +13,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
   const [tournamentHistory, setTournamentHistory] = useState([]);
+  const [formatStats, setFormatStats] = useState([]);
   const [partners, setPartners] = useState([]);
   const [opponentElo, setOpponentElo] = useState(1200);
 
@@ -33,6 +34,8 @@ export default function ProfilePage() {
   const [searchLogin, setSearchLogin] = useState('');
   const [searchError, setSearchError] = useState('');
   const [searching, setSearching] = useState(false);
+  const [suggestions, setSuggestions] = useState([]);
+  const [showSuggestions, setShowSuggestions] = useState(false);
 
   useEffect(() => {
     if (!player) return;
@@ -41,6 +44,9 @@ export default function ProfilePage() {
 
       const { data: th } = await supabase.rpc('get_player_tournament_history', { p_player_id: player.id });
       setTournamentHistory(th || []);
+
+      const { data: fs } = await supabase.rpc('get_player_format_stats', { p_player_id: player.id });
+      setFormatStats(fs || []);
 
       const { data: p } = await supabase
         .from('partner_stats')
@@ -51,6 +57,50 @@ export default function ProfilePage() {
     }
     load();
   }, [player]);
+
+  useEffect(() => {
+    const q = searchLogin.trim();
+    if (q.length < 2) {
+      setSuggestions([]);
+      return;
+    }
+    let active = true;
+    const supabase = createClient();
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('players')
+        .select('id, full_name, login, photo_url')
+        .eq('approval_status', 'approved')
+        .or(`login.ilike.%${q}%,full_name.ilike.%${q}%`)
+        .neq('id', player?.id || '')
+        .limit(6);
+      if (active) setSuggestions(data || []);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [searchLogin, player?.id]);
+
+  function highlightMatch(text, query) {
+    if (!query || !text) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <b className={styles.matchHighlight}>{text.slice(idx, idx + query.length)}</b>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  }
+
+  async function selectSuggestion(p) {
+    setSearchLogin('');
+    setShowSuggestions(false);
+    setSuggestions([]);
+    await openPartnerHistory(p, 'together');
+  }
 
   async function openTournamentDetails(tournamentId) {
     setOpenTournamentId(tournamentId);
@@ -191,7 +241,13 @@ export default function ProfilePage() {
   const e = expectedScore(player.elo || 1200, opponentElo);
   const winGain = Math.round(32 * (1 - e));
   const lossDelta = Math.round(32 * (0 - e));
-  const totalEloGain = tournamentHistory.reduce((sum, h) => sum + (h.elo_delta || 0), 0);
+  const totalGames = formatStats.reduce((s, r) => s + (r.games_played || 0), 0);
+  const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
+  const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+  const eloLog = tournamentHistory
+    .filter((h) => h.elo_delta !== null && h.elo_delta !== undefined)
+    .slice()
+    .sort((a, b) => new Date(b.finished_at || 0) - new Date(a.finished_at || 0));
 
   return (
     <div className={styles.page}>
@@ -241,23 +297,16 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className={`${styles.statStrip} riseIn`} style={{ animationDelay: '0.06s' }}>
-        <div className={styles.statStripItem}>
-          <IconTrophy size={18} color="var(--text2)" />
-          <div className={styles.statStripValue}>{player.tournaments_played}</div>
-          <div className={styles.statStripLabel}>Турнірів</div>
+      <div className={`${styles.statSquares} riseIn`} style={{ animationDelay: '0.06s' }}>
+        <div className={styles.statSquare}>
+          <IconTrophy size={20} color="var(--navy)" />
+          <div className={styles.statSquareValue}>{totalGames}</div>
+          <div className={styles.statSquareLabel}>Ігор зіграно</div>
         </div>
-        <div className={styles.statStripDivider} />
-        <div className={styles.statStripItem}>
-          <IconMedal size={18} color="var(--text2)" />
-          <div className={styles.statStripValue}>{player.tournaments_won}</div>
-          <div className={styles.statStripLabel}>Перемог</div>
-        </div>
-        <div className={styles.statStripDivider} />
-        <div className={styles.statStripItem}>
-          <IconTrendUp size={18} color="var(--text2)" />
-          <div className={styles.statStripValue}>{totalEloGain >= 0 ? `+${totalEloGain}` : totalEloGain}</div>
-          <div className={styles.statStripLabel}>Ело всього</div>
+        <div className={styles.statSquare}>
+          <IconMedal size={20} color="var(--navy)" />
+          <div className={styles.statSquareValue}>{winRate}%</div>
+          <div className={styles.statSquareLabel}>Перемог</div>
         </div>
       </div>
 
@@ -282,19 +331,38 @@ export default function ProfilePage() {
         </div>
       </div>
 
-      <div className={styles.sectionLabel}>Партнери та суперники</div>
+      <div className={styles.sectionLabel}>Статистика з партнерами та суперниками</div>
       <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.14s' }}>
-        <div className={styles.searchRow}>
+        <div className={styles.searchRow} style={{ position: 'relative' }}>
           <input
             className={styles.searchInput}
             placeholder="Логін гравця..."
             value={searchLogin}
-            onChange={(e) => setSearchLogin(e.target.value)}
+            onChange={(e) => {
+              setSearchLogin(e.target.value);
+              setShowSuggestions(true);
+            }}
+            onFocus={() => setShowSuggestions(true)}
+            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
             onKeyDown={(e) => e.key === 'Enter' && handleSearchPlayer()}
           />
           <button className={styles.searchBtn} disabled={searching} onClick={handleSearchPlayer}>
             {searching ? '...' : 'Знайти'}
           </button>
+
+          {showSuggestions && suggestions.length > 0 && (
+            <div className={styles.suggestionsDropdown}>
+              {suggestions.map((s) => (
+                <div key={s.id} className={styles.suggestionRow} onClick={() => selectSuggestion(s)}>
+                  <PlayerAvatar player={s} size={26} />
+                  <div>
+                    <div className={styles.suggestionName}>{highlightMatch(s.full_name, searchLogin.trim())}</div>
+                    <div className={styles.suggestionLogin}>@{highlightMatch(s.login, searchLogin.trim())}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
         {searchError && <div className={styles.searchError}>{searchError}</div>}
 
@@ -326,6 +394,21 @@ export default function ProfilePage() {
               {h.elo_delta} Ело
             </div>
           )}
+        </div>
+      ))}
+
+      <div className={styles.sectionLabel}>Журнал змін Ело</div>
+      {eloLog.length === 0 && <div className={styles.empty}>Ще немає змін рейтингу</div>}
+      {eloLog.map((h) => (
+        <div key={h.tournament_id} className={styles.eloLogRow}>
+          <div className={styles.eloLogDate}>
+            {h.finished_at ? new Date(h.finished_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' }) : '—'}
+          </div>
+          <div className={styles.eloLogName}>{h.tournament_name}</div>
+          <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
+            {h.elo_delta >= 0 ? '+' : ''}
+            {h.elo_delta}
+          </div>
         </div>
       ))}
 

@@ -1,0 +1,321 @@
+.page {
+  margin: 0 auto;
+  padding: 14px;
+  position: relative;
+  z-index: 1;
+}
+
+@media (min-width: 700px) {
+  .page {
+    padding: 28px;
+  }
+}
+
+.backBtn {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  background: none;
+  border: none;
+  color: var(--text2);
+  font-size: 13px;
+  font-weight: 700;
+  padding: 6px 2px;
+  margin-bottom: 10px;
+  cursor: pointer;
+}
+
+.notFound {
+  text-align: center;
+  padding: 60px 20px;
+  color: var(--text2);
+}
+
+.header {
+  background: var(--navy);
+  border-radius: var(--r-lg);
+  padding: 18px 18px 22px;
+  margin-bottom: 4px;
+  overflow: hidden;
+  position: relative;
+}
+
+.headerTop {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.headerInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.name {
+  font-size: 17px;
+  font-weight: 800;
+  color: #fff;
+}
+
+.cat {
+  font-size: 12px;
+  color: rgba(255, 255, 255, 0.5);
+  font-weight: 700;
+  margin-top: 2px;
+}
+
+.heroEloRow {
+  margin-top: 18px;
+}
+
+.heroEloBlock {
+  line-height: 1.1;
+}
+
+.heroEloValue {
+  font-size: 34px;
+  font-weight: 800;
+  color: var(--rust);
+}
+
+.heroEloLabel {
+  font-size: 10px;
+  font-weight: 700;
+  letter-spacing: 0.5px;
+  color: rgba(255, 255, 255, 0.4);
+  margin-top: 2px;
+  text-transform: uppercase;
+}
+
+.headerWave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  line-height: 0;
+}
+
+.headerWave svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+}
+
+.statSquares {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.statSquare {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  padding: 18px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+}
+
+.statSquareValue {
+  font-size: 24px;
+  font-weight: 800;
+  color: var(--navy);
+  margin-top: 2px;
+}
+
+.statSquareLabel {
+  font-size: 11px;
+  color: var(--text2);
+  text-transform: uppercase;
+  font-weight: 700;
+  letter-spacing: 0.3px;
+}
+
+.telegramRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 13px 14px;
+  margin-bottom: 4px;
+  text-decoration: none;
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+}
+
+.telegramIcon {
+  display: flex;
+  color: var(--accent-blue);
+}
+
+.sectionLabel {
+  font-size: 11px;
+  font-weight: 800;
+  color: var(--text2);
+  text-transform: uppercase;
+  letter-spacing: 1px;
+  margin: 18px 0 10px;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text2);
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 16px;
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 4px;
+}
+
+.sliderLabel {
+  font-size: 13px;
+  color: var(--text2);
+  margin-bottom: 10px;
+}
+
+.slider {
+  width: 100%;
+  accent-color: var(--rust);
+  margin-bottom: 12px;
+}
+
+.calcGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr 1fr;
+  gap: 8px;
+}
+
+.calcBox {
+  padding: 10px;
+  border-radius: var(--r-sm);
+  text-align: center;
+  background: var(--bg-light);
+}
+
+.calcIcon {
+  display: flex;
+  justify-content: center;
+  margin-bottom: 2px;
+}
+
+.calcValue {
+  font-size: 15px;
+  font-weight: 800;
+}
+
+.calcLabel {
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.historyCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 14px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.historyName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.historyPlace {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.positive {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--accent-green);
+}
+
+.negative {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--danger);
+}
+
+.eloLogRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 11px 14px;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.eloLogDate {
+  font-size: 11px;
+  color: var(--text2);
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.eloLogName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eloLogRow .positive,
+.eloLogRow .negative {
+  font-size: 14px;
+}
+
+.skeletonHeroHeader {
+  background: var(--navy);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  margin-bottom: 4px;
+}
+
+.skeletonHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+}
+
+.skeletonAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeletonLines {
+  flex: 1;
+}
+
+.skeletonLine {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+.skeletonEloLine {
+  height: 30px;
+  width: 40%;
+  margin-top: 18px;
+}

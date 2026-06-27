@@ -237,38 +237,33 @@
   margin: 18px 0 10px;
 }
 
-.statStrip {
-  display: flex;
+.statSquares {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 10px;
+  margin-bottom: 4px;
+}
+
+.statSquare {
   background: var(--surface);
   border-radius: var(--r-lg);
   box-shadow: var(--shadow-sm);
-  margin-bottom: 4px;
-  padding: 16px 8px;
-}
-
-.statStripItem {
-  flex: 1;
+  padding: 18px;
   display: flex;
   flex-direction: column;
   align-items: center;
   gap: 4px;
 }
 
-.statStripDivider {
-  width: 1px;
-  background: var(--border-light);
-  margin: 2px 0;
-}
-
-.statStripValue {
-  font-size: 19px;
+.statSquareValue {
+  font-size: 24px;
   font-weight: 800;
   color: var(--navy);
   margin-top: 2px;
 }
 
-.statStripLabel {
-  font-size: 10px;
+.statSquareLabel {
+  font-size: 11px;
   color: var(--text2);
   text-transform: uppercase;
   font-weight: 700;
@@ -365,6 +360,49 @@
   margin-bottom: 10px;
 }
 
+.suggestionsDropdown {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 64px;
+  margin-top: 4px;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-lg);
+  border: 1px solid var(--border-light);
+  z-index: 50;
+  max-height: 260px;
+  overflow-y: auto;
+}
+
+.suggestionRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 9px 12px;
+  cursor: pointer;
+}
+
+.suggestionRow:hover {
+  background: var(--bg-light);
+}
+
+.suggestionName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.suggestionLogin {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.matchHighlight {
+  color: var(--rust);
+  font-weight: 800;
+}
+
 .partnerRow {
   display: flex;
   align-items: center;
@@ -423,6 +461,39 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--danger);
+}
+
+.eloLogRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  padding: 11px 14px;
+  margin-bottom: 6px;
+  box-shadow: var(--shadow-sm);
+}
+
+.eloLogDate {
+  font-size: 11px;
+  color: var(--text2);
+  width: 56px;
+  flex-shrink: 0;
+}
+
+.eloLogName {
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  flex: 1;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eloLogRow .positive,
+.eloLogRow .negative {
+  font-size: 14px;
 }
 
 .supportCard {

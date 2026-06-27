@@ -15,6 +15,7 @@ export default function HomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [readIds, setReadIds] = useState(new Set());
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
+  const [featuresOpen, setFeaturesOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
   const [recentJoiners, setRecentJoiners] = useState([]);
 
@@ -276,6 +277,42 @@ export default function HomePage() {
           <p>
             Категорії: <b>D</b> (800–1100, старт ~950), <b>C</b> (1100–1400, старт ~1250), <b>B</b> (1400–1700, старт
             ~1550), <b>A</b> (1700+, старт ~1850).
+          </p>
+        </div>
+      )}
+
+      <button className={styles.eloExplainerToggle} onClick={() => setFeaturesOpen((o) => !o)}>
+        <span>Які можливості є в застосунку?</span>
+        <span className={`${styles.eloExplainerArrow} ${featuresOpen ? styles.eloExplainerArrowOpen : ''}`}>
+          <IconChevronDown size={13} />
+        </span>
+      </button>
+
+      {featuresOpen && (
+        <div className={styles.eloExplainerBody}>
+          <p>
+            <b>Реєстрація через Telegram</b> — без SMS і без оплати. Підтвердження логіну приходить ботом за кілька
+            секунд.
+          </p>
+          <p>
+            <b>Турніри AMERICANKA 2x2</b> з живою таблицею результатів — рахунок кожного матчу видно одразу, без
+            оновлення сторінки.
+          </p>
+          <p>
+            <b>Автоматичний рейтинг Ело</b>, який перераховується сам одразу після завершення турніру — без ручних
+            підрахунків.
+          </p>
+          <p>
+            <b>Профіль гравця</b> з історією турнірів, статистикою побед/поразок і калькулятором шансів проти будь-якого
+            суперника.
+          </p>
+          <p>
+            <b>Рейтинг</b> окремо для чоловіків і жінок, з фільтром за категоріями D–A, і пошук будь-якого гравця за
+            логіном — щоб подивитись його профіль.
+          </p>
+          <p>
+            <b>Сповіщення</b> про нові турніри та оголошення адміністратора — прямо в Telegram, без потреби заходити в
+            застосунок.
           </p>
         </div>
       )}

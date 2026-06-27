@@ -88,9 +88,21 @@ export default function RatingPage() {
     });
   }
 
+  function highlightMatch(text, query) {
+    if (!query || !text) return text;
+    const idx = text.toLowerCase().indexOf(query.toLowerCase());
+    if (idx === -1) return text;
+    return (
+      <>
+        {text.slice(0, idx)}
+        <b className={styles.matchHighlight}>{text.slice(idx, idx + query.length)}</b>
+        {text.slice(idx + query.length)}
+      </>
+    );
+  }
+
   return (
     <div className={styles.page}>
-      <h2 className={styles.pageTitle}>Рейтинг і статистика</h2>
       <div className={styles.tabs}>
         <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => setTab('rating')}>
           Рейтинг
@@ -134,14 +146,14 @@ export default function RatingPage() {
           {filteredPlayers.map((p, i) => (
             <a
               key={p.id}
-              href={p.id === player?.id ? '/profile' : `/players/${p.login}`}
+              href={p.id === player?.id ? '/profile' : `/players/${p.id}`}
               className={`${styles.playerRow} ${p.id === player?.id ? styles.meRow : ''}`}
             >
               <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</div>
               <PlayerAvatar player={p} size={36} />
               <div className={styles.playerInfo}>
-                <div className={styles.playerName}>{p.full_name}</div>
-                <div className={styles.playerMeta}>@{p.login} · {p.tournaments_played} турн.</div>
+                <div className={styles.playerName}>{highlightMatch(p.full_name, searchTerm.trim())}</div>
+                <div className={styles.playerMeta}>@{highlightMatch(p.login, searchTerm.trim())} · {p.tournaments_played} турн.</div>
               </div>
               <div className={styles.playerEloBox}>
                 <div className={styles.playerElo}>{p.elo}</div>

@@ -168,6 +168,11 @@
   color: var(--text2);
 }
 
+.matchHighlight {
+  color: var(--rust);
+  font-weight: 800;
+}
+
 .playerEloBox {
   text-align: right;
 }
