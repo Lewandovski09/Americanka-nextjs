@@ -140,7 +140,7 @@
 .btnPrimary {
   width: 100%;
   padding: 14px;
-  background: linear-gradient(135deg, var(--rust), #d44a37);
+  background: var(--rust);
   color: #fff;
   border: none;
   border-radius: 14px;

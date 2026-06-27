@@ -433,8 +433,8 @@
 .saveBtn {
   width: 100%;
   padding: 13px;
-  background: linear-gradient(135deg, var(--sand), var(--sand2));
-  color: var(--navy);
+  background: var(--rust);
+  color: #fff;
   border: none;
   border-radius: 12px;
   font-weight: 800;
