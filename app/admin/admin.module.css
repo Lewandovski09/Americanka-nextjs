@@ -113,7 +113,7 @@
 .categoryStatCount {
   font-size: 18px;
   font-weight: 800;
-  color: var(--sand2);
+  color: var(--navy);
 }
 
 .quickList {
@@ -137,7 +137,7 @@
 
 .quickListElo {
   margin-left: auto;
-  color: var(--sand2);
+  color: var(--navy);
   font-weight: 700;
 }
 
@@ -190,7 +190,7 @@
 
 .requestedBadge {
   font-size: 11px;
-  color: var(--sand2);
+  color: var(--text2);
   margin-top: 2px;
   font-weight: 700;
 }
@@ -262,7 +262,7 @@
   flex: 1;
   padding: 11px;
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
   border: none;
   border-radius: 10px;
   font-weight: 700;

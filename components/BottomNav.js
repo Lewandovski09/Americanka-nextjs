@@ -23,7 +23,7 @@ function TrophyIcon({ active }) {
 
 function StarIcon({ active }) {
   return (
-    <svg width="22" height="22" viewBox="0 0 24 24" fill={active ? '#e85d4a' : 'none'} stroke={active ? '#e85d4a' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+    <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke={active ? '#e85d4a' : 'rgba(255,255,255,0.5)'} strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
       <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
     </svg>
   );
@@ -39,7 +39,7 @@ function ProfileIcon({ active, photoUrl }) {
           borderRadius: '50%',
           overflow: 'hidden',
           display: 'inline-block',
-          border: active ? '2px solid #e85d4a' : '1.5px solid rgba(255,255,255,0.4)',
+          border: '1.5px solid rgba(255,255,255,0.4)',
         }}
       >
         <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />

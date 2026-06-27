@@ -41,7 +41,7 @@
 
 .tabBtnOn {
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
   font-weight: 700;
 }
 
@@ -84,7 +84,7 @@
 
 .genderBtnOn {
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
 }
 
 .chipsRow {
@@ -107,7 +107,7 @@
 
 .chipOn {
   background: var(--sand);
-  border-color: var(--sand);
+  border-color: #fff;
   color: var(--navy);
 }
 
@@ -140,7 +140,7 @@
 
 .meRow {
   background: var(--rust-tint);
-  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.2);
+  box-shadow: 0 2px 10px rgba(232, 93, 74, 0.18);
 }
 
 .rank {
@@ -289,7 +289,7 @@
 
 .comparePlayerElo {
   font-size: 11px;
-  color: var(--sand2);
+  color: var(--navy);
 }
 
 .compareVs {

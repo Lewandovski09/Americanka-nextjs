@@ -34,7 +34,7 @@
 
 .tabBtnOn {
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
   font-weight: 700;
 }
 

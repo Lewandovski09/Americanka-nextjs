@@ -53,7 +53,7 @@
 
 .tabBtnOn {
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
   font-weight: 700;
 }
 
@@ -127,7 +127,7 @@
 .matchRowPending {
   background: var(--rust-tint);
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
+  box-shadow: 0 2px 10px rgba(232, 93, 74, 0.2);
 }
 
 .matchScore {
@@ -184,7 +184,7 @@
 
 .chatMsgMine .chatText {
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
 }
 
 .chatBar {
@@ -277,7 +277,7 @@
   width: 100%;
   padding: 14px;
   background: var(--navy);
-  color: var(--sand);
+  color: #fff;
   border: none;
   border-radius: 14px;
   font-weight: 700;

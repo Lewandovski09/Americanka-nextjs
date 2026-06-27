@@ -107,7 +107,7 @@
 
 .playerRowOn {
   background: var(--rust-tint);
-  box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
+  box-shadow: 0 2px 10px rgba(232, 93, 74, 0.2);
 }
 
 .playerName {

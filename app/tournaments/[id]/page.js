@@ -153,7 +153,7 @@ export default function TournamentDetailPage({ params }) {
               const diff = s.gamesFor - s.gamesAgainst;
               return (
                 <tr key={s.player.id} className={s.player.id === player?.id ? styles.meRow : ''}>
-                  <td style={i < 3 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</td>
+                  <td style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</td>
                   <td className={styles.nameCell}>
                     <PlayerAvatar player={playerById(s.player.id)} size={22} />
                     {s.player.full_name.split(' ')[0]}
