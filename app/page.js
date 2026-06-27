@@ -96,10 +96,10 @@ export default function HomePage() {
     return (
       <div className={styles.page}>
         <div className={styles.skeletonHeader}>
-          <div className={`skeleton ${styles.skeletonAvatar}`} />
+          <div className={`skeleton on-dark ${styles.skeletonAvatar}`} />
           <div className={styles.skeletonLines}>
-            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '55%' }} />
-            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '35%', marginBottom: 0 }} />
+            <div className={`skeleton on-dark ${styles.skeletonLine}`} style={{ width: '55%' }} />
+            <div className={`skeleton on-dark ${styles.skeletonLine}`} style={{ width: '35%', marginBottom: 0 }} />
           </div>
         </div>
         <div className={styles.body}>

@@ -116,3 +116,45 @@ export function IconEdit(props) {
     props
   );
 }
+
+export function IconTrophy(props) {
+  return base(
+    <>
+      <path d="M7 4h10v5a5 5 0 0 1-10 0V4Z" />
+      <path d="M7 6H4a2 2 0 0 0 2 4h1M17 6h3a2 2 0 0 1-2 4h-1" />
+      <path d="M9 17h6M12 13v4" />
+    </>,
+    props
+  );
+}
+
+export function IconMedal(props) {
+  return base(
+    <>
+      <path d="M8.5 3L10 8M15.5 3L14 8" />
+      <circle cx="12" cy="14" r="6" />
+      <path d="M9.3 14l1.8 1.8L15 12.3" />
+    </>,
+    props
+  );
+}
+
+export function IconTrendUp(props) {
+  return base(
+    <>
+      <path d="M7 17L17 7" />
+      <path d="M9 7h8v8" />
+    </>,
+    props
+  );
+}
+
+export function IconTrendDown(props) {
+  return base(
+    <>
+      <path d="M7 7L17 17" />
+      <path d="M17 9v8H9" />
+    </>,
+    props
+  );
+}

@@ -145,3 +145,8 @@ a:active,
   animation: shimmer 1.4s ease infinite;
   border-radius: var(--r-sm);
 }
+
+.skeleton.on-dark {
+  background: linear-gradient(90deg, rgba(255, 255, 255, 0.12) 25%, rgba(255, 255, 255, 0.22) 37%, rgba(255, 255, 255, 0.12) 63%);
+  background-size: 400% 100%;
+}

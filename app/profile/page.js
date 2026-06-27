@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconEdit, IconMail, IconChat } from '@/components/Icons';
+import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown } from '@/components/Icons';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -167,15 +167,17 @@ export default function ProfilePage() {
   if (loading) {
     return (
       <div className={styles.page}>
-        <div className={styles.skeletonHeader}>
-          <div className={`skeleton ${styles.skeletonAvatar}`} />
-          <div className={styles.skeletonLines}>
-            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '50%' }} />
-            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '70%', marginBottom: 0 }} />
+        <div className={styles.skeletonHeroHeader}>
+          <div className={styles.skeletonHeader}>
+            <div className={`skeleton on-dark ${styles.skeletonAvatar}`} />
+            <div className={styles.skeletonLines}>
+              <div className={`skeleton on-dark ${styles.skeletonLine}`} style={{ width: '50%' }} />
+              <div className={`skeleton on-dark ${styles.skeletonLine}`} style={{ width: '35%', marginBottom: 0 }} />
+            </div>
           </div>
+          <div className={`skeleton on-dark ${styles.skeletonEloLine}`} />
         </div>
         <div className={styles.skeletonStatsGrid}>
-          <div className={`skeleton ${styles.skeletonStatBox}`} />
           <div className={`skeleton ${styles.skeletonStatBox}`} />
           <div className={`skeleton ${styles.skeletonStatBox}`} />
           <div className={`skeleton ${styles.skeletonStatBox}`} />
@@ -193,34 +195,62 @@ export default function ProfilePage() {
   return (
     <div className={styles.page}>
       <div className={`${styles.header} riseIn`}>
-        <div className={styles.avatarWrap}>
-          <PlayerAvatar player={player} size={64} />
-          <label className={styles.photoEditBtn}>
-            <IconEdit size={13} color="#fff" />
-            <input type="file" accept="image/*" hidden onChange={handlePhotoChange} />
-          </label>
+        <div className={styles.headerTop}>
+          <div className={styles.avatarWrap}>
+            <PlayerAvatar player={player} size={64} />
+            <label className={styles.photoEditBtn}>
+              <IconEdit size={13} color="#fff" />
+              <input type="file" accept="image/*" hidden onChange={handlePhotoChange} />
+            </label>
+          </div>
+          <div className={styles.headerInfo}>
+            <div className={styles.name}>{player.full_name}</div>
+            <div className={styles.cat}>
+              {player.approval_status === 'pending'
+                ? 'Очікує підтвердження'
+                : categoryForElo(player.elo)?.label}
+            </div>
+          </div>
+          <button className={styles.logoutBtn} onClick={handleLogout}>
+            Вийти
+          </button>
         </div>
-        <div className={styles.headerInfo}>
-          <div className={styles.name}>{player.full_name}</div>
-          <div className={styles.cat}>
-            {player.approval_status === 'pending'
-              ? 'Очікує підтвердження'
-              : `${categoryForElo(player.elo)?.label} · ${player.elo} Ело`}
+
+        <div className={styles.heroEloRow}>
+          <div className={styles.heroEloBlock}>
+            <div className={styles.heroEloValue}>{player.elo ?? '—'}</div>
+            <div className={styles.heroEloLabel}>РЕЙТИНГ ЕЛО</div>
           </div>
           <button className={styles.editProfileBtn} onClick={openEdit}>
             Редагувати профіль
           </button>
         </div>
-        <button className={styles.logoutBtn} onClick={handleLogout}>
-          Вийти
-        </button>
+
+        <div className={styles.headerWave} aria-hidden="true">
+          <svg viewBox="0 0 600 22" preserveAspectRatio="none" width="100%" height="22">
+            <path d="M0,10 C100,22 200,0 300,10 C400,20 500,0 600,10 L600,22 L0,22 Z" fill="var(--bg-light)" />
+          </svg>
+        </div>
       </div>
 
-      <div className={`${styles.statsGrid} riseIn`} style={{ animationDelay: '0.06s' }}>
-        <StatBox value={player.elo ?? '—'} label="Рейтинг Ело" />
-        <StatBox value={player.tournaments_played} label="Турнірів" />
-        <StatBox value={player.tournaments_won} label="Перемог" />
-        <StatBox value={totalEloGain >= 0 ? `+${totalEloGain}` : totalEloGain} label="Ело всього" />
+      <div className={`${styles.statStrip} riseIn`} style={{ animationDelay: '0.06s' }}>
+        <div className={styles.statStripItem}>
+          <IconTrophy size={18} color="var(--text2)" />
+          <div className={styles.statStripValue}>{player.tournaments_played}</div>
+          <div className={styles.statStripLabel}>Турнірів</div>
+        </div>
+        <div className={styles.statStripDivider} />
+        <div className={styles.statStripItem}>
+          <IconMedal size={18} color="var(--text2)" />
+          <div className={styles.statStripValue}>{player.tournaments_won}</div>
+          <div className={styles.statStripLabel}>Перемог</div>
+        </div>
+        <div className={styles.statStripDivider} />
+        <div className={styles.statStripItem}>
+          <IconTrendUp size={18} color="var(--text2)" />
+          <div className={styles.statStripValue}>{totalEloGain >= 0 ? `+${totalEloGain}` : totalEloGain}</div>
+          <div className={styles.statStripLabel}>Ело всього</div>
+        </div>
       </div>
 
       <div className={styles.sectionLabel}>Калькулятор Ело</div>
@@ -239,8 +269,8 @@ export default function ProfilePage() {
         />
         <div className={styles.calcGrid}>
           <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="var(--navy)" />
-          <CalcBox value={`+${winGain}`} label="перемога" color="var(--accent-green)" />
-          <CalcBox value={lossDelta} label="поразка" color="var(--danger)" />
+          <CalcBox value={`+${winGain}`} label="перемога" color="var(--accent-green)" icon={<IconTrendUp size={14} color="var(--accent-green)" />} />
+          <CalcBox value={lossDelta} label="поразка" color="var(--danger)" icon={<IconTrendDown size={14} color="var(--danger)" />} />
         </div>
       </div>
 
@@ -419,18 +449,10 @@ export default function ProfilePage() {
   );
 }
 
-function StatBox({ value, label }) {
-  return (
-    <div className={styles.statBox}>
-      <div className={styles.statValue}>{value}</div>
-      <div className={styles.statLabel}>{label}</div>
-    </div>
-  );
-}
-
-function CalcBox({ value, label, color }) {
+function CalcBox({ value, label, color, icon }) {
   return (
     <div className={styles.calcBox}>
+      {icon && <div className={styles.calcIcon}>{icon}</div>}
       <div className={styles.calcValue} style={{ color }}>
         {value}
       </div>
