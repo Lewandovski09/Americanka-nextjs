@@ -8,6 +8,7 @@ import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
+import EloChart from '@/components/EloChart';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -340,6 +341,10 @@ export default function ProfilePage() {
           <CalcBox value={`+${winGain}`} label="перемога" color="var(--accent-green)" icon={<IconTrendUp size={14} color="var(--accent-green)" />} />
           <CalcBox value={lossDelta} label="поразка" color="var(--danger)" icon={<IconTrendDown size={14} color="var(--danger)" />} />
         </div>
+      </div>
+
+      <div className="riseIn" style={{ animationDelay: '0.12s' }}>
+        <EloChart history={tournamentHistory} currentElo={player.elo} />
       </div>
 
       <div className={styles.sectionLabel}>Статистика з партнерами та суперниками</div>

@@ -133,6 +133,16 @@ export function IconInfo(props) {
   );
 }
 
+export function IconChartLine(props) {
+  return base(
+    <>
+      <path d="M4 4v16h16" />
+      <path d="M7 15l4-5 3 3 5-7" />
+    </>,
+    props
+  );
+}
+
 export function IconTrophy(props) {
   return base(
     <>

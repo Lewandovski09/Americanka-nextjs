@@ -15,6 +15,7 @@ export default function HomePage() {
   const [announcements, setAnnouncements] = useState([]);
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
+  const [installOpen, setInstallOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
   const [recentJoiners, setRecentJoiners] = useState([]);
 
@@ -320,6 +321,28 @@ export default function HomePage() {
           <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
         </div>
       </div>
+
+      <button className={styles.eloExplainerToggle} onClick={() => setInstallOpen((o) => !o)} style={{ marginTop: 8 }}>
+        <span>Як встановити застосунок на ваш телефон</span>
+        <span className={`${styles.eloExplainerArrow} ${installOpen ? styles.eloExplainerArrowOpen : ''}`}>
+          <IconChevronDown size={13} />
+        </span>
+      </button>
+
+      {installOpen && (
+        <div className={styles.eloExplainerBody}>
+          <p>
+            <b>На iPhone (Safari):</b> відкрийте сайт саме в Safari (Chrome на iPhone не вміє додавати на головний
+            екран). Натисніть кнопку «Поділитися» (квадрат зі стрілкою вгору) знизу екрана → у списку знайдіть «На
+            екран Домівки» → натисніть «Додати» у верхньому правому куті.
+          </p>
+          <p>
+            <b>На Android (Chrome):</b> відкрийте сайт у Chrome. Натисніть на три крапки в правому верхньому куті →
+            «Додати на головний екран» (або «Встановити застосунок») → підтвердіть.
+          </p>
+          <p>Після цього іконка AMERICANKA з&apos;явиться на головному екрані, і застосунок відкриватиметься без адресного рядка — як звичайний застосунок.</p>
+        </div>
+      )}
       </div>
     </div>
   );
