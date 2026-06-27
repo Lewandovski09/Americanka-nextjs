@@ -70,7 +70,7 @@ const ITEMS = [
   { href: '/profile', label: 'ПРОФІЛЬ', Icon: ProfileIcon, isProfile: true },
 ];
 
-export default function BottomNav({ player }) {
+export default function BottomNav({ player, requireAuth, onBlocked }) {
   const pathname = usePathname();
   const items = player?.is_admin ? [...ITEMS, { href: '/admin', label: 'АДМІН', Icon: AdminIcon }] : ITEMS;
   const [shrunk, setShrunk] = useState(false);
@@ -93,10 +93,17 @@ export default function BottomNav({ player }) {
     <nav className={`${styles.nav} ${shrunk ? styles.navShrunk : ''}`}>
       {items.map((item) => {
         const active = pathname === item.href;
+        const gated = requireAuth && item.href !== '/';
         return (
           <Link
             key={item.href}
             href={item.href}
+            onClick={(e) => {
+              if (gated) {
+                e.preventDefault();
+                onBlocked?.();
+              }
+            }}
             className={`${styles.navBtn} ${active ? styles.navBtnOn : ''} ${shrunk ? styles.navBtnShrunk : ''}`}
           >
             <span className={styles.navTile}>

@@ -44,8 +44,9 @@ export function IconVolleyball(props) {
   return base(
     <>
       <circle cx="12" cy="12" r="9" />
-      <path d="M5.8 8.3c4 2.3 8.4 2.3 12.4 0" />
-      <path d="M5.8 15.7c4-2.3 8.4-2.3 12.4 0" />
+      <path d="M12 3v18" />
+      <path d="M12 3c-5 4-5 14 0 18" />
+      <path d="M12 3c5 4 5 14 0 18" />
     </>,
     props
   );
@@ -115,6 +116,10 @@ export function IconEdit(props) {
     </>,
     props
   );
+}
+
+export function IconArrowLeft(props) {
+  return base(<path d="M19 12H5M11 6l-6 6 6 6" />, props);
 }
 
 export function IconTrophy(props) {

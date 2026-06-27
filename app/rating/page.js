@@ -132,7 +132,11 @@ export default function RatingPage() {
           {filteredPlayers.length === 0 && <div className={styles.empty}>Немає гравців</div>}
 
           {filteredPlayers.map((p, i) => (
-            <div key={p.id} className={`${styles.playerRow} ${p.id === player?.id ? styles.meRow : ''}`}>
+            <a
+              key={p.id}
+              href={p.id === player?.id ? '/profile' : `/players/${p.login}`}
+              className={`${styles.playerRow} ${p.id === player?.id ? styles.meRow : ''}`}
+            >
               <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</div>
               <PlayerAvatar player={p} size={36} />
               <div className={styles.playerInfo}>
@@ -143,7 +147,7 @@ export default function RatingPage() {
                 <div className={styles.playerElo}>{p.elo}</div>
                 <div className={styles.playerCat}>{categoryForElo(p.elo)?.label}</div>
               </div>
-            </div>
+            </a>
           ))}
 
           <div className={styles.sectionLabel}>Шкала рівнів</div>

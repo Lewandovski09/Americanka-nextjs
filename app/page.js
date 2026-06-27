@@ -1,16 +1,14 @@
 'use client';
 
 import { useEffect, useState } from 'react';
-import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconBell, IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconVolleyball } from '@/components/Icons';
+import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconVolleyball } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
-  const router = useRouter();
   const { player, loading } = useCurrentPlayer();
   const [nextTournament, setNextTournament] = useState(null);
   const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
@@ -21,13 +19,7 @@ export default function HomePage() {
   const [recentJoiners, setRecentJoiners] = useState([]);
 
   useEffect(() => {
-    if (!loading && !player) {
-      router.replace('/register');
-    }
-  }, [loading, player, router]);
-
-  useEffect(() => {
-    if (!player) return;
+    if (loading) return;
     const supabase = createClient();
 
     async function loadNextTournament() {
@@ -56,12 +48,13 @@ export default function HomePage() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      const { data: reads } = await supabase
-        .from('notification_reads')
-        .select('notification_id')
-        .eq('player_id', player.id);
-
-      setReadIds(new Set((reads || []).map((r) => r.notification_id)));
+      if (player) {
+        const { data: reads } = await supabase
+          .from('notification_reads')
+          .select('notification_id')
+          .eq('player_id', player.id);
+        setReadIds(new Set((reads || []).map((r) => r.notification_id)));
+      }
       setAnnouncements(notifs || []);
     }
 
@@ -84,15 +77,16 @@ export default function HomePage() {
     loadNextTournament();
     loadAnnouncements();
     loadCommunity();
-  }, [player]);
+  }, [loading, player]);
 
   async function dismissAnnouncement(notificationId) {
     setReadIds((prev) => new Set([...prev, notificationId]));
+    if (!player) return;
     const supabase = createClient();
     await supabase.from('notification_reads').upsert({ player_id: player.id, notification_id: notificationId });
   }
 
-  if (loading || !player) {
+  if (loading) {
     return (
       <div className={styles.page}>
         <div className={styles.skeletonHeader}>
@@ -124,27 +118,42 @@ export default function HomePage() {
             </span>
             <span className={styles.headerBrandName}>Americanka</span>
           </div>
-          <IconBell size={18} color="rgba(255,255,255,0.55)" />
         </div>
         <div className={styles.headerLocation}>
           <IconMapPin size={13} />
           <span>Пляж 13 · Станція Фонтана, Одеса</span>
         </div>
-        <div className={styles.headerPlayerRow}>
-          <PlayerAvatar player={player} size={44} />
-          <div className={styles.headerPlayerInfo}>
-            <div className={styles.headerPlayerName}>{player.full_name}</div>
-            <div className={styles.headerPlayerSub}>
-              {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
+        {player ? (
+          <div className={styles.headerPlayerRow}>
+            <PlayerAvatar player={player} size={44} />
+            <div className={styles.headerPlayerInfo}>
+              <div className={styles.headerPlayerName}>{player.full_name}</div>
+              <div className={styles.headerPlayerSub}>
+                {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
+              </div>
+            </div>
+            <div className={styles.headerElo}>
+              <div className={styles.headerEloValue}>{player.elo ?? '—'}</div>
+              <div className={styles.headerEloLabel}>ELO</div>
             </div>
           </div>
-          <div className={styles.headerElo}>
-            <div className={styles.headerEloValue}>{player.elo ?? '—'}</div>
-            <div className={styles.headerEloLabel}>ELO</div>
+        ) : (
+          <div className={styles.guestRow}>
+            <div className={styles.guestText}>
+              Увійдіть, щоб бачити свій рейтинг і брати участь у турнірах
+            </div>
+            <div className={styles.guestBtns}>
+              <a href="/register" className={styles.guestRegisterBtn}>
+                Зареєструватися
+              </a>
+              <a href="/login" className={styles.guestLoginBtn}>
+                Увійти
+              </a>
+            </div>
           </div>
-        </div>
+        )}
         <div className={styles.headerWave} aria-hidden="true">
-          <svg viewBox="0 0 600 22" preserveAspectRatio="none" width="100%" height="22">
+          <svg viewBox="0 0 600 22" preserveAspectRatio="none">
             <path d="M0,10 C100,22 200,0 300,10 C400,20 500,0 600,10 L600,22 L0,22 Z" fill="var(--bg-light)" />
           </svg>
         </div>
@@ -152,7 +161,7 @@ export default function HomePage() {
 
       <div className={styles.body}>
 
-      {player.approval_status === 'pending' && (
+      {player?.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
       )}
 

@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown } from '@/components/Icons';
+import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX } from '@/components/Icons';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -25,6 +25,7 @@ export default function ProfilePage() {
   const [matchupMode, setMatchupMode] = useState('together'); // 'together' | 'against'
 
   const [editOpen, setEditOpen] = useState(false);
+  const [photoLightbox, setPhotoLightbox] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState('');
   const [editSaving, setEditSaving] = useState(false);
@@ -161,7 +162,7 @@ export default function ProfilePage() {
   async function handleLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
-    router.push('/register');
+    router.push('/');
   }
 
   if (loading) {
@@ -197,7 +198,14 @@ export default function ProfilePage() {
       <div className={`${styles.header} riseIn`}>
         <div className={styles.headerTop}>
           <div className={styles.avatarWrap}>
-            <PlayerAvatar player={player} size={64} />
+            <button
+              type="button"
+              className={styles.avatarZoomBtn}
+              onClick={() => player.photo_url && setPhotoLightbox(true)}
+              aria-label="Збільшити фото"
+            >
+              <PlayerAvatar player={player} size={64} />
+            </button>
             <label className={styles.photoEditBtn}>
               <IconEdit size={13} color="#fff" />
               <input type="file" accept="image/*" hidden onChange={handlePhotoChange} />
@@ -227,7 +235,7 @@ export default function ProfilePage() {
         </div>
 
         <div className={styles.headerWave} aria-hidden="true">
-          <svg viewBox="0 0 600 22" preserveAspectRatio="none" width="100%" height="22">
+          <svg viewBox="0 0 600 22" preserveAspectRatio="none">
             <path d="M0,10 C100,22 200,0 300,10 C400,20 500,0 600,10 L600,22 L0,22 Z" fill="var(--bg-light)" />
           </svg>
         </div>
@@ -332,6 +340,17 @@ export default function ProfilePage() {
           <span>@one_gogi (Telegram)</span>
         </a>
       </div>
+
+      {photoLightbox && player.photo_url && (
+        <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
+          <div className={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>
+            <button className={styles.lightboxClose} onClick={() => setPhotoLightbox(false)} aria-label="Закрити">
+              <IconX size={14} color="#fff" />
+            </button>
+            <img src={player.photo_url} alt={player.full_name} className={styles.lightboxImg} />
+          </div>
+        </div>
+      )}
 
       {editOpen && (
         <div className={styles.modalOverlay} onClick={() => setEditOpen(false)}>

@@ -54,20 +54,30 @@
 
 .header {
   background: var(--navy);
-  padding: 16px 16px 0;
+  padding: 16px 16px 22px;
+  position: relative;
+  overflow: hidden;
 }
 
 @media (min-width: 700px) {
   .header {
-    padding: 22px 28px 0;
+    padding: 22px 28px 22px;
   }
 }
 
 .headerWave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  line-height: 0;
+}
+
+.headerWave svg {
   display: block;
   width: 100%;
-  margin-top: 14px;
-  line-height: 0;
+  height: 100%;
 }
 
 .headerTop {
@@ -149,6 +159,48 @@
   font-size: 9px;
   color: rgba(255, 255, 255, 0.35);
   letter-spacing: 0.5px;
+}
+
+.guestRow {
+  padding-top: 2px;
+}
+
+.guestText {
+  font-size: 13px;
+  color: rgba(255, 255, 255, 0.7);
+  line-height: 1.4;
+  margin-bottom: 12px;
+  max-width: 280px;
+}
+
+.guestBtns {
+  display: flex;
+  gap: 8px;
+}
+
+.guestRegisterBtn {
+  flex: 1;
+  text-align: center;
+  background: var(--rust);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 11px;
+  border-radius: var(--r-sm);
+  text-decoration: none;
+}
+
+.guestLoginBtn {
+  flex: 1;
+  text-align: center;
+  background: none;
+  border: 1.5px solid rgba(255, 255, 255, 0.25);
+  color: #fff;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 11px;
+  border-radius: var(--r-sm);
+  text-decoration: none;
 }
 
 /* ---------- Body content ---------- */

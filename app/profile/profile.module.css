@@ -65,9 +65,10 @@
 .header {
   background: var(--navy);
   border-radius: var(--r-lg);
-  padding: 18px 18px 0;
+  padding: 18px 18px 22px;
   margin-bottom: 4px;
   overflow: hidden;
+  position: relative;
 }
 
 .headerTop {
@@ -78,6 +79,56 @@
 
 .avatarWrap {
   position: relative;
+}
+
+.avatarZoomBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  display: block;
+  cursor: pointer;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 35, 71, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 60px 24px;
+  z-index: 400;
+}
+
+.lightboxBox {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rust);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+}
+
+.lightboxImg {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
 }
 
 .photoEditBtn {
@@ -131,7 +182,6 @@
   align-items: flex-end;
   justify-content: space-between;
   margin-top: 18px;
-  padding-bottom: 16px;
 }
 
 .heroEloBlock {
@@ -164,10 +214,18 @@
 }
 
 .headerWave {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 22px;
+  line-height: 0;
+}
+
+.headerWave svg {
   display: block;
   width: 100%;
-  margin: 0 -18px;
-  line-height: 0;
+  height: 100%;
 }
 
 .sectionLabel {
