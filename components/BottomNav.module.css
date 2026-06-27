@@ -1,3 +1,14 @@
+@keyframes navIn {
+  from {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
 .nav {
   display: flex;
   background: linear-gradient(180deg, #16306b 0%, #0d2347 100%);
@@ -6,10 +17,11 @@
   position: sticky;
   bottom: 0;
   z-index: 10;
-  border-radius: 18px 18px 0 0;
+  border-radius: var(--r-lg) var(--r-lg) 0 0;
   padding: 8px 8px calc(env(safe-area-inset-bottom, 0px) + 10px);
   gap: 4px;
-  transition: padding 0.25s ease;
+  transition: padding var(--dur-base) var(--ease);
+  animation: navIn var(--dur-slow) var(--ease) backwards;
 }
 
 .navShrunk {
@@ -34,9 +46,9 @@
   align-items: center;
   justify-content: center;
   padding: 9px 0;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: transparent;
-  transition: background 0.2s ease, padding 0.25s ease;
+  transition: background var(--dur-base) var(--ease), padding var(--dur-base) var(--ease), transform var(--dur-base) var(--ease);
 }
 
 .navBtnShrunk .navTile {
@@ -46,6 +58,7 @@
 /* Instagram-style: the whole tile lights up, not just the icon. */
 .navBtnOn .navTile {
   background: rgba(232, 93, 74, 0.18);
+  transform: translateY(-2px);
 }
 
 .navLabel {
@@ -53,7 +66,7 @@
   color: rgba(255, 255, 255, 0.5);
   font-weight: 700;
   letter-spacing: 0.3px;
-  transition: opacity 0.2s ease, max-height 0.2s ease;
+  transition: opacity var(--dur-base) var(--ease), max-height var(--dur-base) var(--ease), color var(--dur-base) var(--ease);
   max-height: 14px;
   overflow: hidden;
 }

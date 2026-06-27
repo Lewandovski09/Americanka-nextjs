@@ -21,10 +21,10 @@
 .tabs {
   display: flex;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 4px;
   margin-bottom: 14px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .tabBtn {
@@ -49,12 +49,12 @@
   width: 100%;
   padding: 11px 14px;
   border: 1.5px solid var(--border-light);
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--text);
   font-size: 15px;
   margin-bottom: 10px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.04);
+  box-shadow: var(--shadow-sm);
 }
 
 .searchError {
@@ -72,14 +72,14 @@
 .genderBtn {
   flex: 1;
   padding: 12px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   border: none;
   background: var(--surface);
   cursor: pointer;
   font-size: 14px;
   font-weight: 700;
   color: var(--text2);
-  box-shadow: 0 2px 8px rgba(13, 35, 71, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .genderBtnOn {
@@ -96,7 +96,7 @@
 
 .chip {
   padding: 6px 16px;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   font-size: 12px;
   border: 1px solid var(--border-light);
   background: var(--surface);
@@ -133,14 +133,14 @@
   gap: 10px;
   padding: 11px 14px;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   margin-bottom: 7px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .meRow {
   background: var(--rust-tint);
-  box-shadow: 0 2px 10px rgba(232, 93, 74, 0.18);
+  box-shadow: var(--shadow-highlight);
 }
 
 .rank {
@@ -193,9 +193,9 @@
 
 .scaleCard {
   background: var(--surface);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .scaleRow {
@@ -224,17 +224,17 @@
 
 .compareCard {
   background: var(--surface);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .compareInput {
   width: 100%;
   padding: 11px 14px;
   border: 1.5px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
   font-size: 15px;
@@ -247,7 +247,7 @@
   background: var(--rust);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   font-weight: 800;
   cursor: pointer;
 }
@@ -258,9 +258,9 @@
 
 .compareResultCard {
   background: var(--surface);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .compareHeaderRow {
@@ -317,7 +317,7 @@
 
 .compareStatCol {
   background: var(--surface-alt);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 10px;
   text-align: center;
 }

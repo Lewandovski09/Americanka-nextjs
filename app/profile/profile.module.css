@@ -17,15 +17,52 @@
   color: var(--text2);
 }
 
+.skeletonHeader {
+  display: flex;
+  align-items: center;
+  gap: 14px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  margin-bottom: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.skeletonAvatar {
+  width: 64px;
+  height: 64px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.skeletonLines {
+  flex: 1;
+}
+
+.skeletonLine {
+  height: 12px;
+  margin-bottom: 8px;
+}
+
+.skeletonStatsGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 12px;
+}
+
+.skeletonStatBox {
+  height: 64px;
+}
+
 .header {
   display: flex;
   align-items: center;
   gap: 14px;
   background: var(--surface);
-  border-radius: 18px;
+  border-radius: var(--r-lg);
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .avatarWrap {
@@ -81,7 +118,7 @@
 .logoutBtn {
   background: none;
   border: 1.5px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   padding: 7px 12px;
   color: var(--text2);
   font-size: 12px;
@@ -97,9 +134,9 @@
 
 .statBox {
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 14px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .statValue {
@@ -126,10 +163,10 @@
 
 .card {
   background: var(--surface);
-  border-radius: 16px;
+  border-radius: var(--r-md);
   padding: 16px;
   margin-bottom: 16px;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .sliderLabel {
@@ -156,7 +193,7 @@
 
 .calcBox {
   padding: 10px;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   text-align: center;
   background: var(--bg-light);
 }
@@ -186,7 +223,7 @@
   flex: 1;
   padding: 10px 13px;
   border: 1.5px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
   font-size: 14px;
@@ -197,7 +234,7 @@
   background: var(--rust);
   color: #fff;
   border: none;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -238,11 +275,11 @@
   justify-content: space-between;
   align-items: center;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 14px;
   margin-bottom: 8px;
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .historyName {
@@ -265,15 +302,15 @@
 .negative {
   font-size: 16px;
   font-weight: 800;
-  color: #dc2626;
+  color: var(--danger);
 }
 
 .supportCard {
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 6px;
   margin-bottom: 30px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .supportRow {
@@ -309,7 +346,7 @@
 
 .modalBox {
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   padding: 20px;
   width: 100%;
   max-width: 420px;
@@ -349,7 +386,7 @@
   justify-content: space-between;
   padding: 10px 12px;
   background: var(--surface-alt);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   margin-bottom: 6px;
   font-size: 12px;
   color: var(--text);
@@ -381,7 +418,7 @@
   background: var(--surface-alt);
   color: var(--text);
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   font-weight: 700;
   cursor: pointer;
 }
@@ -424,7 +461,7 @@
   width: 100%;
   padding: 11px 13px;
   border: 1.5px solid var(--border-light);
-  border-radius: 10px;
+  border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
   font-size: 15px;
@@ -436,7 +473,7 @@
   background: var(--rust);
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   font-weight: 800;
   cursor: pointer;
   margin-top: 14px;

@@ -9,7 +9,7 @@ export default function PlayerAvatar({ player, size = 34 }) {
     fontWeight: 700,
     flexShrink: 0,
     overflow: 'hidden',
-    background: '#f5e8c0',
+    background: '#dde3ee',
     color: '#0d2347',
     fontSize: Math.round(size * 0.32),
   };

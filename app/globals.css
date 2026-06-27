@@ -24,11 +24,29 @@
   --accent-green: #1ea672;
   --accent-blue: #2563eb;
   --accent-pink: #d6336c;
+  --danger: #dc2626;
 
   /* Shared corner-radius scale — use these instead of one-off px values */
   --r-sm: 12px;
   --r-md: 16px;
   --r-lg: 20px;
+  --r-pill: 999px;
+
+  /* Shared elevation scale — replaces the dozen near-identical
+     hand-written box-shadow values that had drifted slightly apart
+     across files (0.06 here, 0.08 there, for no real reason) */
+  --shadow-sm: 0 2px 12px rgba(13, 35, 71, 0.07);
+  --shadow-lg: 0 20px 60px rgba(0, 0, 0, 0.4);
+  --shadow-highlight: 0 2px 12px rgba(232, 93, 74, 0.22);
+  --shadow-cta: 0 4px 16px rgba(232, 93, 74, 0.32);
+
+  /* Motion — one easing curve and three durations used everywhere,
+     so every transition in the app feels like it came from the same
+     hand instead of each component inventing its own timing. */
+  --ease: cubic-bezier(0.22, 0.85, 0.32, 1);
+  --dur-fast: 0.12s;
+  --dur-base: 0.22s;
+  --dur-slow: 0.4s;
 
   /* Legacy dark-mode tokens (still used by /register auth screen) */
   --cream: #fef9ec;
@@ -52,4 +70,78 @@ body {
 
 button {
   font-family: inherit;
+}
+
+/* ---------- Global tactile feedback ----------
+   Every tappable surface gets the same quiet press-down response —
+   this is what makes an interface feel handled by one set of rules
+   instead of assembled from parts that don't quite agree. Opt out
+   with .no-press on anything that shouldn't react (rare). */
+button:not(:disabled),
+a,
+[role='button'] {
+  transition: transform var(--dur-fast) var(--ease), opacity var(--dur-fast) var(--ease);
+}
+
+button:not(:disabled):active,
+a:active,
+[role='button']:active {
+  transform: scale(0.97);
+}
+
+.no-press:active {
+  transform: none;
+}
+
+:focus-visible {
+  outline: 2px solid var(--rust);
+  outline-offset: 2px;
+  border-radius: var(--r-sm);
+}
+
+/* ---------- Entrance animation ----------
+   A single shared fade-up used for cards/sections as they appear,
+   so the app feels assembled rather than just present. Kept short
+   and subtle on purpose — this is seasoning, not the dish. */
+@keyframes riseIn {
+  from {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0);
+  }
+}
+
+.riseIn {
+  animation: riseIn var(--dur-slow) var(--ease) backwards;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  *,
+  *::before,
+  *::after {
+    animation-duration: 0.001ms !important;
+    transition-duration: 0.001ms !important;
+  }
+}
+
+/* ---------- Loading skeleton ----------
+   Shared shimmer block for loading states — swap a plain "loading…"
+   string for a shape that previews what's coming. */
+@keyframes shimmer {
+  0% {
+    background-position: -200% 0;
+  }
+  100% {
+    background-position: 200% 0;
+  }
+}
+
+.skeleton {
+  background: linear-gradient(90deg, var(--border-light) 25%, var(--surface-alt) 37%, var(--border-light) 63%);
+  background-size: 400% 100%;
+  animation: shimmer 1.4s ease infinite;
+  border-radius: var(--r-sm);
 }

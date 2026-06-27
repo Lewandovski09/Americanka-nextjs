@@ -11,11 +11,11 @@
 
 .noticeBox {
   background: #fffef9;
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   padding: 32px 26px;
   max-width: 360px;
   text-align: center;
-  box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
+  box-shadow: var(--shadow-lg);
   border-top: 5px solid var(--rust);
 }
 
@@ -46,7 +46,7 @@
   background: #0d2347;
   color: #fff;
   border: none;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   font-size: 14px;
   font-weight: 700;
   cursor: pointer;

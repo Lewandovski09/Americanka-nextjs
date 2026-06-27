@@ -92,7 +92,23 @@ export default function HomePage() {
     await supabase.from('notification_reads').upsert({ player_id: player.id, notification_id: notificationId });
   }
 
-  if (loading || !player) return <div className={styles.loading}>Завантаження...</div>;
+  if (loading || !player) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.skeletonHeader}>
+          <div className={`skeleton ${styles.skeletonAvatar}`} />
+          <div className={styles.skeletonLines}>
+            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '55%' }} />
+            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '35%', marginBottom: 0 }} />
+          </div>
+        </div>
+        <div className={styles.body}>
+          <div className={`skeleton ${styles.skeletonCard}`} />
+          <div className={`skeleton ${styles.skeletonCard}`} />
+        </div>
+      </div>
+    );
+  }
 
   const visibleAnnouncements = announcements.filter((a) => !readIds.has(a.id));
   const slotsTotal = 8; // current format size; will read from format data once multiple formats are live
@@ -100,7 +116,7 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
+      <div className={`${styles.header} riseIn`}>
         <div className={styles.headerTop}>
           <div className={styles.headerBrand}>
             <span className={styles.headerBrandIcon}>
@@ -127,6 +143,11 @@ export default function HomePage() {
             <div className={styles.headerEloLabel}>ELO</div>
           </div>
         </div>
+        <div className={styles.headerWave} aria-hidden="true">
+          <svg viewBox="0 0 600 22" preserveAspectRatio="none" width="100%" height="22">
+            <path d="M0,10 C100,22 200,0 300,10 C400,20 500,0 600,10 L600,22 L0,22 Z" fill="var(--bg-light)" />
+          </svg>
+        </div>
       </div>
 
       <div className={styles.body}>
@@ -139,7 +160,7 @@ export default function HomePage() {
         <>
           <div className={styles.sectionLabel}>Оголошення</div>
           {visibleAnnouncements.map((a) => (
-            <div key={a.id} className={styles.announcementCard}>
+            <div key={a.id} className={`${styles.announcementCard} riseIn`} style={{ animationDelay: '0.05s' }}>
               <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
                 <IconX size={11} />
               </button>
@@ -158,7 +179,7 @@ export default function HomePage() {
 
       <div className={styles.sectionLabel}>Найближчий турнір</div>
       {nextTournament ? (
-        <a href={`/tournaments/${nextTournament.id}`} className={styles.nextTournamentCard}>
+        <a href={`/tournaments/${nextTournament.id}`} className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
           <div className={styles.nextTournamentTop}>
             <div className={styles.nextTournamentName}>{nextTournament.name}</div>
             <span className={styles.statusBadge}>Реєстрація відкрита</span>
@@ -188,7 +209,7 @@ export default function HomePage() {
           </div>
         </a>
       ) : (
-        <div className={styles.emptyTournamentCard}>
+        <div className={`${styles.emptyTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
           <div className={styles.emptyTournamentIcon}>
             <IconVolleyball size={32} color="var(--text2)" strokeWidth={1.6} />
           </div>
@@ -201,7 +222,7 @@ export default function HomePage() {
       )}
 
       <div className={styles.sectionLabel}>Спільнота</div>
-      <div className={styles.communityCard}>
+      <div className={`${styles.communityCard} riseIn`} style={{ animationDelay: '0.15s' }}>
         <div className={styles.communityCountRow}>
           <div className={styles.communityCountValue}>{communityCount}</div>
           <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
@@ -217,7 +238,7 @@ export default function HomePage() {
         )}
       </div>
 
-      <a href="/tournaments" className={styles.ctaBtn}>
+      <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
         Дивитись усі турніри →
       </a>
 

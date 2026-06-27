@@ -164,7 +164,25 @@ export default function ProfilePage() {
     router.push('/register');
   }
 
-  if (loading) return <div className={styles.loading}>Завантаження...</div>;
+  if (loading) {
+    return (
+      <div className={styles.page}>
+        <div className={styles.skeletonHeader}>
+          <div className={`skeleton ${styles.skeletonAvatar}`} />
+          <div className={styles.skeletonLines}>
+            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '50%' }} />
+            <div className={`skeleton ${styles.skeletonLine}`} style={{ width: '70%', marginBottom: 0 }} />
+          </div>
+        </div>
+        <div className={styles.skeletonStatsGrid}>
+          <div className={`skeleton ${styles.skeletonStatBox}`} />
+          <div className={`skeleton ${styles.skeletonStatBox}`} />
+          <div className={`skeleton ${styles.skeletonStatBox}`} />
+          <div className={`skeleton ${styles.skeletonStatBox}`} />
+        </div>
+      </div>
+    );
+  }
   if (!player) return <div className={styles.loading}>Будь ласка, увійдіть в акаунт</div>;
 
   const e = expectedScore(player.elo || 1200, opponentElo);
@@ -174,7 +192,7 @@ export default function ProfilePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.header}>
+      <div className={`${styles.header} riseIn`}>
         <div className={styles.avatarWrap}>
           <PlayerAvatar player={player} size={64} />
           <label className={styles.photoEditBtn}>
@@ -198,7 +216,7 @@ export default function ProfilePage() {
         </button>
       </div>
 
-      <div className={styles.statsGrid}>
+      <div className={`${styles.statsGrid} riseIn`} style={{ animationDelay: '0.06s' }}>
         <StatBox value={player.elo ?? '—'} label="Рейтинг Ело" />
         <StatBox value={player.tournaments_played} label="Турнірів" />
         <StatBox value={player.tournaments_won} label="Перемог" />
@@ -206,7 +224,7 @@ export default function ProfilePage() {
       </div>
 
       <div className={styles.sectionLabel}>Калькулятор Ело</div>
-      <div className={styles.card}>
+      <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
         <div className={styles.sliderLabel}>
           Ело суперника: <b>{opponentElo}</b>
         </div>
@@ -220,14 +238,14 @@ export default function ProfilePage() {
           className={styles.slider}
         />
         <div className={styles.calcGrid}>
-          <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="#f0c040" />
-          <CalcBox value={`+${winGain}`} label="перемога" color="#6ee7b7" />
-          <CalcBox value={lossDelta} label="поразка" color="#fca5a5" />
+          <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="var(--navy)" />
+          <CalcBox value={`+${winGain}`} label="перемога" color="var(--accent-green)" />
+          <CalcBox value={lossDelta} label="поразка" color="var(--danger)" />
         </div>
       </div>
 
       <div className={styles.sectionLabel}>Партнери та суперники</div>
-      <div className={styles.card}>
+      <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.14s' }}>
         <div className={styles.searchRow}>
           <input
             className={styles.searchInput}

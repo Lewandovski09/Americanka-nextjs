@@ -33,10 +33,10 @@
 .tabs {
   display: flex;
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 4px;
   margin-bottom: 14px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .tabBtn {
@@ -63,9 +63,9 @@
   font-size: 12px;
   color: var(--text);
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   overflow: hidden;
-  box-shadow: 0 2px 14px rgba(13, 35, 71, 0.08);
+  box-shadow: var(--shadow-sm);
 }
 
 .table th {
@@ -98,7 +98,7 @@
 }
 
 .negative {
-  color: #dc2626;
+  color: var(--danger);
   font-weight: 700;
 }
 
@@ -117,17 +117,17 @@
   justify-content: space-between;
   padding: 12px 14px;
   background: var(--surface);
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   margin-bottom: 8px;
   font-size: 13px;
   color: var(--text);
-  box-shadow: 0 2px 8px rgba(13, 35, 71, 0.05);
+  box-shadow: var(--shadow-sm);
 }
 
 .matchRowPending {
   background: var(--rust-tint);
   cursor: pointer;
-  box-shadow: 0 2px 10px rgba(232, 93, 74, 0.2);
+  box-shadow: var(--shadow-highlight);
 }
 
 .matchScore {
@@ -141,7 +141,7 @@
   background: var(--rust);
   color: #fff;
   border: none;
-  border-radius: 16px;
+  border-radius: var(--r-md);
   font-weight: 800;
   font-size: 15px;
   margin-top: 14px;
@@ -150,12 +150,12 @@
 
 .chatBox {
   background: var(--surface);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   padding: 12px;
   max-height: 320px;
   overflow-y: auto;
   margin-bottom: 10px;
-  box-shadow: 0 2px 10px rgba(13, 35, 71, 0.06);
+  box-shadow: var(--shadow-sm);
 }
 
 .chatMsg,
@@ -178,7 +178,7 @@
   background: var(--surface-alt);
   color: var(--text);
   padding: 9px 12px;
-  border-radius: 12px;
+  border-radius: var(--r-sm);
   display: inline-block;
 }
 
@@ -226,7 +226,7 @@
 
 .modalBox {
   background: var(--surface);
-  border-radius: 20px;
+  border-radius: var(--r-lg);
   padding: 24px 20px;
   width: 100%;
   max-width: 380px;
@@ -260,7 +260,7 @@
   font-size: 30px;
   font-weight: 700;
   border: 1.5px solid var(--border-light);
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   color: var(--text);
 }
 
@@ -270,7 +270,7 @@
   margin-bottom: 10px;
   padding: 11px 14px;
   background: #fef2f2;
-  border-radius: 10px;
+  border-radius: var(--r-sm);
 }
 
 .btnPrimary {
@@ -279,7 +279,7 @@
   background: var(--navy);
   color: #fff;
   border: none;
-  border-radius: 14px;
+  border-radius: var(--r-sm);
   font-weight: 700;
   cursor: pointer;
 }

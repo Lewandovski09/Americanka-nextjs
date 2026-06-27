@@ -147,7 +147,7 @@ export default function RatingPage() {
           ))}
 
           <div className={styles.sectionLabel}>Шкала рівнів</div>
-          <div className={styles.scaleCard}>
+          <div className={`${styles.scaleCard} riseIn`}>
             {SKILL_CATEGORIES.map((c) => (
               <div key={c.id} className={styles.scaleRow}>
                 <div className={styles.scaleHeader}>
