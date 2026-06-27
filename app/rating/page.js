@@ -133,7 +133,7 @@ export default function RatingPage() {
 
           {filteredPlayers.map((p, i) => (
             <div key={p.id} className={`${styles.playerRow} ${p.id === player?.id ? styles.meRow : ''}`}>
-              <div className={styles.rank}>{['🥇', '🥈', '🥉'][i] || i + 1}</div>
+              <div className={styles.rank} style={i < 3 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</div>
               <PlayerAvatar player={p} size={36} />
               <div className={styles.playerInfo}>
                 <div className={styles.playerName}>{p.full_name}</div>

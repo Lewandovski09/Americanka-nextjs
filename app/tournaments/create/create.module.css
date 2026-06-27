@@ -65,7 +65,7 @@
 
 .optionBtnOn {
   border-color: var(--sand2);
-  background: #fff7e6;
+  background: var(--rust-tint);
   color: var(--sand2);
 }
 
@@ -106,7 +106,7 @@
 }
 
 .playerRowOn {
-  background: #fff7e6;
+  background: var(--rust-tint);
   box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
 }
 

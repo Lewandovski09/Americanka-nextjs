@@ -6,6 +6,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { IconBell, IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconVolleyball } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -99,21 +100,36 @@ export default function HomePage() {
 
   return (
     <div className={styles.page}>
-      <div className={styles.brandStrip}>AMERICANKA · Пляж 13 · Одеса</div>
-
-      <div className={styles.playerCard}>
-        <PlayerAvatar player={player} size={56} />
-        <div className={styles.playerCardInfo}>
-          <div className={styles.playerCardName}>{player.full_name}</div>
-          <div className={styles.playerCardSub}>
-            {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
+      <div className={styles.header}>
+        <div className={styles.headerTop}>
+          <div className={styles.headerBrand}>
+            <span className={styles.headerBrandIcon}>
+              <IconVolleyball size={15} color="#fff" />
+            </span>
+            <span className={styles.headerBrandName}>Americanka</span>
+          </div>
+          <IconBell size={18} color="rgba(255,255,255,0.55)" />
+        </div>
+        <div className={styles.headerLocation}>
+          <IconMapPin size={13} />
+          <span>Пляж 13 · Станція Фонтана, Одеса</span>
+        </div>
+        <div className={styles.headerPlayerRow}>
+          <PlayerAvatar player={player} size={44} />
+          <div className={styles.headerPlayerInfo}>
+            <div className={styles.headerPlayerName}>{player.full_name}</div>
+            <div className={styles.headerPlayerSub}>
+              {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
+            </div>
+          </div>
+          <div className={styles.headerElo}>
+            <div className={styles.headerEloValue}>{player.elo ?? '—'}</div>
+            <div className={styles.headerEloLabel}>ELO</div>
           </div>
         </div>
-        <div className={styles.playerCardElo}>
-          <div className={styles.playerCardEloValue}>{player.elo ?? '—'}</div>
-          <div className={styles.playerCardEloLabel}>ELO</div>
-        </div>
       </div>
+
+      <div className={styles.body}>
 
       {player.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
@@ -124,11 +140,11 @@ export default function HomePage() {
           <div className={styles.sectionLabel}>Оголошення</div>
           {visibleAnnouncements.map((a) => (
             <div key={a.id} className={styles.announcementCard}>
-              <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)}>
-                ✕
+              <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
+                <IconX size={11} />
               </button>
               <div className={styles.announcementHeader}>
-                <span className={styles.announcementIconBadge}>📢</span>
+                <IconMegaphone size={16} color="var(--rust)" />
                 <div className={styles.announcementTitle}>{a.title}</div>
               </div>
               <div className={styles.announcementBody}>{a.body}</div>
@@ -173,7 +189,9 @@ export default function HomePage() {
         </a>
       ) : (
         <div className={styles.emptyTournamentCard}>
-          <div className={styles.emptyTournamentIcon}>🏐</div>
+          <div className={styles.emptyTournamentIcon}>
+            <IconVolleyball size={32} color="var(--text2)" strokeWidth={1.6} />
+          </div>
           <div className={styles.emptyTournamentTitle}>Турнірів ще немає</div>
           <div className={styles.emptyTournamentText}>
             Адміністратор готує перший турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
@@ -205,7 +223,9 @@ export default function HomePage() {
 
       <button className={styles.eloExplainerToggle} onClick={() => setEloExplainerOpen((o) => !o)}>
         <span>Що таке рейтинг Ело і як він рахується?</span>
-        <span className={styles.eloExplainerArrow}>{eloExplainerOpen ? '▲' : '▼'}</span>
+        <span className={`${styles.eloExplainerArrow} ${eloExplainerOpen ? styles.eloExplainerArrowOpen : ''}`}>
+          <IconChevronDown size={13} />
+        </span>
       </button>
 
       {eloExplainerOpen && (
@@ -232,13 +252,14 @@ export default function HomePage() {
 
       <div className={styles.formatsCard}>
         <div className={styles.formatsIconRow}>
-          <span className={styles.formatsIcon}>🚀</span>
+          <IconRocket size={17} color="var(--rust)" />
           <div className={styles.formatsTitle}>Старт сезону — AMERICANKA</div>
         </div>
         <div className={styles.formatsText}>
           Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
           <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
         </div>
+      </div>
       </div>
     </div>
   );

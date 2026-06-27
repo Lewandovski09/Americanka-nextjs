@@ -1,11 +1,16 @@
 :root {
-  /* Brand core */
+  /* Brand core — navy is chrome only (header / bottom nav), coral is the
+     single accent used everywhere else. The old gold tokens (--sand,
+     --sand2) are repointed to coral so every page that already references
+     them falls in line with the new single-accent system automatically. */
   --navy: #0d2347;
   --navy2: #1a3a7a;
   --navy3: #0a1b36;
-  --sand: #f0c040;
-  --sand2: #d4a017;
   --rust: #e85d4a;
+  --rust-dark: #c8432f;
+  --rust-tint: #fceae6;
+  --sand: #e85d4a;
+  --sand2: #c8432f;
 
   /* New light, professional surface palette */
   --bg-light: #f3f6fb;
@@ -19,6 +24,11 @@
   --accent-green: #1ea672;
   --accent-blue: #2563eb;
   --accent-pink: #d6336c;
+
+  /* Shared corner-radius scale — use these instead of one-off px values */
+  --r-sm: 12px;
+  --r-md: 16px;
+  --r-lg: 20px;
 
   /* Legacy dark-mode tokens (still used by /register auth screen) */
   --cream: #fef9ec;

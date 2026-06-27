@@ -1,7 +1,7 @@
 .nav {
   display: flex;
   background: linear-gradient(180deg, #16306b 0%, #0d2347 100%);
-  border-top: 1px solid rgba(240, 192, 64, 0.25);
+  border-top: 1px solid rgba(232, 93, 74, 0.25);
   box-shadow: 0 -4px 20px rgba(0, 0, 0, 0.25);
   position: sticky;
   bottom: 0;
@@ -45,7 +45,7 @@
 
 /* Instagram-style: the whole tile lights up, not just the icon. */
 .navBtnOn .navTile {
-  background: rgba(240, 192, 64, 0.18);
+  background: rgba(232, 93, 74, 0.18);
 }
 
 .navLabel {
@@ -64,7 +64,7 @@
 }
 
 .navBtnOn .navLabel {
-  color: #f0c040;
+  color: #e85d4a;
 }
 
 @media (min-width: 700px) {
@@ -73,7 +73,7 @@
     justify-content: center;
     gap: 48px;
     padding: 16px 20px calc(env(safe-area-inset-bottom, 0px) + 16px);
-    border-top: 1px solid rgba(240, 192, 64, 0.3);
+    border-top: 1px solid rgba(232, 93, 74, 0.3);
     box-shadow: 0 -8px 30px rgba(0, 0, 0, 0.35);
   }
 

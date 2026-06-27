@@ -3,6 +3,7 @@
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
+import { IconSparkle, IconCheck } from '@/components/Icons';
 import styles from './GlobalNotice.module.css';
 
 /**
@@ -23,14 +24,14 @@ export default function GlobalNotice({ player }) {
     async function showNoticeIfNeeded() {
       if (!player.just_registered_notified && player.approval_status === 'pending') {
         setNotice({
-          icon: '🎉',
+          icon: <IconSparkle size={40} color="var(--rust)" />,
           title: 'Акаунт успішно створено!',
           text: 'Очікуйте підтвердження рейтингу адміністратором.',
         });
         await supabase.from('players').update({ just_registered_notified: true }).eq('id', player.id);
       } else if (!player.rating_approved_notified && player.approval_status === 'approved') {
         setNotice({
-          icon: '✅',
+          icon: <IconCheck size={40} color="var(--accent-green)" />,
           title: 'Рейтинг підтверджено!',
           text: `Стартовий рейтинг Ело: ${player.elo}. Категорія: ${categoryForElo(player.elo)?.label}.`,
         });

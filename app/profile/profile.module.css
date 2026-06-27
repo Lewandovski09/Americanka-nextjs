@@ -357,7 +357,7 @@
 }
 
 .matchRound {
-  background: #fff7e6;
+  background: var(--rust-tint);
   color: var(--sand2);
   padding: 2px 7px;
   border-radius: 6px;

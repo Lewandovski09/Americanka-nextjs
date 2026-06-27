@@ -89,7 +89,7 @@
 }
 
 .meRow {
-  background: #fff7e6;
+  background: var(--rust-tint);
 }
 
 .positive {
@@ -125,7 +125,7 @@
 }
 
 .matchRowPending {
-  background: #fff7e6;
+  background: var(--rust-tint);
   cursor: pointer;
   box-shadow: 0 2px 10px rgba(240, 192, 64, 0.25);
 }

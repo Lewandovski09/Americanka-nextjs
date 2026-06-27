@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { IconEdit, IconMail, IconChat } from '@/components/Icons';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -177,7 +178,7 @@ export default function ProfilePage() {
         <div className={styles.avatarWrap}>
           <PlayerAvatar player={player} size={64} />
           <label className={styles.photoEditBtn}>
-            ✎
+            <IconEdit size={13} color="#fff" />
             <input type="file" accept="image/*" hidden onChange={handlePhotoChange} />
           </label>
         </div>
@@ -259,8 +260,8 @@ export default function ProfilePage() {
         <div key={h.tournament_id} className={styles.historyCard} onClick={() => openTournamentDetails(h.tournament_id)}>
           <div>
             <div className={styles.historyName}>{h.tournament_name}</div>
-            <div className={styles.historyPlace}>
-              {h.placement ? `${['🥇', '🥈', '🥉'][h.placement - 1] || ''} ${h.placement}-є місце` : 'В процесі'}
+            <div className={styles.historyPlace} style={h.placement && h.placement <= 3 ? { color: 'var(--rust)', fontWeight: 700 } : undefined}>
+              {h.placement ? `${h.placement}-є місце` : 'В процесі'}
             </div>
           </div>
           {h.elo_delta !== null && (
@@ -275,11 +276,11 @@ export default function ProfilePage() {
       <div className={styles.sectionLabel}>Підтримка</div>
       <div className={styles.supportCard}>
         <a href="mailto:a921488799327z@gmail.com" className={styles.supportRow}>
-          <span className={styles.supportIcon}>✉️</span>
+          <span className={styles.supportIcon}><IconMail size={16} /></span>
           <span>a921488799327z@gmail.com</span>
         </a>
         <a href="https://t.me/one_gogi" target="_blank" rel="noopener noreferrer" className={styles.supportRow}>
-          <span className={styles.supportIcon}>💬</span>
+          <span className={styles.supportIcon}><IconChat size={16} /></span>
           <span>@one_gogi (Telegram)</span>
         </a>
       </div>
