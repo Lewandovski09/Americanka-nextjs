@@ -557,6 +557,15 @@
   font-size: 16px;
   font-weight: 800;
   color: var(--text);
+  flex: 1;
+}
+
+.modalProfileLink {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--rust);
+  text-decoration: none;
+  flex-shrink: 0;
 }
 
 .modalSub {

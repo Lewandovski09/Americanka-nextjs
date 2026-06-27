@@ -7,6 +7,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconTrophy, IconMedal, IconChat, IconTrendUp, IconTrendDown } from '@/components/Icons';
+import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import styles from './player.module.css';
 
 export default function PlayerProfilePage() {
@@ -131,6 +132,10 @@ export default function PlayerProfilePage() {
           <div className={styles.statSquareValue}>{winRate}%</div>
           <div className={styles.statSquareLabel}>Перемог</div>
         </div>
+      </div>
+
+      <div className="riseIn" style={{ animationDelay: '0.08s' }}>
+        <TournamentStatsBreakdown history={tournamentHistory} />
       </div>
 
       {player.telegram_username && (

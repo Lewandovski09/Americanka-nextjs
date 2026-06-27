@@ -7,6 +7,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX } from '@/components/Icons';
+import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -310,6 +311,10 @@ export default function ProfilePage() {
         </div>
       </div>
 
+      <div className="riseIn" style={{ animationDelay: '0.08s' }}>
+        <TournamentStatsBreakdown history={tournamentHistory} />
+      </div>
+
       <div className={styles.sectionLabel}>Калькулятор Ело</div>
       <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
         <div className={styles.sliderLabel}>
@@ -508,6 +513,9 @@ export default function ProfilePage() {
             <div className={styles.modalHeader}>
               <PlayerAvatar player={openPartner} size={36} />
               <div className={styles.modalTitle}>{openPartner.full_name}</div>
+              <a href={`/players/${openPartner.id}`} className={styles.modalProfileLink}>
+                Профіль →
+              </a>
             </div>
             <div className={styles.matchupTabs}>
               <button

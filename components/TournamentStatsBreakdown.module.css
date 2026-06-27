@@ -1,0 +1,114 @@
+.wrap {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+.statRow {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.statRowLast {
+  border-bottom: none;
+}
+
+.statHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.statRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statLabel {
+  font-weight: 700;
+}
+
+.statCount {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.arrow {
+  display: flex;
+  color: var(--text2);
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.arrowOpen {
+  transform: rotate(180deg);
+}
+
+.statBody {
+  padding: 0 16px 14px;
+}
+
+.empty {
+  font-size: 12.5px;
+  color: var(--text2);
+}
+
+.formatBlock {
+  margin-bottom: 10px;
+}
+
+.formatBlock:last-child {
+  margin-bottom: 0;
+}
+
+.formatName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.catRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.catChip {
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+  background: var(--bg-light);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+}
+
+.placeItem {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: 7px 0;
+  font-size: 13px;
+}
+
+.placeName {
+  color: var(--text);
+  font-weight: 600;
+}
+
+.placeCat {
+  color: var(--text2);
+  font-size: 11px;
+  flex-shrink: 0;
+  margin-left: 10px;
+}
