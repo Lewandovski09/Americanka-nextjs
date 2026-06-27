@@ -13,7 +13,6 @@ export default function HomePage() {
   const [nextTournament, setNextTournament] = useState(null);
   const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
   const [announcements, setAnnouncements] = useState([]);
-  const [readIds, setReadIds] = useState(new Set());
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
@@ -49,13 +48,6 @@ export default function HomePage() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      if (player) {
-        const { data: reads } = await supabase
-          .from('notification_reads')
-          .select('notification_id')
-          .eq('player_id', player.id);
-        setReadIds(new Set((reads || []).map((r) => r.notification_id)));
-      }
       setAnnouncements(notifs || []);
     }
 
@@ -81,10 +73,10 @@ export default function HomePage() {
   }, [loading, player]);
 
   async function dismissAnnouncement(notificationId) {
-    setReadIds((prev) => new Set([...prev, notificationId]));
-    if (!player) return;
+    if (!player?.is_admin) return;
+    setAnnouncements((prev) => prev.filter((a) => a.id !== notificationId));
     const supabase = createClient();
-    await supabase.from('notification_reads').upsert({ player_id: player.id, notification_id: notificationId });
+    await supabase.from('admin_notifications').delete().eq('id', notificationId);
   }
 
   if (loading) {
@@ -105,7 +97,6 @@ export default function HomePage() {
     );
   }
 
-  const visibleAnnouncements = announcements.filter((a) => !readIds.has(a.id));
   const slotsTotal = 8; // current format size; will read from format data once multiple formats are live
   const slotsTaken = nextTournamentPlayers.length;
 
@@ -166,14 +157,16 @@ export default function HomePage() {
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
       )}
 
-      {visibleAnnouncements.length > 0 && (
+      {announcements.length > 0 && (
         <>
           <div className={styles.sectionLabel}>Оголошення</div>
-          {visibleAnnouncements.map((a) => (
+          {announcements.map((a) => (
             <div key={a.id} className={`${styles.announcementCard} riseIn`} style={{ animationDelay: '0.05s' }}>
-              <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
-                <IconX size={11} />
-              </button>
+              {player?.is_admin && (
+                <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
+                  <IconX size={11} />
+                </button>
+              )}
               <div className={styles.announcementHeader}>
                 <IconMegaphone size={16} color="var(--rust)" />
                 <div className={styles.announcementTitle}>{a.title}</div>

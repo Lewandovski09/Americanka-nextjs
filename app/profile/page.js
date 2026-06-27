@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX } from '@/components/Icons';
+import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import styles from './profile.module.css';
 
@@ -27,6 +27,7 @@ export default function ProfilePage() {
   const [matchupMode, setMatchupMode] = useState('together'); // 'together' | 'against'
 
   const [editOpen, setEditOpen] = useState(false);
+  const [calcInfoOpen, setCalcInfoOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState(false);
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState('');
@@ -312,10 +313,15 @@ export default function ProfilePage() {
       </div>
 
       <div className="riseIn" style={{ animationDelay: '0.08s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} />
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} />
       </div>
 
-      <div className={styles.sectionLabel}>Калькулятор Ело</div>
+      <div className={styles.sectionLabelRow}>
+        <div className={styles.sectionLabel}>Калькулятор Ело</div>
+        <button className={styles.infoBtn} onClick={() => setCalcInfoOpen(true)} aria-label="Як користуватись">
+          <IconInfo size={15} color="var(--text2)" />
+        </button>
+      </div>
       <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
         <div className={styles.sliderLabel}>
           Ело суперника: <b>{opponentElo}</b>
@@ -436,6 +442,37 @@ export default function ProfilePage() {
               <IconX size={14} color="#fff" />
             </button>
             <img src={player.photo_url} alt={player.full_name} className={styles.lightboxImg} />
+          </div>
+        </div>
+      )}
+
+      {calcInfoOpen && (
+        <div className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalTitle} style={{ marginBottom: 10 }}>
+              Як користуватись калькулятором
+            </div>
+            <div className={styles.calcInfoText}>
+              <p>
+                Пересуньте повзунок, щоб задати рейтинг Ело уявного суперника — це може бути будь-яке число від 800 до
+                2000, не обов&apos;язково реального гравця.
+              </p>
+              <p>
+                <b>Ваш шанс</b> — ймовірність вашої перемоги над суперником із заданим рейтингом, з огляду на різницю
+                рейтингів.
+              </p>
+              <p>
+                <b>Перемога</b> — скільки очок Ело ви отримаєте, якщо переможете саме цього суперника.{' '}
+                <b>Поразка</b> — скільки втратите, якщо програєте.
+              </p>
+              <p>
+                Чим сильніший суперник (вищий рейтинг), тим більше очок дає перемога над ним і тим менше втрачається
+                при поразці — несподівані результати важать більше.
+              </p>
+            </div>
+            <button className={styles.saveBtn} onClick={() => setCalcInfoOpen(false)} style={{ marginTop: 4 }}>
+              Зрозуміло
+            </button>
           </div>
         </div>
       )}

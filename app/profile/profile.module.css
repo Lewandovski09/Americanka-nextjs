@@ -237,6 +237,40 @@
   margin: 18px 0 10px;
 }
 
+.sectionLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 10px;
+}
+
+.sectionLabelRow .sectionLabel {
+  margin: 0;
+}
+
+.infoBtn {
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text2);
+}
+
+.calcInfoText {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.55;
+}
+
+.calcInfoText p {
+  margin-bottom: 10px;
+}
+
+.calcInfoText p:last-child {
+  margin-bottom: 0;
+}
+
 .statSquares {
   display: grid;
   grid-template-columns: 1fr 1fr;

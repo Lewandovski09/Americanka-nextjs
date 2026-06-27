@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconArrowLeft, IconTrophy, IconMedal, IconChat, IconTrendUp, IconTrendDown } from '@/components/Icons';
+import { IconArrowLeft, IconTrophy, IconMedal, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import styles from './player.module.css';
 
@@ -20,6 +20,8 @@ export default function PlayerProfilePage() {
   const [tournamentHistory, setTournamentHistory] = useState([]);
   const [formatStats, setFormatStats] = useState([]);
   const [opponentElo, setOpponentElo] = useState(1200);
+  const [photoLightbox, setPhotoLightbox] = useState(false);
+  const [calcInfoOpen, setCalcInfoOpen] = useState(false);
 
   useEffect(() => {
     let active = true;
@@ -100,7 +102,14 @@ export default function PlayerProfilePage() {
 
       <div className={`${styles.header} riseIn`}>
         <div className={styles.headerTop}>
-          <PlayerAvatar player={player} size={64} />
+          <button
+            type="button"
+            className={styles.avatarZoomBtn}
+            onClick={() => player.photo_url && setPhotoLightbox(true)}
+            aria-label="Збільшити фото"
+          >
+            <PlayerAvatar player={player} size={64} />
+          </button>
           <div className={styles.headerInfo}>
             <div className={styles.name}>{player.full_name}</div>
             <div className={styles.cat}>@{player.login}</div>
@@ -135,7 +144,7 @@ export default function PlayerProfilePage() {
       </div>
 
       <div className="riseIn" style={{ animationDelay: '0.08s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} />
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} />
       </div>
 
       {player.telegram_username && (
@@ -155,7 +164,12 @@ export default function PlayerProfilePage() {
 
       {showCalculator && (
         <>
-          <div className={styles.sectionLabel}>Калькулятор Ело</div>
+          <div className={styles.sectionLabelRow}>
+            <div className={styles.sectionLabel}>Калькулятор Ело</div>
+            <button className={styles.infoBtn} onClick={() => setCalcInfoOpen(true)} aria-label="Як користуватись">
+              <IconInfo size={15} color="var(--text2)" />
+            </button>
+          </div>
           <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
             <div className={styles.sliderLabel}>
               Ело {player.full_name.split(' ')[0]}: <b>{opponentElo}</b>
@@ -235,6 +249,43 @@ export default function PlayerProfilePage() {
           </div>
         </div>
       ))}
+
+      {photoLightbox && player.photo_url && (
+        <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
+          <div className={styles.lightboxBox} onClick={(ev) => ev.stopPropagation()}>
+            <button className={styles.lightboxClose} onClick={() => setPhotoLightbox(false)} aria-label="Закрити">
+              <IconX size={14} color="#fff" />
+            </button>
+            <img src={player.photo_url} alt={player.full_name} className={styles.lightboxImg} />
+          </div>
+        </div>
+      )}
+
+      {calcInfoOpen && (
+        <div className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
+          <div className={styles.modalBox} onClick={(ev) => ev.stopPropagation()}>
+            <div className={styles.modalTitle} style={{ marginBottom: 10 }}>
+              Як користуватись калькулятором
+            </div>
+            <div className={styles.calcInfoText}>
+              <p>
+                Повзунок задає рейтинг Ело — за замовчуванням це поточний рейтинг {player.full_name.split(' ')[0]}, але
+                можна посунути на будь-яке значення.
+              </p>
+              <p>
+                <b>Ваш шанс</b> — ймовірність вашої перемоги, з огляду на різницю рейтингів.
+              </p>
+              <p>
+                <b>Перемога</b> / <b>поразка</b> — скільки очок Ело ви отримаєте чи втратите за результатом проти
+                суперника з таким рейтингом.
+              </p>
+            </div>
+            <button className={styles.saveBtn} onClick={() => setCalcInfoOpen(false)} style={{ marginTop: 4 }}>
+              Зрозуміло
+            </button>
+          </div>
+        </div>
+      )}
     </div>
   );
 }

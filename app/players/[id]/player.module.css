@@ -319,3 +319,126 @@
   width: 40%;
   margin-top: 18px;
 }
+
+.avatarZoomBtn {
+  background: none;
+  border: none;
+  padding: 0;
+  border-radius: 50%;
+  display: block;
+  cursor: pointer;
+}
+
+.lightboxOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 35, 71, 0.75);
+  display: flex;
+  justify-content: center;
+  align-items: flex-start;
+  padding: 60px 24px;
+  z-index: 400;
+}
+
+.lightboxBox {
+  position: relative;
+  width: 100%;
+  max-width: 360px;
+}
+
+.lightboxClose {
+  position: absolute;
+  top: -14px;
+  right: -14px;
+  width: 32px;
+  height: 32px;
+  border-radius: 50%;
+  background: var(--rust);
+  border: none;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+  box-shadow: var(--shadow-lg);
+}
+
+.lightboxImg {
+  width: 100%;
+  aspect-ratio: 1;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-lg);
+}
+
+.sectionLabelRow {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  margin: 18px 0 10px;
+}
+
+.sectionLabelRow .sectionLabel {
+  margin: 0;
+}
+
+.infoBtn {
+  display: flex;
+  background: none;
+  border: none;
+  padding: 0;
+  cursor: pointer;
+  color: var(--text2);
+}
+
+.calcInfoText {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.55;
+}
+
+.calcInfoText p {
+  margin-bottom: 10px;
+}
+
+.calcInfoText p:last-child {
+  margin-bottom: 0;
+}
+
+.modalOverlay {
+  position: fixed;
+  inset: 0;
+  background: rgba(13, 35, 71, 0.6);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  z-index: 300;
+  padding: 20px;
+}
+
+.modalBox {
+  background: var(--surface);
+  border-radius: 20px;
+  padding: 20px;
+  width: 100%;
+  max-width: 420px;
+  max-height: 80vh;
+  display: flex;
+  flex-direction: column;
+}
+
+.modalTitle {
+  font-size: 16px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.saveBtn {
+  width: 100%;
+  padding: 13px;
+  background: var(--rust);
+  color: #fff;
+  border: none;
+  border-radius: 12px;
+  font-weight: 800;
+  cursor: pointer;
+}
