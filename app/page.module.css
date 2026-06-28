@@ -94,14 +94,19 @@
 }
 
 .headerBrandIcon {
-  width: 26px;
-  height: 26px;
+  width: 28px;
+  height: 28px;
   border-radius: var(--r-sm);
-  background: var(--rust);
   display: flex;
   align-items: center;
   justify-content: center;
   flex-shrink: 0;
+  overflow: hidden;
+}
+
+.headerBrandIconImg {
+  display: block;
+  border-radius: var(--r-sm);
 }
 
 .headerBrandName {
@@ -472,11 +477,12 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  width: 64px;
-  height: 64px;
-  border-radius: 50%;
-  background: var(--bg-light);
   margin: 0 auto 14px;
+}
+
+.emptyTournamentImg {
+  border-radius: var(--r-md);
+  box-shadow: var(--shadow-sm);
 }
 
 .emptyTournamentTitle {
@@ -493,11 +499,13 @@
 }
 
 .communityCard {
+  display: block;
   background: var(--surface);
   border-radius: var(--r-md);
   padding: 16px;
   margin-bottom: 4px;
   box-shadow: var(--shadow-sm);
+  text-decoration: none;
 }
 
 .communityCountRow {

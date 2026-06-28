@@ -5,7 +5,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconVolleyball } from '@/components/Icons';
+import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -107,7 +107,7 @@ export default function HomePage() {
         <div className={styles.headerTop}>
           <div className={styles.headerBrand}>
             <span className={styles.headerBrandIcon}>
-              <IconVolleyball size={15} color="#fff" />
+              <img src="/icons/icon-192.png" alt="" width={28} height={28} className={styles.headerBrandIconImg} />
             </span>
             <span className={styles.headerBrandName}>Americanka</span>
           </div>
@@ -215,7 +215,7 @@ export default function HomePage() {
       ) : (
         <div className={`${styles.emptyTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
           <div className={styles.emptyTournamentIcon}>
-            <IconVolleyball size={32} color="var(--text2)" strokeWidth={1.6} />
+            <img src="/icons/shortcut-tournaments-512.png" alt="" width={56} height={56} className={styles.emptyTournamentImg} />
           </div>
           <div className={styles.emptyTournamentTitle}>Турнірів ще немає</div>
           <div className={styles.emptyTournamentText}>
@@ -224,23 +224,6 @@ export default function HomePage() {
           </div>
         </div>
       )}
-
-      <div className={styles.sectionLabel}>Спільнота</div>
-      <div className={`${styles.communityCard} riseIn`} style={{ animationDelay: '0.15s' }}>
-        <div className={styles.communityCountRow}>
-          <div className={styles.communityCountValue}>{communityCount}</div>
-          <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
-        </div>
-        {recentJoiners.length > 0 && (
-          <div className={styles.communityAvatarRow}>
-            {recentJoiners.map((p, i) => (
-              <span key={p.id} className={styles.communityAvatarItem} style={{ zIndex: recentJoiners.length - i }}>
-                <PlayerAvatar player={p} size={32} />
-              </span>
-            ))}
-          </div>
-        )}
-      </div>
 
       <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
         Дивитись усі турніри →
@@ -333,6 +316,23 @@ export default function HomePage() {
           </p>
         </div>
       )}
+
+      <div className={styles.sectionLabel}>Спільнота</div>
+      <a href="/rating" className={`${styles.communityCard} riseIn`} style={{ animationDelay: '0.05s' }}>
+        <div className={styles.communityCountRow}>
+          <div className={styles.communityCountValue}>{communityCount}</div>
+          <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
+        </div>
+        {recentJoiners.length > 0 && (
+          <div className={styles.communityAvatarRow}>
+            {recentJoiners.map((p, i) => (
+              <span key={p.id} className={styles.communityAvatarItem} style={{ zIndex: recentJoiners.length - i }}>
+                <PlayerAvatar player={p} size={32} />
+              </span>
+            ))}
+          </div>
+        )}
+      </a>
 
       <div className={styles.formatsCard}>
         <div className={styles.formatsIconRow}>
