@@ -66,6 +66,7 @@ body {
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--bg-light);
   color: var(--text);
+  padding-top: env(safe-area-inset-top);
 }
 
 button {
