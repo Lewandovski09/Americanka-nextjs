@@ -83,10 +83,21 @@ export default function BottomNav({ player, requireAuth, onBlocked }) {
       ticking = true;
       requestAnimationFrame(() => {
         const currentY = window.scrollY;
-        const scrollingDown = currentY > lastScrollY.current;
-        // Shrink only once the user has scrolled a meaningful amount,
-        // so tiny jitters near the top don't trigger it.
-        setShrunk(scrollingDown && currentY > 80);
+        const delta = currentY - lastScrollY.current;
+        // Near the very bottom, resizing this in-flow (sticky) nav
+        // changes the document height, which nudges the scroll position,
+        // which flips the perceived scroll direction, which resizes the
+        // nav again — an oscillation that reads as the page "shaking"
+        // when you try to overscroll past the end. Freeze the nav state
+        // in that zone so the feedback loop can never start. Also ignore
+        // sub-threshold moves so momentum/rubber-band noise can't toggle it.
+        const maxY = document.documentElement.scrollHeight - window.innerHeight;
+        const nearBottom = currentY >= maxY - 24;
+        if (!nearBottom && Math.abs(delta) > 4) {
+          // Shrink only once the user has scrolled a meaningful amount,
+          // so tiny jitters near the top don't trigger it.
+          setShrunk(delta > 0 && currentY > 80);
+        }
         lastScrollY.current = currentY;
         ticking = false;
       });

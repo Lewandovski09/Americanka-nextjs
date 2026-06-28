@@ -62,6 +62,13 @@
   padding: 0;
 }
 
+html,
+body {
+  /* Kill the rubber-band/bounce when overscrolling past the top or
+     bottom — it's what makes the page visibly shudder at the edges. */
+  overscroll-behavior-y: none;
+}
+
 body {
   font-family: 'Inter', -apple-system, sans-serif;
   background: var(--navy);
