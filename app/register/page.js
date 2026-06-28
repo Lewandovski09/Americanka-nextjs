@@ -8,7 +8,6 @@ import styles from './register.module.css';
 const STEPS = {
   FORM: 'form',
   VERIFY_TELEGRAM: 'verify_telegram',
-  VERIFY_EMAIL: 'verify_email',
 };
 
 export default function AuthPage() {
@@ -30,14 +29,12 @@ export default function AuthPage() {
     fullName: '',
     login: '',
     telegramUsername: '',
-    email: '',
     password: '',
     gender: 'M',
     category: 'C',
   });
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
   const [telegramCode, setTelegramCode] = useState('');
-  const [emailCode, setEmailCode] = useState('');
   const [hint, setHint] = useState('');
 
   function updateField(key, value) {
@@ -94,9 +91,6 @@ export default function AuthPage() {
     if (!form.fullName.trim()) return setError("Вкажіть ім'я та прізвище");
     if (!form.login.trim()) return setError('Вкажіть логін');
     if (!form.telegramUsername.trim()) return setError('Вкажіть Telegram нікнейм');
-    if (!form.email.trim() || !/^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(form.email)) {
-      return setError('Вкажіть коректний email');
-    }
     if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
 
     setLoading(true);
@@ -105,7 +99,6 @@ export default function AuthPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         login: form.login,
-        email: form.email,
         telegramUsername: form.telegramUsername,
       }),
     });
@@ -151,45 +144,10 @@ export default function AuthPage() {
       body: JSON.stringify({ telegramUsername: form.telegramUsername, code: telegramCode }),
     });
     const data = await res.json();
-    setLoading(false);
 
     if (!data.success) {
-      setError(data.error || 'Невірний код');
-      return;
-    }
-
-    setLoading(true);
-    const emailRes = await fetch('/api/auth/verify-email/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.email }),
-    });
-    const emailData = await emailRes.json();
-    setLoading(false);
-
-    if (!emailData.success) {
-      setError(emailData.error || 'Не вдалося надіслати email');
-      return;
-    }
-
-    setHint('Код надіслано на email!');
-    setStep(STEPS.VERIFY_EMAIL);
-  }
-
-  async function handleConfirmEmail() {
-    setError('');
-    setLoading(true);
-
-    const verifyRes = await fetch('/api/auth/verify-email/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ email: form.email, code: emailCode }),
-    });
-    const verifyData = await verifyRes.json();
-
-    if (!verifyData.success) {
       setLoading(false);
-      setError(verifyData.error || 'Невірний код');
+      setError(data.error || 'Невірний код');
       return;
     }
 
@@ -199,17 +157,19 @@ export default function AuthPage() {
       body: JSON.stringify({ ...form, photoDataUrl }),
     });
     const registerData = await registerRes.json();
-    setLoading(false);
 
     if (!registerData.success) {
+      setLoading(false);
       setError(registerData.error || 'Не вдалося зареєструватися');
       return;
     }
 
     const { error: loginError } = await supabase.auth.signInWithPassword({
-      email: form.email,
+      email: registerData.email,
       password: form.password,
     });
+
+    setLoading(false);
 
     if (loginError) {
       setError('Акаунт створено, але не вдалося увійти. Спробуйте увійти вручну.');
@@ -328,20 +288,6 @@ export default function AuthPage() {
           />
         )}
 
-        {step === STEPS.VERIFY_EMAIL && (
-          <VerifyStep
-            icon="📧"
-            title="ПІДТВЕРДЖЕННЯ EMAIL"
-            description={<>Ми надіслали код на {form.email}</>}
-            code={emailCode}
-            setCode={setEmailCode}
-            error={error}
-            hint={hint}
-            loading={loading}
-            onBack={() => setStep(STEPS.VERIFY_TELEGRAM)}
-            onConfirm={handleConfirmEmail}
-          />
-        )}
       </div>
 
       {showBotModal && (
@@ -440,7 +386,6 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
         placeholder="нікнейм або посилання t.me/..."
       />
       <div className={styles.fieldHint}>Можна вписати нікнейм (username), @username, або повне посилання t.me/username — будь-який формат розпізнається.</div>
-      <Field label="Email *" type="email" value={form.email} onChange={(v) => updateField('email', v)} placeholder="email@example.com" />
       <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" />
 
       <label className={styles.label}>Стать *</label>

@@ -173,7 +173,7 @@ export default function PlayerProfilePage() {
           </div>
           <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
             <div className={styles.sliderLabel}>
-              Ело {player.full_name.split(' ')[0]}: <b>{opponentElo}</b>
+              Ело суперника: <b>{opponentElo}</b>
             </div>
             <input
               type="range"

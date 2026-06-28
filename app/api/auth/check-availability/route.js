@@ -7,19 +7,16 @@ import { extractTelegramUsername } from '@/lib/telegram';
 // both verification steps.
 export async function POST(request) {
   try {
-    const { login, email, telegramUsername } = await request.json();
+    const { login, telegramUsername } = await request.json();
 
     const supabaseAdmin = createAdminClient();
     const normalizedLogin = (login || '').trim().toLowerCase();
-    const normalizedEmail = (email || '').trim().toLowerCase();
     const normalizedTelegram = extractTelegramUsername(telegramUsername || '');
 
     const { data: existing, error } = await supabaseAdmin
       .from('players')
-      .select('login, email, telegram_username')
-      .or(
-        `login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram},email.eq.${normalizedEmail}`
-      );
+      .select('login, telegram_username')
+      .or(`login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram}`);
 
     if (error) {
       console.error('[check-availability] error:', error.message);
@@ -29,7 +26,6 @@ export async function POST(request) {
     const conflicts = [];
     (existing || []).forEach((p) => {
       if (p.login === normalizedLogin) conflicts.push('логін');
-      if (p.email === normalizedEmail) conflicts.push('email');
       if (p.telegram_username === normalizedTelegram) conflicts.push('Telegram нікнейм');
     });
 

@@ -154,3 +154,73 @@
   background: var(--border-light);
   color: var(--text2);
 }
+
+.formatGrid {
+  display: grid;
+  grid-template-columns: 1fr 1fr;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.formatCard {
+  padding: 14px 10px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 700;
+  text-align: center;
+  cursor: pointer;
+}
+
+.formatCardOn {
+  border-color: var(--rust);
+  background: var(--rust-tint);
+  color: var(--rust-dark);
+}
+
+.bracketList {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.bracketOption {
+  padding: 12px 14px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 13px;
+  font-weight: 600;
+  text-align: left;
+  cursor: pointer;
+}
+
+.bracketOptionOn {
+  border-color: var(--navy);
+  background: var(--bg-light);
+  font-weight: 800;
+}
+
+.checkboxRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  font-size: 13px;
+  color: var(--text);
+  margin: 6px 0 10px;
+  cursor: pointer;
+}
+
+.infoBox {
+  background: var(--bg-light);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  font-size: 12.5px;
+  color: var(--text2);
+  line-height: 1.5;
+  margin-bottom: 10px;
+}

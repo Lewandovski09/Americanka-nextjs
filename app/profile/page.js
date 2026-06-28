@@ -440,6 +440,12 @@ export default function ProfilePage() {
         </a>
       </div>
 
+      <div className={styles.creditsText}>
+        Організатори: Гога і Роде Світа
+        <br />
+        Головний помічник з технічної частини: Теліга Максим
+      </div>
+
       {photoLightbox && player.photo_url && (
         <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
           <div className={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>

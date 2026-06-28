@@ -8,13 +8,12 @@ export async function POST(request) {
       login,
       password,
       telegramUsername,
-      email,
       gender,
       category,
       photoDataUrl, // base64 data URL from the client file input
     } = await request.json();
 
-    if (!fullName || !login || !password || !telegramUsername || !email || !gender || !category) {
+    if (!fullName || !login || !password || !telegramUsername || !gender || !category) {
       return Response.json({ success: false, error: "Заповніть всі обов'язкові поля" }, { status: 400 });
     }
     if (!photoDataUrl) {
@@ -27,33 +26,31 @@ export async function POST(request) {
     const supabaseAdmin = createAdminClient();
     const normalizedLogin = login.trim().toLowerCase();
     const normalizedTelegram = extractTelegramUsername(telegramUsername);
-    const normalizedEmail = email.trim().toLowerCase();
+    // Registration is Telegram-only now — there's no real email to
+    // collect or verify, but Supabase Auth still needs *some* email
+    // to identify the account internally, so we synthesize one from
+    // the (already-unique) login.
+    const normalizedEmail = `${normalizedLogin}@americanka.app`;
 
-    // ── Uniqueness checks (login, telegram username, email) ──
+    // ── Uniqueness checks (login, telegram username) ──
     const { data: existing } = await supabaseAdmin
       .from('players')
       .select('id')
-      .or(
-        `login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram},email.eq.${normalizedEmail}`
-      )
+      .or(`login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram}`)
       .limit(1);
 
     if (existing && existing.length > 0) {
       return Response.json(
-        { success: false, error: 'Логін, Telegram або email вже зареєстровані' },
+        { success: false, error: 'Логін або Telegram вже зареєстровані' },
         { status: 409 }
       );
     }
 
     // ── Create the Supabase Auth user (handles password hashing) ──
-    // We use a synthetic email-as-identifier for Supabase Auth's
-    // internal account system, since Supabase Auth requires an email
-    // or phone to create a user — the player's real email is stored
-    // separately in the players table either way.
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
       email: normalizedEmail,
       password,
-      email_confirm: true, // we already verified it ourselves via our own code flow
+      email_confirm: true, // synthetic address — nothing to actually confirm
     });
 
     if (authError) {
@@ -93,7 +90,7 @@ export async function POST(request) {
       return Response.json({ success: false, error: 'Не вдалося створити профіль' }, { status: 500 });
     }
 
-    return Response.json({ success: true, userId });
+    return Response.json({ success: true, userId, email: normalizedEmail });
   } catch (err) {
     console.error('[register] Unexpected error:', err.message);
     return Response.json({ success: false, error: 'Помилка сервера' }, { status: 500 });

@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
@@ -9,6 +10,7 @@ import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket } from '@
 import styles from './page.module.css';
 
 export default function HomePage() {
+  const router = useRouter();
   const { player, loading } = useCurrentPlayer();
   const [nextTournament, setNextTournament] = useState(null);
   const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
@@ -18,6 +20,42 @@ export default function HomePage() {
   const [installOpen, setInstallOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
   const [recentJoiners, setRecentJoiners] = useState([]);
+
+  // Swipe left to jump to the next tab (Турніри) — installed-PWA
+  // users expect horizontal swipes to move between sections, not
+  // just tapping the bottom nav. Головна is the first tab, so a
+  // right-swipe has nowhere to go and is intentionally a no-op.
+  useEffect(() => {
+    let startX = 0;
+    let startY = 0;
+    let tracking = false;
+
+    function onTouchStart(e) {
+      if (e.touches.length !== 1) return;
+      startX = e.touches[0].clientX;
+      startY = e.touches[0].clientY;
+      tracking = true;
+    }
+
+    function onTouchEnd(e) {
+      if (!tracking) return;
+      tracking = false;
+      const touch = e.changedTouches[0];
+      const dx = touch.clientX - startX;
+      const dy = touch.clientY - startY;
+      const horizontalSwipe = Math.abs(dx) > 70 && Math.abs(dx) > Math.abs(dy) * 1.5;
+      if (horizontalSwipe && dx < 0) {
+        router.push('/tournaments');
+      }
+    }
+
+    document.addEventListener('touchstart', onTouchStart, { passive: true });
+    document.addEventListener('touchend', onTouchEnd, { passive: true });
+    return () => {
+      document.removeEventListener('touchstart', onTouchStart);
+      document.removeEventListener('touchend', onTouchEnd);
+    };
+  }, [router]);
 
   useEffect(() => {
     if (loading) return;

@@ -77,13 +77,19 @@ export default function BottomNav({ player, requireAuth, onBlocked }) {
   const lastScrollY = useRef(0);
 
   useEffect(() => {
+    let ticking = false;
     function handleScroll() {
-      const currentY = window.scrollY;
-      const scrollingDown = currentY > lastScrollY.current;
-      // Shrink only once the user has scrolled a meaningful amount,
-      // so tiny jitters near the top don't trigger it.
-      setShrunk(scrollingDown && currentY > 80);
-      lastScrollY.current = currentY;
+      if (ticking) return;
+      ticking = true;
+      requestAnimationFrame(() => {
+        const currentY = window.scrollY;
+        const scrollingDown = currentY > lastScrollY.current;
+        // Shrink only once the user has scrolled a meaningful amount,
+        // so tiny jitters near the top don't trigger it.
+        setShrunk(scrollingDown && currentY > 80);
+        lastScrollY.current = currentY;
+        ticking = false;
+      });
     }
     window.addEventListener('scroll', handleScroll, { passive: true });
     return () => window.removeEventListener('scroll', handleScroll);

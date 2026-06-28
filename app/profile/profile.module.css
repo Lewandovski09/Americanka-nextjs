@@ -534,8 +534,16 @@
   background: var(--surface);
   border-radius: var(--r-sm);
   padding: 6px;
-  margin-bottom: 30px;
+  margin-bottom: 10px;
   box-shadow: var(--shadow-sm);
+}
+
+.creditsText {
+  text-align: center;
+  font-size: 11.5px;
+  color: var(--text2);
+  line-height: 1.6;
+  margin-bottom: 30px;
 }
 
 .supportRow {
