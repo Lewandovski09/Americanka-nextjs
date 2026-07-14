@@ -4,15 +4,16 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import PlayerAvatar from '@/components/PlayerAvatar';
+import { getFormat } from '@/lib/formats';
 import styles from './tournaments.module.css';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
+const LOCATION_LABEL = { beach13: 'Beach 13', dynamo_sc: 'Dynamo SC' };
 
-export default function TournamentsPage() {
+export default function EventsPage() {
   const { player } = useCurrentPlayer();
   const [tab, setTab] = useState(TABS.SCHEDULED);
-  const [tournaments, setTournaments] = useState([]);
+  const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
@@ -20,14 +21,14 @@ export default function TournamentsPage() {
       setLoading(true);
       const supabase = createClient();
       const { data } = await supabase
-        .from('tournaments')
+        .from('tournament_events')
         .select(
-          `id, name, category, gender, status, location, courts, scheduled_at, winner_player_id,
-           tournament_players(player_id, players(full_name, photo_url))`
+          `id, name, format_kind, status, location, scheduled_at,
+           tournaments(id, category_label, gender, status)`
         )
         .eq('status', tab)
         .order('scheduled_at', { ascending: tab === 'done' ? false : true });
-      setTournaments(data || []);
+      setEvents(data || []);
       setLoading(false);
     }
     load();
@@ -49,51 +50,90 @@ export default function TournamentsPage() {
 
       {player?.is_admin && tab === TABS.SCHEDULED && (
         <Link href="/tournaments/create" className={styles.createBtn}>
-          + Створити турнір
+          + Створити подію
         </Link>
       )}
 
       {loading && <div className={styles.empty}>Завантаження...</div>}
-
-      {!loading && tournaments.length === 0 && <div className={styles.empty}>Немає турнірів</div>}
+      {!loading && events.length === 0 && <div className={styles.empty}>Немає подій</div>}
 
       {!loading &&
-        tournaments.map((t) => {
-          const playersList = t.tournament_players || [];
-          const slotsTotal = 8;
-          const slotsTaken = playersList.length;
-          return (
-            <Link key={t.id} href={`/tournaments/${t.id}`} className={styles.card}>
-              <div className={styles.cardHeader}>
-                <div className={styles.cardName}>{t.name}</div>
-                <span className={`${styles.badge} ${t.gender === 'M' ? styles.badgeM : styles.badgeF}`}>
-                  {t.gender === 'M' ? 'Чоловіки' : 'Жінки'}
-                </span>
-              </div>
-              <div className={styles.cardMeta}>
-                {new Date(t.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-                {t.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {t.category}
-              </div>
+        events.map((ev) => {
+          const format = getFormat(ev.format_kind);
+          const cats = ev.tournaments || [];
+          const meta = (
+            <div className={styles.cardMeta}>
+              {new Date(ev.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+              {LOCATION_LABEL[ev.location] || ev.location}
+            </div>
+          );
+          const badge = (
+            <span className={styles.badge} style={{ background: 'var(--bg-light)', color: 'var(--text2)' }}>
+              {format?.displayName || ev.format_kind}
+            </span>
+          );
 
-              <div className={styles.slotsRow}>
-                <div className={styles.avatarStack}>
-                  {playersList.slice(0, 6).map((tp, i) => (
-                    <span key={tp.player_id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
-                      <PlayerAvatar player={tp.players} size={26} />
+          // Scheduled: the card opens the registration page; admins get a
+          // gear to the pre-start settings (queue / reserve / distribution).
+          if (ev.status === TABS.SCHEDULED) {
+            return (
+              <div key={ev.id} className={`${styles.card} ${styles.cardWrap}`}>
+                <Link href={`/events/register/${ev.id}`} className={styles.cardLink} aria-label={ev.name} />
+                <div className={styles.cardHeader}>
+                  <div className={styles.cardName}>{ev.name}</div>
+                  <div className={styles.headerRight}>
+                    {badge}
+                    {player?.is_admin && (
+                      <Link href={`/events/settings/${ev.id}`} className={styles.gearBtn} title="Налаштування">
+                        ⚙
+                      </Link>
+                    )}
+                  </div>
+                </div>
+                {meta}
+                <div className={styles.chipsRow}>
+                  {cats.map((c) => (
+                    <span key={c.id} className={styles.catChip}>
+                      {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+                      {c.category_label}
                     </span>
                   ))}
-                </div>
-                <div className={styles.slotsCount}>
-                  {slotsTaken}/{slotsTotal}
+                  {cats.length === 0 && <span className={styles.slotsCount}>Без категорій</span>}
                 </div>
               </div>
-              <div className={styles.progressBar}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${Math.min(100, (slotsTaken / slotsTotal) * 100)}%` }}
-                />
+            );
+          }
+
+          // Live / done: the card opens the first category's play view
+          // (таблиця / ігри / чат), the chips pick a specific league.
+          // Admins get a gear to the live tournament settings.
+          return (
+            <div key={ev.id} className={`${styles.card} ${styles.cardWrap}`}>
+              {cats.length > 0 && (
+                <Link href={`/tournaments/${cats[0].id}`} className={styles.cardLink} aria-label={ev.name} />
+              )}
+              <div className={styles.cardHeader}>
+                <div className={styles.cardName}>{ev.name}</div>
+                <div className={styles.headerRight}>
+                  {badge}
+                  {player?.is_admin && (
+                    <Link href={`/tournaments/settings/${ev.id}`} className={styles.gearBtn} title="Керування">
+                      ⚙
+                    </Link>
+                  )}
+                </div>
               </div>
-            </Link>
+              {meta}
+              <div className={styles.chipsRow}>
+                {cats.map((c) => (
+                  <Link key={c.id} href={`/tournaments/${c.id}`} className={styles.catChipLink}>
+                    {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+                    {c.category_label}
+                  </Link>
+                ))}
+                {cats.length === 0 && <span className={styles.slotsCount}>Без категорій</span>}
+              </div>
+            </div>
           );
         })}
     </div>

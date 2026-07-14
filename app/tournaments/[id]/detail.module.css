@@ -57,6 +57,35 @@
   font-weight: 700;
 }
 
+/* Sub-toggle inside a tab («Заявки» / «Результати»). */
+.subTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+}
+
+.subTab {
+  padding: 8px 16px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.subTabOn {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}
+
+.placeCell {
+  font-weight: 800;
+  white-space: nowrap;
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;
@@ -82,6 +111,80 @@
   border-bottom: 1px solid var(--border-light);
 }
 
+/* Game-schedule table («Черга ігор»): wide, scrolls sideways on phones. */
+.schedWrap {
+  overflow-x: auto;
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  margin-top: 8px;
+}
+
+.schedTable {
+  width: 100%;
+  min-width: 640px;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+}
+
+.schedTable th {
+  padding: 9px 8px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text2);
+  border-bottom: 1.5px solid var(--border-light);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.schedTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.schedTeamCol {
+  text-align: left !important;
+  font-weight: 600;
+}
+
+.schedVs {
+  font-size: 10px;
+  color: var(--text2);
+  text-transform: uppercase;
+}
+
+.schedScore {
+  font-weight: 800;
+  color: var(--sand2);
+}
+
+/* Clickable schedule row: a pending game (score entry) or a played one
+   the admin may still correct. Looks like a normal row on purpose. */
+.schedRowPending {
+  cursor: pointer;
+}
+
+/* A game of a stage that hasn't started yet (teams unknown). */
+.schedRowFuture {
+  background: var(--surface-alt);
+  color: var(--text2);
+}
+
+/* Stage/group divider row inside the schedule table. */
+.schedSection td {
+  text-align: left;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--navy);
+  background: var(--surface-alt);
+  padding: 7px 8px;
+}
+
 .nameCell {
   display: flex;
   align-items: center;
@@ -90,6 +193,152 @@
 
 .meRow {
   background: var(--rust-tint);
+}
+
+/* ── Bracket («Сітка»): horizontal columns of stage blocks ────── */
+.bracketWrap {
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.bracketRow {
+  display: flex;
+  gap: 14px;
+  align-items: flex-start;
+  min-width: min-content;
+}
+
+.bracketCol {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  width: 200px;
+  flex-shrink: 0;
+}
+
+.bracketColTitle {
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--navy);
+  padding: 2px 2px 0;
+}
+
+.bracketCard {
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 4px;
+  font-size: 12px;
+  position: relative;
+}
+
+.bracketCardPending {
+  cursor: pointer;
+}
+
+/* A stage that hasn't started yet: its groups and placeholder matches
+   turn gray until the teams are known. */
+.cardFuture,
+.cardFuture .bracketCard {
+  background: var(--surface-alt);
+  box-shadow: none;
+  color: var(--text2);
+}
+
+.cardFuture .bracketSide,
+.cardFuture .groupMini {
+  color: var(--text2);
+}
+
+/* Small pencil marking a played game the admin may still correct. */
+.editIcon {
+  position: absolute;
+  top: 6px;
+  right: 8px;
+  font-size: 10px;
+  color: var(--text2);
+}
+
+.schedScore .editIcon {
+  position: static;
+}
+
+.bracketCardLabel {
+  font-size: 10px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text2);
+}
+
+.bracketSide {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  color: var(--text);
+  min-width: 0;
+}
+
+.bracketName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.bracketScore {
+  font-weight: 800;
+  color: var(--text2);
+  flex-shrink: 0;
+}
+
+.bracketWinner {
+  font-weight: 800;
+}
+
+.bracketWinner .bracketScore {
+  color: var(--sand2);
+}
+
+/* Group block: mini standings + the group's games. */
+.groupCard {
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  padding: 8px 10px;
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+}
+
+.groupCard .bracketCard {
+  box-shadow: none;
+  border: 1px solid var(--border-light);
+  padding: 6px 8px;
+}
+
+.groupMini {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: 11px;
+  color: var(--text);
+}
+
+.groupMini td {
+  padding: 3px 4px;
+  border-bottom: 1px solid var(--border-light);
+  white-space: nowrap;
+}
+
+.groupMiniName {
+  width: 100%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 110px;
 }
 
 .positive {
@@ -239,22 +488,98 @@
   color: var(--text);
 }
 
+.modalTeams {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex-wrap: wrap;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+  text-align: center;
+  margin-top: 6px;
+}
+
+.modalVs {
+  font-size: 11px;
+  font-weight: 500;
+  color: var(--text2);
+  text-transform: uppercase;
+}
+
 .modalSub {
   font-size: 12px;
   color: var(--text2);
   text-align: center;
+  margin-top: 4px;
   margin-bottom: 16px;
 }
 
 .scoreInputs {
   display: grid;
-  grid-template-columns: 1fr auto 1fr;
+  grid-template-columns: minmax(0, 1fr) auto minmax(0, 1fr);
   gap: 12px;
   align-items: center;
   margin-bottom: 16px;
 }
 
+/* One set row in the multi-set score dialog: «1 сет  [21] : [15] ✕».
+   minmax(0, 1fr) lets the number inputs shrink below their intrinsic
+   width, so the row never pushes past the modal on narrow screens. */
+.setRow {
+  display: grid;
+  grid-template-columns: 40px minmax(0, 1fr) auto minmax(0, 1fr) 24px;
+  gap: 8px;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.setName {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.setRow .scoreInput {
+  padding: 10px 0;
+  font-size: 22px;
+}
+
+/* Removes the last added set (2nd/3rd); an empty span keeps the grid
+   column when the row is not removable. */
+.setRemove {
+  width: 24px;
+  height: 24px;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  color: var(--text2);
+  font-size: 12px;
+  cursor: pointer;
+  line-height: 1;
+}
+
+/* «+ Додати партію» — reveals the next optional set row. */
+.addSetBtn {
+  width: 100%;
+  padding: 10px;
+  margin-bottom: 14px;
+  background: transparent;
+  border: 1.5px dashed var(--border-light);
+  border-radius: var(--r-sm);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
 .scoreInput {
+  width: 100%;
+  min-width: 0;
+  box-sizing: border-box;
   text-align: center;
   padding: 14px 0;
   font-size: 30px;

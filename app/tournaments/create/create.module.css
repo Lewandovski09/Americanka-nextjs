@@ -224,3 +224,72 @@
   line-height: 1.5;
   margin-bottom: 10px;
 }
+
+/* ── Category builder ─────────────────────────── */
+.catGroup {
+  margin-bottom: 12px;
+}
+
+.catGroupTitle {
+  font-size: 12px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.catCard {
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  padding: 12px 14px;
+  margin-bottom: 8px;
+  box-shadow: var(--shadow-sm);
+}
+
+.catCardHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: 10px;
+}
+
+.catCardTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.catRemove {
+  border: none;
+  background: none;
+  color: #b91c1c;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+  padding: 2px 4px;
+}
+
+.miniLabel {
+  font-size: 10px;
+  color: var(--text2);
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  margin: 8px 0 5px;
+}
+
+.eloRow {
+  display: flex;
+  gap: 8px;
+  align-items: center;
+}
+
+.eloInput {
+  flex: 1;
+  padding: 9px 11px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  background: var(--surface);
+  color: var(--text);
+}
