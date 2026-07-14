@@ -64,7 +64,7 @@ export default function HomePage() {
     async function loadNextTournament() {
       const { data } = await supabase
         .from('tournaments')
-        .select('id, name, scheduled_at, location, category, gender')
+        .select('id, event_id, status, name, scheduled_at, location, category, gender')
         .in('status', ['scheduled', 'live'])
         .order('scheduled_at', { ascending: true })
         .limit(1)
@@ -221,10 +221,22 @@ export default function HomePage() {
 
       <div className={styles.sectionLabel}>Найближчий турнір</div>
       {nextTournament ? (
-        <a href={`/tournaments/${nextTournament.id}`} className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
+        <a
+          // Scheduled category → the event registration page; a live one →
+          // its play view (таблиця / ігри / чат).
+          href={
+            nextTournament.status === 'scheduled' && nextTournament.event_id
+              ? `/events/register/${nextTournament.event_id}`
+              : `/tournaments/${nextTournament.id}`
+          }
+          className={`${styles.nextTournamentCard} riseIn`}
+          style={{ animationDelay: '0.1s' }}
+        >
           <div className={styles.nextTournamentTop}>
             <div className={styles.nextTournamentName}>{nextTournament.name}</div>
-            <span className={styles.statusBadge}>Реєстрація відкрита</span>
+            <span className={styles.statusBadge}>
+              {nextTournament.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}
+            </span>
           </div>
           <div className={styles.nextTournamentMeta}>
             {new Date(nextTournament.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}

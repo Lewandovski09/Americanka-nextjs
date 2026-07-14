@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
+import { scoreLabel } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
@@ -540,9 +541,7 @@ export default function ProfilePage() {
                   <div key={m.id} className={styles.matchRow}>
                     <span className={styles.matchRound}>Р{m.round_number}</span>
                     <span>{nameA}</span>
-                    <span className={styles.matchScore}>
-                      {m.score_a}:{m.score_b}
-                    </span>
+                    <span className={styles.matchScore}>{scoreLabel(m)}</span>
                     <span>{nameB}</span>
                   </div>
                 );
@@ -590,9 +589,7 @@ export default function ProfilePage() {
               {partnerMatches.map((m) => (
                 <div key={m.match_id} className={styles.matchRow}>
                   <span className={styles.matchTournament}>{m.tournament_name}</span>
-                  <span className={styles.matchScore}>
-                    {m.score_a}:{m.score_b}
-                  </span>
+                  <span className={styles.matchScore}>{scoreLabel(m)}</span>
                   <span className={m.won ? styles.positive : styles.negative}>{m.won ? 'Перемога' : 'Поразка'}</span>
                 </div>
               ))}

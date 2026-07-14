@@ -146,3 +146,65 @@
   background: linear-gradient(90deg, var(--sand2), var(--sand));
   border-radius: 4px;
 }
+
+.chipsRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.catChip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--r-lg);
+  background: var(--bg-light);
+  color: var(--text);
+}
+
+/* Header actions (badge + admin gear) on event cards. */
+.headerRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.gearBtn {
+  position: relative;
+  z-index: 2;
+  font-size: 16px;
+  line-height: 1;
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  background: var(--bg-light);
+  color: var(--text2);
+}
+
+/* Scheduled card: a stretched link overlay makes the whole card open the
+   registration page while the admin gear stays clickable above it. */
+.cardWrap {
+  position: relative;
+}
+
+.cardLink {
+  position: absolute;
+  inset: 0;
+  z-index: 1;
+  border-radius: inherit;
+}
+
+/* Clickable category chip → opens that league's play view. Sits above
+   the whole-card overlay link so a chip tap wins over the card. */
+.catChipLink {
+  position: relative;
+  z-index: 2;
+  font-size: 11px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--r-lg);
+  background: var(--navy);
+  color: #fff;
+  text-decoration: none;
+  cursor: pointer;
+}

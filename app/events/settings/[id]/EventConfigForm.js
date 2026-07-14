@@ -1,80 +1,82 @@
 'use client';
 
-import { useEffect, useMemo, useState } from 'react';
-import { useRouter } from 'next/navigation';
+// «Налаштування» tab of the pre-start event settings page: the same
+// form as /tournaments/create, except the format is fixed at creation —
+// only the secondary settings (name, date, venue, courts, scoring and
+// the category list) can change. Categories that already have members
+// cannot be removed.
+
+import { useEffect, useState } from 'react';
 import {
-  listFormats,
-  getFormat,
   CATEGORY_LABELS,
   BRACKET_SYSTEMS,
   FIRST_TO_OPTIONS,
   getBracketSystem,
   defaultParticipantsFor,
 } from '@/lib/formats';
-import styles from './create.module.css';
+import styles from '@/app/tournaments/create/create.module.css';
 
 const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
-const GENDERS = [
-  { id: 'M', label: 'Чоловіки' },
-  { id: 'F', label: 'Жінки' },
-];
 
 function catKey(gender, label) {
   return `${gender || 'X'}:${label}`;
 }
 
-export default function CreateEventPage() {
-  const router = useRouter();
-  const formats = useMemo(() => listFormats(), []);
+// ISO timestamp → value for <input type="datetime-local"> in local time.
+function toLocalInput(iso) {
+  if (!iso) return '';
+  const d = new Date(iso);
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+}
 
-  const [formatKind, setFormatKind] = useState('americanka');
-  const format = getFormat(formatKind);
+export default function EventConfigForm({ event, categories: categoryRows, format, isPair, busy, post }) {
+  const [name, setName] = useState(event.name || '');
+  const [scheduledAt, setScheduledAt] = useState(toLocalInput(event.scheduled_at));
+  const [location, setLocation] = useState(event.location || 'beach13');
+  const [courts, setCourts] = useState(event.courts?.length ? event.courts : [1]);
 
-  const [name, setName] = useState('');
-  const [scheduledAt, setScheduledAt] = useState('');
-  const [location, setLocation] = useState('beach13');
-  const [courts, setCourts] = useState([1]);
+  const [pointsToWin, setPointsToWin] = useState(event.points_to_win ?? 21);
+  const [useFinalPoints, setUseFinalPoints] = useState(event.points_mode === 'from_semifinal');
+  const [finalPointsToWin, setFinalPointsToWin] = useState(event.final_points_to_win ?? 15);
 
-  const [pointsToWin, setPointsToWin] = useState(21);
-  const [useFinalPoints, setUseFinalPoints] = useState(false);
-  const [finalPointsToWin, setFinalPointsToWin] = useState(15);
-
-  // categories: array of { gender, categoryLabel, maxParticipants, bracketSystem }
-  // Elo bands are derived automatically on the server (even split of the
-  // rating spread across the selected leagues) — not entered here.
-  const [categories, setCategories] = useState([]);
-
+  const [categories, setCategories] = useState(() => fromRows(categoryRows, isPair));
   const [error, setError] = useState('');
-  const [loading, setLoading] = useState(false);
+  const [saved, setSaved] = useState(false);
+
+  // Re-sync from the server after a save (new categories get their real
+  // ids, removed ones disappear) — load() refreshes the props.
+  useEffect(() => {
+    setCategories(fromRows(categoryRows, isPair));
+  }, [categoryRows, isPair]);
+  useEffect(() => {
+    setName(event.name || '');
+    setScheduledAt(toLocalInput(event.scheduled_at));
+    setLocation(event.location || 'beach13');
+    setCourts(event.courts?.length ? event.courts : [1]);
+    setPointsToWin(event.points_to_win ?? 21);
+    setUseFinalPoints(event.points_mode === 'from_semifinal');
+    setFinalPointsToWin(event.final_points_to_win ?? 15);
+  }, [event]);
 
   const courtRange = COURT_RANGES[location] || [1, 2];
-  const gendersToShow = format.hasGender ? GENDERS.map((g) => g.id) : [null];
-
-  // Reset location-dependent courts and format-dependent categories.
-  useEffect(() => {
-    setCourts([1]);
-  }, [location]);
-
-  useEffect(() => {
-    setCategories([]);
-  }, [formatKind]);
+  const gendersToShow = format.hasGender ? ['M', 'F'] : [null];
 
   function toggleCourt(n) {
     setCourts((prev) => {
       if (prev.includes(n)) return prev.length > 1 ? prev.filter((c) => c !== n) : prev;
-      // Cap at however many courts the venue actually has (Beach 1–6,
-      // Dynamo 1–2). Americanka only ever uses 2 in parallel, but King
-      // of the Beach / group stages can run on all of them at once.
       return prev.length < courtRange.length ? [...prev, n].sort((a, b) => a - b) : prev;
     });
   }
 
-  function isCatOn(gender, label) {
-    return categories.some((c) => catKey(c.gender, c.categoryLabel) === catKey(gender, label));
+  function findCat(gender, label) {
+    return categories.find((c) => catKey(c.gender, c.categoryLabel) === catKey(gender, label));
   }
 
   function toggleCategory(gender, label) {
     const key = catKey(gender, label);
+    const existing = findCat(gender, label);
+    if (existing?.hasMembers) return; // occupied leagues can't be removed
     setCategories((prev) => {
       if (prev.some((c) => catKey(c.gender, c.categoryLabel) === key)) {
         return prev.filter((c) => catKey(c.gender, c.categoryLabel) !== key);
@@ -103,11 +105,11 @@ export default function CreateEventPage() {
     );
   }
 
-  async function handleCreate() {
+  async function handleSave() {
     setError('');
+    setSaved(false);
     if (!scheduledAt) return setError('Вкажіть дату та час');
     if (categories.length === 0) return setError('Додайте щонайменше одну категорію');
-
     if (format.needsBracketSystem && categories.some((c) => !c.bracketSystem)) {
       return setError('Виберіть систему турніру для кожної категорії');
     }
@@ -115,8 +117,7 @@ export default function CreateEventPage() {
       return setError('Вкажіть кількість учасників для кожної категорії');
     }
 
-    const payload = {
-      formatKind,
+    const ok = await post(`/api/events/${event.id}/update`, {
       name,
       location,
       courts,
@@ -124,39 +125,16 @@ export default function CreateEventPage() {
       pointsToWin: format.scoring === 'first_to' ? pointsToWin : null,
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
-      categories,
-    };
-
-    setLoading(true);
-    const res = await fetch('/api/events', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
+      categories: categories.map(({ hasMembers, ...c }) => c),
     });
-    const data = await res.json();
-    setLoading(false);
-
-    if (!data.success) return setError(data.error || 'Не вдалося створити турнір');
-    router.push('/tournaments');
+    if (ok) setSaved(true);
   }
 
   return (
-    <div className={styles.page}>
-      <h2 className={styles.title}>Нова подія</h2>
-
-      <label className={styles.label}>Формат</label>
-      <div className={styles.formatGrid}>
-        {formats.map((f) => (
-          <button
-            key={f.kind}
-            className={`${styles.formatCard} ${formatKind === f.kind ? styles.formatCardOn : ''}`}
-            onClick={() => setFormatKind(f.kind)}
-          >
-            {f.displayName}
-          </button>
-        ))}
+    <div>
+      <div className={styles.infoBox}>
+        Формат: <b>{format.displayName}</b> — його не можна змінити після створення події.
       </div>
-      <div className={styles.infoBox}>{format.description}</div>
 
       <label className={styles.label}>Назва</label>
       <input
@@ -231,11 +209,6 @@ export default function CreateEventPage() {
         <div className={styles.infoBox}>Американка — рахунок завжди до суми 31.</div>
       )}
 
-      <div className={styles.infoBox}>
-        Реєстрація єдина: гравці подають заявку в обрану лігу, а адмін бачить бажану лігу та реальний
-        рейтинг гравця і сам розподіляє учасників.
-      </div>
-
       {/* Category picker */}
       <label className={styles.label}>Категорії</label>
       {gendersToShow.map((gender) => (
@@ -244,15 +217,20 @@ export default function CreateEventPage() {
             <div className={styles.catGroupTitle}>{gender === 'M' ? 'Чоловіки' : 'Жінки'}</div>
           )}
           <div className={styles.chipsRow}>
-            {CATEGORY_LABELS.map((label) => (
-              <button
-                key={label}
-                className={`${styles.chip} ${isCatOn(gender, label) ? styles.chipOn : ''}`}
-                onClick={() => toggleCategory(gender, label)}
-              >
-                {label}
-              </button>
-            ))}
+            {CATEGORY_LABELS.map((label) => {
+              const cat = findCat(gender, label);
+              return (
+                <button
+                  key={label}
+                  className={`${styles.chip} ${cat ? styles.chipOn : ''}`}
+                  onClick={() => toggleCategory(gender, label)}
+                  title={cat?.hasMembers ? 'У категорії вже є учасники' : ''}
+                >
+                  {label}
+                  {cat?.hasMembers ? ' 🔒' : ''}
+                </button>
+              );
+            })}
           </div>
         </div>
       ))}
@@ -260,8 +238,6 @@ export default function CreateEventPage() {
       {/* Per-category config */}
       {categories.map((c) => {
         const key = catKey(c.gender, c.categoryLabel);
-        // Elo bands are auto-derived; a card only appears when there is
-        // something to configure (participants / bracket system).
         if (!format.participantOptions && !format.needsBracketSystem) return null;
         return (
           <div key={key} className={styles.catCard}>
@@ -270,9 +246,11 @@ export default function CreateEventPage() {
                 {c.gender ? (c.gender === 'M' ? 'Ч · ' : 'Ж · ') : ''}
                 {c.categoryLabel}
               </div>
-              <button className={styles.catRemove} onClick={() => toggleCategory(c.gender, c.categoryLabel)}>
-                Прибрати
-              </button>
+              {!c.hasMembers && (
+                <button className={styles.catRemove} onClick={() => toggleCategory(c.gender, c.categoryLabel)}>
+                  Прибрати
+                </button>
+              )}
             </div>
 
             {format.needsBracketSystem && (
@@ -341,19 +319,29 @@ export default function CreateEventPage() {
         );
       })}
 
-      <div className={styles.infoBox}>
-        Після створення категорії відкриваються для заявок. Гравці реєструються в застосунку
-        {format.registrationType === 'solo' ? ' (індивідуально)' : ' (парою або в пошуку напарника)'}, а сітки/групи
-        формуються після закриття реєстрації.
-      </div>
-
       {error && <div className={styles.errMsg}>{error}</div>}
+      {saved && <div className={styles.infoBox}>✓ Збережено</div>}
 
-      <button className={styles.btnPrimary} disabled={loading} onClick={handleCreate}>
-        {loading ? 'Створення...' : 'Створити подію →'}
+      <button className={styles.btnPrimary} disabled={busy} onClick={handleSave}>
+        {busy ? 'Збереження...' : 'Зберегти зміни'}
       </button>
     </div>
   );
+}
+
+// DB category rows → editable form entries. hasMembers locks the entry
+// against removal (players/pairs are already assigned to it).
+function fromRows(rows, isPair) {
+  return (rows || []).map((r) => ({
+    id: r.id,
+    gender: r.gender,
+    categoryLabel: r.category_label,
+    maxParticipants: r.max_participants,
+    bracketSystem: r.bracket_system,
+    hasMembers: isPair
+      ? (r.tournament_teams || []).length > 0
+      : (r.tournament_players || []).length > 0,
+  }));
 }
 
 function OptionBtn({ active, onClick, children }) {

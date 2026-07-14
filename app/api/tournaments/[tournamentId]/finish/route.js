@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { computeStandings } from '@/lib/tournamentEngine';
+import { teamAWon } from '@/lib/formats/sets';
 
 export async function POST(request, { params }) {
   const { tournamentId } = params;
@@ -12,6 +13,19 @@ export async function POST(request, { params }) {
   }
 
   const supabaseAdmin = createAdminClient();
+
+  // Guard against double-finishing: elo/stats must be paid out once.
+  const { data: tournament } = await supabaseAdmin
+    .from('tournaments')
+    .select('status')
+    .eq('id', tournamentId)
+    .maybeSingle();
+  if (!tournament) {
+    return Response.json({ success: false, error: 'Категорію не знайдено' }, { status: 404 });
+  }
+  if (tournament.status === 'done') {
+    return Response.json({ success: false, error: 'Категорію вже завершено' }, { status: 400 });
+  }
 
   const { data: tournamentPlayers } = await supabaseAdmin
     .from('tournament_players')
@@ -83,9 +97,9 @@ export async function POST(request, { params }) {
 
 async function updatePartnerStats(supabaseAdmin, matches) {
   for (const match of matches.filter((m) => m.played)) {
-    const teamAWon = match.score_a > match.score_b;
-    await recordPartnerPair(supabaseAdmin, match.team_a_players, teamAWon);
-    await recordPartnerPair(supabaseAdmin, match.team_b_players, !teamAWon);
+    const aWon = teamAWon(match);
+    await recordPartnerPair(supabaseAdmin, match.team_a_players, aWon);
+    await recordPartnerPair(supabaseAdmin, match.team_b_players, !aWon);
   }
 }
 

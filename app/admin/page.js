@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
+import { getFormat } from '@/lib/formats';
 import { CATEGORY_STARTING_ELO } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './admin.module.css';
@@ -78,12 +79,12 @@ export default function AdminPage() {
     const supabase = createClient();
     const { data: tournaments } = await supabase
       .from('tournaments')
-      .select('tournament_formats(display_name)')
+      .select('tournament_events(format_kind)')
       .eq('status', 'done');
 
     const counts = {};
     (tournaments || []).forEach((t) => {
-      const name = t.tournament_formats?.display_name || 'Невідомий формат';
+      const name = getFormat(t.tournament_events?.format_kind)?.displayName || 'Невідомий формат';
       counts[name] = (counts[name] || 0) + 1;
     });
     setFormatBreakdown(Object.entries(counts).map(([name, count]) => ({ name, count })));
