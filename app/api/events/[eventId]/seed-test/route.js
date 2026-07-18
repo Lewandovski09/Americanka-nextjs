@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 
 // Admin helper: fill the application queue with the seeded test players
-// (login test1…test48). Solo formats get one application per player;
+// (login male1…male64 / female1…female64). Solo formats get one
+// application per player;
 // pair formats get one application per pair — same-gender pairs for
 // single_gender, man+woman for mix. Test players that already have a
 // live application on this event are left untouched.
@@ -39,16 +40,31 @@ export async function POST(request, { params }) {
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
   const isMix = format.registrationType === 'mix_pair';
 
-  const { data: testPlayers } = await supabaseAdmin
+  // Which genders the event actually hosts: gendered formats create a
+  // category per gender ('M'/'F'), mix categories carry null. Only
+  // those genders get test applications — a women's-only event must
+  // not be flooded with men's applications (and vice versa).
+  const { data: cats } = await supabaseAdmin
+    .from('tournaments')
+    .select('gender')
+    .eq('event_id', eventId);
+  const eventGenders = new Set((cats || []).map((c) => c.gender).filter(Boolean));
+
+  const { data: rawTestPlayers } = await supabaseAdmin
     .from('players')
     .select('id, login, gender, elo')
-    .like('login', 'test%')
+    .or('login.like.male*,login.like.female*')
     .eq('approval_status', 'approved');
-  if (!testPlayers?.length) {
+  const testPlayers = (rawTestPlayers || []).filter((p) => /^(male|female)\d+$/.test(p.login));
+  if (!testPlayers.length) {
     return Response.json({ success: false, error: 'Тестових гравців немає — запустіть seed_test_users.sql' }, { status: 400 });
   }
-  // test1, test2, … in numeric order so the pairs are stable run-to-run.
-  testPlayers.sort((a, b) => Number(a.login.slice(4)) - Number(b.login.slice(4)));
+  // male1, male2, … / female1, female2, … in numeric order so the pairs
+  // are stable run-to-run (mix pairs maleN + femaleN by index).
+  const loginNum = (login) => Number(/\d+$/.exec(login)[0]);
+  testPlayers.sort((a, b) =>
+    a.gender !== b.gender ? (a.gender === 'M' ? -1 : 1) : loginNum(a.login) - loginNum(b.login)
+  );
 
   // Existing applications: live ones make the player unavailable; stale
   // (withdrawn/rejected) rows are cleared so the insert doesn't hit the
@@ -88,18 +104,23 @@ export async function POST(request, { params }) {
   });
 
   if (!isPair) {
-    // Solo (americanka, king of the beach): everyone applies alone.
-    pool.forEach((p) => rows.push(baseRow(p, null)));
+    // Solo (americanka, king of the beach): everyone applies alone —
+    // but only genders that have a category in this event.
+    pool.forEach((p) => {
+      if (!format.hasGender || eventGenders.has(p.gender)) rows.push(baseRow(p, null));
+    });
   } else if (isMix) {
-    // Mix: man + woman.
+    // Mix: strictly man + woman, never a same-gender pair.
     const men = pool.filter((p) => p.gender === 'M');
     const women = pool.filter((p) => p.gender === 'F');
     for (let i = 0; i < Math.min(men.length, women.length); i++) {
       rows.push(baseRow(men[i], women[i]));
     }
   } else {
-    // single_gender: pairs within the same gender.
+    // single_gender: pairs strictly within one gender, and only for
+    // genders that have a category in this event.
     for (const gender of ['M', 'F']) {
+      if (!eventGenders.has(gender)) continue;
       const g = pool.filter((p) => p.gender === gender);
       for (let i = 0; i + 1 < g.length; i += 2) {
         rows.push(baseRow(g[i], g[i + 1]));

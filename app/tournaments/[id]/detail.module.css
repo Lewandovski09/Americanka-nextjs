@@ -304,6 +304,109 @@
   color: var(--sand2);
 }
 
+/* ── Сітка v2: the paper bracket sheet ───────────────────────
+   Mirror layout exactly like the club's Excel «Сітка» page: the upper
+   bracket flows left → right, the lower bracket right → left, and the
+   semifinals / final / 3rd-place meet in the middle column. Boxes are
+   joined by right-angle winner-lines; columns all stretch to the same
+   height so later rounds auto-center between their feeders. */
+.flowWrap {
+  overflow-x: auto;
+  padding-bottom: 10px;
+}
+
+.flowCanvas {
+  position: relative;
+  min-width: min-content;
+}
+
+.flowSvg {
+  position: absolute;
+  inset: 0;
+  width: 100%;
+  height: 100%;
+  pointer-events: none;
+}
+
+.flowMirror {
+  display: flex;
+  gap: 22px;
+  align-items: stretch;
+  min-width: min-content;
+}
+
+.flowCol {
+  display: flex;
+  flex-direction: column;
+  width: 148px;
+  flex-shrink: 0;
+}
+
+.flowColTitle {
+  height: 16px;
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 800;
+  text-transform: uppercase;
+  letter-spacing: 0.4px;
+  color: var(--text2);
+  padding: 0 2px;
+  white-space: nowrap;
+}
+
+.flowColSlots {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+}
+
+.flowSlot {
+  flex: 1;
+  display: flex;
+  flex-direction: column;
+  justify-content: center;
+  padding: 9px 0;
+}
+
+/* Final + 3rd-place stacked in the very middle of the center column. */
+.flowCenterMid {
+  gap: 14px;
+}
+
+.flowCard {
+  position: relative;
+}
+
+/* Game number badge sitting on the box's top edge. */
+.flowNum {
+  position: absolute;
+  top: -8px;
+  left: 8px;
+  background: var(--navy);
+  color: #fff;
+  font-size: 9px;
+  font-weight: 800;
+  line-height: 1;
+  border-radius: 8px;
+  padding: 3px 6px;
+}
+
+/* The paper's W№ / L№ mark in a slot whose team isn't decided yet. */
+.flowHint {
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.flowNote {
+  font-size: 11px;
+  color: var(--text2);
+  padding: 2px;
+}
+
 /* Group block: mini standings + the group's games. */
 .groupCard {
   background: var(--surface);

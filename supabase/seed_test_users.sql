@@ -1,65 +1,81 @@
 -- ============================================================
--- AMERICANKA — Seed: 48 test players (test1 … test48)
+-- AMERICANKA — Seed: 128 test players (male1…male64, female1…female64)
 -- ============================================================
--- Creates 48 approved test accounts for trying out tournaments.
---   login / full_name : test1 … test48
---   email             : testN@example.com
---   phone             : +380990000001 … (unique per account)
---   gender            : odd N → M, even N → F  (24 men / 24 women)
---   elo               : 1020 … 1960  (spread so Elo bands differ)
+-- Creates 128 approved test accounts for trying out tournaments:
+-- 64 men + 64 women = enough for 32 male pairs + 32 female pairs.
+--   login / full_name : maleN / femaleN  (N = 1…64)
+--   email             : maleN@example.com / femaleN@example.com
+--   phone             : males +38096XXXXXXX, females +38095XXXXXXX
+--   elo               : 1015 … 1960  (spread so Elo bands differ)
 --   approval_status   : approved  (can be distributed right away)
 --
 -- Because players.id references auth.users(id), each account is created
 -- in BOTH auth.users and public.players with the same id. Password is
 -- 'test1234' for every account (login isn't needed for admin testing).
 --
--- Safe to run once in the Supabase SQL Editor. Re-running will fail on
--- the unique login/email/phone — clean up first (see bottom).
+-- Idempotent: re-running only fills in whatever is missing. If the
+-- auth.users account already exists it is reused (and its players row
+-- re-created when it was deleted); nothing existing is overwritten.
+-- For a truly fresh start run the cleanup at the bottom first.
 
 do $$
 declare
   uid uuid;
   n int;
+  g text;
+  lname text;
 begin
-  for n in 1..48 loop
-    uid := uuid_generate_v4();
+  for n in 1..64 loop
+    foreach g in array array['M', 'F'] loop
+      lname := (case when g = 'M' then 'male' else 'female' end) || n;
 
-    insert into auth.users (
-      instance_id, id, aud, role, email, encrypted_password,
-      email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
-      created_at, updated_at
-    ) values (
-      '00000000-0000-0000-0000-000000000000',
-      uid,
-      'authenticated',
-      'authenticated',
-      'test' || n || '@example.com',
-      crypt('test1234', gen_salt('bf')),
-      now(),
-      '{"provider":"email","providers":["email"]}'::jsonb,
-      '{}'::jsonb,
-      now(),
-      now()
-    );
+      -- Reuse the auth account if it survived an earlier cleanup;
+      -- otherwise create it. Either way the players insert below
+      -- restores a missing profile (no-op when it already exists).
+      select id into uid from auth.users where email = lname || '@example.com';
+      if uid is null then
+        uid := uuid_generate_v4();
 
-    insert into public.players (
-      id, login, full_name, email, phone, gender, elo,
-      approval_status, approved_at
-    ) values (
-      uid,
-      'test' || n,
-      'test' || n,
-      'test' || n || '@example.com',
-      '+38099' || lpad(n::text, 7, '0'),
-      (case when n % 2 = 0 then 'F' else 'M' end)::gender_type,
-      1000 + n * 20,
-      'approved',
-      now()
-    );
+        insert into auth.users (
+          instance_id, id, aud, role, email, encrypted_password,
+          email_confirmed_at, raw_app_meta_data, raw_user_meta_data,
+          created_at, updated_at
+        ) values (
+          '00000000-0000-0000-0000-000000000000',
+          uid,
+          'authenticated',
+          'authenticated',
+          lname || '@example.com',
+          crypt('test1234', gen_salt('bf')),
+          now(),
+          '{"provider":"email","providers":["email"]}'::jsonb,
+          '{}'::jsonb,
+          now(),
+          now()
+        );
+      end if;
+
+      insert into public.players (
+        id, login, full_name, email, phone, gender, elo,
+        approval_status, approved_at
+      ) values (
+        uid,
+        lname,
+        lname,
+        lname || '@example.com',
+        (case when g = 'M' then '+38096' else '+38095' end) || lpad(n::text, 7, '0'),
+        g::gender_type,
+        1000 + n * 15,
+        'approved',
+        now()
+      )
+      on conflict (id) do nothing;
+    end loop;
   end loop;
 end $$;
 
 -- ── Cleanup (run to remove all test accounts) ───────────────
 -- Deleting from auth.users cascades to public.players.
 --
---   delete from auth.users where email like 'test%@example.com';
+--   delete from auth.users where email like 'male%@example.com'
+--                             or email like 'female%@example.com';
