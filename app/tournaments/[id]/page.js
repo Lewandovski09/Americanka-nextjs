@@ -53,8 +53,8 @@ export default function TournamentDetailPage({ params }) {
       .from('tournament_teams')
       .select(
         `player1_id, player2_id,
-         p1:players!tournament_teams_player1_id_fkey(full_name, photo_url),
-         p2:players!tournament_teams_player2_id_fkey(full_name, photo_url)`
+         p1:players!tournament_teams_player1_id_fkey(full_name, first_name, last_name, city, photo_url),
+         p2:players!tournament_teams_player2_id_fkey(full_name, first_name, last_name, city, photo_url)`
       )
       .eq('tournament_id', id);
     setTeams(tt || []);
@@ -401,32 +401,44 @@ export default function TournamentDetailPage({ params }) {
             teams.length === 0 ? (
               <div className={styles.loading}>Учасників ще немає</div>
             ) : (
-              <table className={styles.table}>
-                <thead>
-                  <tr>
-                    <th>#</th>
-                    <th>Пара</th>
-                  </tr>
-                </thead>
-                <tbody>
-                  {teams.map((tt, i) => (
-                    <tr
-                      key={i}
-                      className={[tt.player1_id, tt.player2_id].includes(player?.id) ? styles.meRow : ''}
-                    >
-                      <td>{i + 1}</td>
-                      <td className={styles.nameCell}>
-                        <PlayerAvatar player={tt.p1} size={22} />
-                        <PlayerAvatar player={tt.p2} size={22} />
-                        {[tt.p1, tt.p2]
-                          .filter(Boolean)
-                          .map((p) => p.full_name)
-                          .join(' / ')}
-                      </td>
+              <div className={styles.pairTableWrap}>
+                <table className={`${styles.table} ${styles.pairTable}`}>
+                  <thead>
+                    <tr>
+                      <th>#</th>
+                      <th />
+                      <th>Прізвище 1</th>
+                      <th>Ім&apos;я 1</th>
+                      <th>Місто 1</th>
+                      <th>Прізвище 2</th>
+                      <th>Ім&apos;я 2</th>
+                      <th>Місто 2</th>
                     </tr>
-                  ))}
-                </tbody>
-              </table>
+                  </thead>
+                  <tbody>
+                    {teams.map((tt, i) => (
+                      <tr
+                        key={i}
+                        className={[tt.player1_id, tt.player2_id].includes(player?.id) ? styles.meRow : ''}
+                      >
+                        <td>{i + 1}</td>
+                        <td className={styles.pairAvatarCell}>
+                          <span className={styles.avatarStack}>
+                            <PlayerAvatar player={tt.p1} size={26} />
+                            <PlayerAvatar player={tt.p2} size={26} />
+                          </span>
+                        </td>
+                        <td>{tt.p1?.last_name || '—'}</td>
+                        <td>{tt.p1?.first_name || '—'}</td>
+                        <td className={styles.pairCityCell}>{tt.p1?.city || '—'}</td>
+                        <td>{tt.p2?.last_name || '—'}</td>
+                        <td>{tt.p2?.first_name || '—'}</td>
+                        <td className={styles.pairCityCell}>{tt.p2?.city || '—'}</td>
+                      </tr>
+                    ))}
+                  </tbody>
+                </table>
+              </div>
             )
           ) : standings.length === 0 ? (
             <div className={styles.loading}>Учасників ще немає</div>

@@ -3,6 +3,7 @@
 import { useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import CityPicker from '@/components/CityPicker';
 import styles from './register.module.css';
 
 const STEPS = {
@@ -26,7 +27,9 @@ export default function AuthPage() {
 
   // ── Register state ──
   const [form, setForm] = useState({
-    fullName: '',
+    firstName: '',
+    lastName: '',
+    city: '',
     login: '',
     telegramUsername: '',
     password: '',
@@ -88,7 +91,9 @@ export default function AuthPage() {
   async function handleValidateAndShowModal() {
     setError('');
     if (!photoDataUrl) return setError("Будь ласка, додайте фото профілю — це обов'язкове поле");
-    if (!form.fullName.trim()) return setError("Вкажіть ім'я та прізвище");
+    if (!form.firstName.trim()) return setError("Вкажіть ім'я");
+    if (!form.lastName.trim()) return setError('Вкажіть прізвище');
+    if (!form.city) return setError('Оберіть місто зі списку');
     if (!form.login.trim()) return setError('Вкажіть логін');
     if (!form.telegramUsername.trim()) return setError('Вкажіть Telegram нікнейм');
     if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
@@ -377,7 +382,16 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
         </div>
       </div>
 
-      <Field label="Ім'я та прізвище *" value={form.fullName} onChange={(v) => updateField('fullName', v)} placeholder="Ім'я" />
+      <Field label="Ім'я *" value={form.firstName} onChange={(v) => updateField('firstName', v)} placeholder="Ім'я" />
+      <Field label="Прізвище *" value={form.lastName} onChange={(v) => updateField('lastName', v)} placeholder="Прізвище" />
+
+      <label className={styles.label}>Місто *</label>
+      <CityPicker
+        value={form.city}
+        onChange={(v) => updateField('city', v)}
+        inputClassName={styles.input}
+      />
+
       <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" />
       <Field
         label="Telegram нікнейм *"

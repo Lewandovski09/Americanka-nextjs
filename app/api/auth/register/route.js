@@ -4,7 +4,9 @@ import { extractTelegramUsername } from '@/lib/telegram';
 export async function POST(request) {
   try {
     const {
-      fullName,
+      firstName,
+      lastName,
+      city,
       login,
       password,
       telegramUsername,
@@ -13,7 +15,7 @@ export async function POST(request) {
       photoDataUrl, // base64 data URL from the client file input
     } = await request.json();
 
-    if (!fullName || !login || !password || !telegramUsername || !gender || !category) {
+    if (!firstName?.trim() || !lastName?.trim() || !city || !login || !password || !telegramUsername || !gender || !category) {
       return Response.json({ success: false, error: "Заповніть всі обов'язкові поля" }, { status: 400 });
     }
     if (!photoDataUrl) {
@@ -63,18 +65,13 @@ export async function POST(request) {
     // ── Upload the profile photo to Supabase Storage ──
     const photoUrl = await uploadProfilePhoto(supabaseAdmin, userId, photoDataUrl);
 
-    // ── Create the player profile row ──
-    const initials = fullName
-      .split(' ')
-      .map((w) => w[0] || '')
-      .join('')
-      .slice(0, 2)
-      .toUpperCase();
-
+    // ── Create the player profile row (full_name is generated in DB) ──
     const { error: profileError } = await supabaseAdmin.from('players').insert({
       id: userId,
       login: normalizedLogin,
-      full_name: fullName,
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      city,
       telegram_username: normalizedTelegram,
       email: normalizedEmail,
       photo_url: photoUrl,

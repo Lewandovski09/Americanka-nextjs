@@ -7,6 +7,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore } from '@/lib/elo';
 import { scoreLabel } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import CityPicker from '@/components/CityPicker';
 import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
@@ -184,7 +185,9 @@ export default function ProfilePage() {
 
   function openEdit() {
     setEditForm({
-      fullName: player.full_name,
+      firstName: player.first_name || '',
+      lastName: player.last_name || '',
+      city: player.city || '',
       login: player.login,
       telegramUsername: player.telegram_username,
       email: player.email,
@@ -493,11 +496,23 @@ export default function ProfilePage() {
         <div className={styles.modalOverlay} onClick={() => setEditOpen(false)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>Редагувати профіль</div>
-            <label className={styles.fieldLabel}>Ім&apos;я та прізвище</label>
+            <label className={styles.fieldLabel}>Ім&apos;я</label>
             <input
               className={styles.fieldInput}
-              value={editForm.fullName}
-              onChange={(e) => setEditForm((f) => ({ ...f, fullName: e.target.value }))}
+              value={editForm.firstName}
+              onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
+            />
+            <label className={styles.fieldLabel}>Прізвище</label>
+            <input
+              className={styles.fieldInput}
+              value={editForm.lastName}
+              onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
+            />
+            <label className={styles.fieldLabel}>Місто</label>
+            <CityPicker
+              value={editForm.city}
+              onChange={(v) => setEditForm((f) => ({ ...f, city: v }))}
+              inputClassName={styles.fieldInput}
             />
             <label className={styles.fieldLabel}>Логін</label>
             <input

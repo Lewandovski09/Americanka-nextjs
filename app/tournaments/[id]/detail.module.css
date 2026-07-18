@@ -195,6 +195,45 @@
   background: var(--rust-tint);
 }
 
+/* «Заявки» for pair formats: overlapping partner avatars + a column
+   per last name / first name / city of each partner. Wider than a
+   phone screen, so the wrapper scrolls horizontally. */
+.pairTableWrap {
+  overflow-x: auto;
+}
+
+.pairTable {
+  min-width: 560px;
+}
+
+.pairTable th,
+.pairTable td {
+  white-space: nowrap;
+}
+
+.pairCityCell {
+  max-width: 110px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.pairAvatarCell {
+  width: 46px;
+}
+
+/* The second avatar overlaps the first, ringed so they read as a stack. */
+.avatarStack {
+  display: flex;
+}
+
+.avatarStack > * {
+  box-shadow: 0 0 0 2px var(--surface);
+}
+
+.avatarStack > *:not(:first-child) {
+  margin-left: -9px;
+}
+
 /* ── Bracket («Сітка»): horizontal columns of stage blocks ────── */
 .bracketWrap {
   overflow-x: auto;
@@ -313,6 +352,9 @@
 .flowWrap {
   overflow-x: auto;
   padding-bottom: 10px;
+  /* Panning stays native, but two-finger pinch inside the bracket is
+     ours (page pinch-zoom would fire otherwise). */
+  touch-action: pan-x pan-y;
 }
 
 .flowCanvas {
@@ -375,6 +417,7 @@
 
 .flowCard {
   position: relative;
+  border: 1.5px solid var(--navy);
 }
 
 /* Game number badge sitting on the box's top edge. */

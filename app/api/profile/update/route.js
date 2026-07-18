@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { extractTelegramUsername } from '@/lib/telegram';
 
 export async function POST(request) {
-  const { fullName, login, telegramUsername, email } = await request.json();
+  const { firstName, lastName, city, login, telegramUsername, email } = await request.json();
 
   const supabase = createClient();
   const { data: authUser } = await supabase.auth.getUser();
@@ -18,7 +18,7 @@ export async function POST(request) {
   const normalizedTelegram = extractTelegramUsername(telegramUsername || '');
   const normalizedEmail = (email || '').trim().toLowerCase();
 
-  if (!normalizedLogin || !normalizedTelegram || !normalizedEmail || !fullName?.trim()) {
+  if (!normalizedLogin || !normalizedTelegram || !normalizedEmail || !firstName?.trim() || !lastName?.trim() || !city) {
     return Response.json({ success: false, error: "Заповніть всі поля" }, { status: 400 });
   }
 
@@ -63,7 +63,9 @@ export async function POST(request) {
   const { error: updateError } = await supabaseAdmin
     .from('players')
     .update({
-      full_name: fullName.trim(),
+      first_name: firstName.trim(),
+      last_name: lastName.trim(),
+      city,
       login: normalizedLogin,
       telegram_username: normalizedTelegram,
       email: normalizedEmail,

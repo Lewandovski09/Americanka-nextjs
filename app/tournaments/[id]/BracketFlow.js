@@ -8,7 +8,7 @@
 // semifinal below. Undecided slots carry the paper's W№ / L№ marks and
 // winner-lines join the boxes.
 
-import { useCallback, useLayoutEffect, useRef, useState } from 'react';
+import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { aggregateScore, teamAWon } from '@/lib/formats/sets';
 import { stageLabel, stageWeight } from '@/lib/formats/stages';
 import styles from './detail.module.css';
@@ -42,8 +42,76 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
   const flow = matches.filter((m) => m.stage && m.stage !== 'group' && !/^kr\d+$/.test(m.stage));
 
   const canvasRef = useRef(null);
+  const wrapRef = useRef(null);
   const boxRefs = useRef({});
   const [paths, setPaths] = useState([]);
+  const [zoom, setZoom] = useState(1);
+  // Mirror of `zoom` for event handlers + the pending focal point of the
+  // current gesture (so the spot under the fingers/cursor stays put).
+  const zoomRef = useRef(1);
+  const focal = useRef(null);
+
+  const changeZoom = useCallback((next, cx) => {
+    const nz = +Math.min(2, Math.max(0.5, next)).toFixed(3);
+    const z = zoomRef.current;
+    if (nz === z) return;
+    zoomRef.current = nz;
+    const wrap = wrapRef.current;
+    focal.current = { z, nz, cx: cx ?? (wrap ? wrap.clientWidth / 2 : 0) };
+    setZoom(nz);
+  }, []);
+
+  // After the zoom renders, shift the horizontal scroll so the content
+  // point that was under the gesture stays under it.
+  useLayoutEffect(() => {
+    const f = focal.current;
+    const wrap = wrapRef.current;
+    if (!f || !wrap) return;
+    focal.current = null;
+    wrap.scrollLeft = ((wrap.scrollLeft + f.cx) / f.z) * f.nz - f.cx;
+  }, [zoom]);
+
+  // Gestures: two-finger pinch on touch screens, ctrl+wheel on desktop
+  // (trackpad pinches arrive as ctrl+wheel too). Native listeners with
+  // passive:false — React's synthetic events can't preventDefault here.
+  useEffect(() => {
+    const wrap = wrapRef.current;
+    if (!wrap) return;
+    const dist = (t) => Math.hypot(t[0].clientX - t[1].clientX, t[0].clientY - t[1].clientY);
+    let pinch = null;
+
+    const onWheel = (e) => {
+      if (!e.ctrlKey) return; // plain wheel keeps scrolling
+      e.preventDefault();
+      const cx = e.clientX - wrap.getBoundingClientRect().left;
+      changeZoom(zoomRef.current * Math.exp(-e.deltaY * 0.002), cx);
+    };
+    const onTouchStart = (e) => {
+      if (e.touches.length === 2) pinch = { d0: dist(e.touches), z0: zoomRef.current };
+    };
+    const onTouchMove = (e) => {
+      if (!pinch || e.touches.length !== 2) return;
+      e.preventDefault(); // keep the browser from zooming the whole page
+      const cx = (e.touches[0].clientX + e.touches[1].clientX) / 2 - wrap.getBoundingClientRect().left;
+      changeZoom((pinch.z0 * dist(e.touches)) / pinch.d0, cx);
+    };
+    const onTouchEnd = (e) => {
+      if (e.touches.length < 2) pinch = null;
+    };
+
+    wrap.addEventListener('wheel', onWheel, { passive: false });
+    wrap.addEventListener('touchstart', onTouchStart, { passive: true });
+    wrap.addEventListener('touchmove', onTouchMove, { passive: false });
+    wrap.addEventListener('touchend', onTouchEnd, { passive: true });
+    wrap.addEventListener('touchcancel', onTouchEnd, { passive: true });
+    return () => {
+      wrap.removeEventListener('wheel', onWheel);
+      wrap.removeEventListener('touchstart', onTouchStart);
+      wrap.removeEventListener('touchmove', onTouchMove);
+      wrap.removeEventListener('touchend', onTouchEnd);
+      wrap.removeEventListener('touchcancel', onTouchEnd);
+    };
+  }, [changeZoom]);
 
   // Winner-lines: right-angle elbows like the paper. The exit side
   // follows the flow direction (the lower bracket travels leftwards);
@@ -52,6 +120,10 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
     const canvas = canvasRef.current;
     if (!canvas) return;
     const root = canvas.getBoundingClientRect();
+    // The canvas may be scaled (zoom control): rects come back in screen
+    // px, but SVG paths are drawn in the canvas's own CSS px — divide by
+    // the effective scale factor to convert.
+    const k = canvas.offsetWidth ? root.width / canvas.offsetWidth : 1;
     const out = [];
     for (const m of flow) {
       if (!m.winner_to_match_id) continue;
@@ -64,19 +136,19 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
       let d;
       if (overlapX > Math.min(ra.width, rb.width) / 2) {
         // Same column (semifinal → final / 3rd place): vertical elbow.
-        const x1 = ra.left + ra.width / 2 - root.left;
-        const x2 = rb.left + rb.width / 2 - root.left;
+        const x1 = (ra.left + ra.width / 2 - root.left) / k;
+        const x2 = (rb.left + rb.width / 2 - root.left) / k;
         const down = rb.top >= ra.bottom;
-        const y1 = (down ? ra.bottom : ra.top) - root.top;
-        const y2 = (down ? rb.top : rb.bottom) - root.top;
+        const y1 = ((down ? ra.bottom : ra.top) - root.top) / k;
+        const y2 = ((down ? rb.top : rb.bottom) - root.top) / k;
         const ym = (y1 + y2) / 2;
         d = `M ${x1} ${y1} V ${ym} H ${x2} V ${y2}`;
       } else {
         const toRight = rb.left + rb.width / 2 >= ra.left + ra.width / 2;
-        const x1 = (toRight ? ra.right : ra.left) - root.left;
-        const x2 = (toRight ? rb.left : rb.right) - root.left;
-        const y1 = ra.top + ra.height / 2 - root.top;
-        const y2 = rb.top + rb.height / 2 - root.top;
+        const x1 = ((toRight ? ra.right : ra.left) - root.left) / k;
+        const x2 = ((toRight ? rb.left : rb.right) - root.left) / k;
+        const y1 = (ra.top + ra.height / 2 - root.top) / k;
+        const y2 = (rb.top + rb.height / 2 - root.top) / k;
         const xm = (x1 + x2) / 2;
         d = `M ${x1} ${y1} H ${xm} V ${y2} H ${x2}`;
       }
@@ -95,7 +167,7 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
       ro.disconnect();
       window.removeEventListener('resize', measure);
     };
-  }, [measure]);
+  }, [measure, zoom]);
 
   if (flow.length === 0) return <div className={styles.loading}>Сітки немає</div>;
 
@@ -243,20 +315,23 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
   }
 
   return (
-    <div className={styles.flowWrap}>
-      <div className={styles.flowCanvas} ref={canvasRef}>
+    <div>
+      <div className={styles.flowWrap} ref={wrapRef}>
+      <div className={styles.flowCanvas} ref={canvasRef} style={{ zoom }}>
         <svg className={styles.flowSvg}>
           {paths.map((p, i) => (
             <path
               key={i}
               d={p.d}
               fill="none"
-              stroke={p.active ? 'var(--navy)' : 'var(--border-light)'}
-              strokeWidth={p.active ? 2 : 1.5}
+              stroke={p.active ? 'var(--navy)' : 'var(--text2)'}
+              strokeWidth={p.active ? 3 : 2}
+              strokeLinejoin="round"
             />
           ))}
         </svg>
         {body}
+      </div>
       </div>
       {hasGroups && <div className={styles.flowNote}>Груповий етап — у класичній сітці</div>}
     </div>

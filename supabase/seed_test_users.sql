@@ -56,12 +56,14 @@ begin
       end if;
 
       insert into public.players (
-        id, login, full_name, email, phone, gender, elo,
+        id, login, first_name, last_name, city, email, phone, gender, elo,
         approval_status, approved_at
       ) values (
         uid,
         lname,
         lname,
+        '',      -- empty last name → generated full_name stays just "maleN"
+        'Одеса',
         lname || '@example.com',
         (case when g = 'M' then '+38096' else '+38095' end) || lpad(n::text, 7, '0'),
         g::gender_type,
