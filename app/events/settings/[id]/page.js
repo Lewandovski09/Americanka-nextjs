@@ -126,7 +126,7 @@ export default function EventSettingsPage({ params }) {
             <button
               className={styles.btnGhost}
               disabled={busy}
-              title="Подати заявки за всіх тестових гравців (test1…test48)"
+              title="Подати заявки за всіх тестових гравців (male1…male64, female1…female64)"
               onClick={() => post(`/api/events/${event.id}/seed-test`)}
             >
               🤖 Тест-заявки

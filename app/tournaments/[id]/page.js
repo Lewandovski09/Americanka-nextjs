@@ -11,6 +11,7 @@ import { rankGroupDetailed } from '@/lib/formats/kingOfBeach';
 import { stageWeight, stageLabel, groupTitle } from '@/lib/formats/stages';
 import { computePlaces } from '@/app/events/shared';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import BracketFlow from './BracketFlow';
 import styles from './detail.module.css';
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket', CHAT: 'chat' };
@@ -26,6 +27,7 @@ export default function TournamentDetailPage({ params }) {
   const [messages, setMessages] = useState([]);
   const [tab, setTab] = useState(TABS.PLAYERS);
   const [playersView, setPlayersView] = useState(null); // 'list' | 'results'; null = auto by status
+  const [bracketView, setBracketView] = useState(null); // 'v2' | 'v1'; null = auto
   const [scoreModal, setScoreModal] = useState(null); // { matchId, teamAName, teamBName, pointsToWin }
   const [chatText, setChatText] = useState('');
 
@@ -123,6 +125,16 @@ export default function TournamentDetailPage({ params }) {
   // included, so the whole day is visible up front).
   const scheduleSections = buildScheduleSections(matches);
   const orderedMatches = scheduleSections.flatMap((s) => s.matches);
+
+  // Game numbers shared by the schedule table and «Сітка v2», so «гра
+  // №12» means the same match in both views.
+  const gameNoById = {};
+  orderedMatches.forEach((m, i) => {
+    gameNoById[m.id] = i + 1;
+  });
+  // «Сітка v2» (flowchart) needs bracket pointers to draw the lines.
+  const hasFlow = matches.some((m) => m.winner_to_match_id);
+  const bracketViewResolved = bracketView || (hasFlow ? 'v2' : 'v1');
 
   // Projected start time of every game: each court runs its own queue
   // from the category start time, and a game blocks its court for 30
@@ -498,10 +510,36 @@ export default function TournamentDetailPage({ params }) {
         </button>
       )}
 
-      {/* Interactive bracket: the tournament flow as columns of blocks —
-          groups with live mini-standings, then every playoff round.
-          Pending games are highlighted and open the score dialog. */}
-      {tab === TABS.BRACKET &&
+      {/* Interactive bracket. Two views: «Сітка v2» — a flowchart with
+          winner-lines like the paper bracket (default when the matches
+          carry bracket pointers), and the classic columns-of-blocks
+          view. Pending games are highlighted and open the score dialog. */}
+      {tab === TABS.BRACKET && matches.length > 0 && hasFlow && (
+        <div className={styles.subTabs}>
+          {[
+            ['v2', 'Схема'],
+            ['v1', 'Класична'],
+          ].map(([key, label]) => (
+            <button
+              key={key}
+              className={`${styles.subTab} ${bracketViewResolved === key ? styles.subTabOn : ''}`}
+              onClick={() => setBracketView(key)}
+            >
+              {label}
+            </button>
+          ))}
+        </div>
+      )}
+      {tab === TABS.BRACKET && hasFlow && bracketViewResolved === 'v2' && matches.length > 0 && (
+        <BracketFlow
+          matches={matches}
+          nameOf={teamLabel}
+          numberOf={gameNoById}
+          openScore={openScoreModal}
+          canEdit={canEditScore}
+        />
+      )}
+      {tab === TABS.BRACKET && !(hasFlow && bracketViewResolved === 'v2') &&
         (matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
@@ -820,17 +858,28 @@ function kingResults(matches) {
   return out;
 }
 
-// Double elimination placements: the grand final decides 1-2, then the
-// losers of each lower-bracket round share a place, last round first.
+// Double elimination placements: the final decides 1-2 and the bronze
+// match 3-4 (the crossed-semifinal losers), then the losers of each
+// lower-bracket round share a place, last round first (5-6, 7-8, 9-12,
+// 13-16, …). Legacy grand-final brackets ('gf') have no bronze match —
+// their shared places start at 3.
 function deResults(matches) {
   const out = [];
-  const gf = matches.find((m) => m.stage === 'gf' && m.played);
-  if (gf) {
-    const { w, l } = winnerLoserOf(gf);
-    if (w?.length) out.push({ place: 1, ids: w });
-    if (l?.length) out.push({ place: 2, ids: l });
+  const legacy = matches.some((m) => m.stage === 'gf');
+  const playedOut = legacy
+    ? [['gf', 1, 2]]
+    : [
+        ['final', 1, 2],
+        ['p3_4', 3, 4],
+      ];
+  for (const [stage, hi, lo] of playedOut) {
+    const m = matches.find((x) => x.stage === stage && x.played);
+    if (!m) continue;
+    const { w, l } = winnerLoserOf(m);
+    if (w?.length) out.push({ place: hi, ids: w });
+    if (l?.length) out.push({ place: lo, ids: l });
   }
-  let place = 3;
+  let place = legacy ? 3 : 5;
   const lbRounds = [
     ...new Set(
       matches.filter((m) => /^lb\d+$/.test(m.stage || '')).map((m) => Number(m.stage.slice(2)))
