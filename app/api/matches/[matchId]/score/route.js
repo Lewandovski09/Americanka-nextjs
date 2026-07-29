@@ -6,6 +6,8 @@ import { teamAWon } from '@/lib/formats/sets';
 import { buildKingRound, rankGroupDetailed, kingAdvancers } from '@/lib/formats/kingOfBeach';
 import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from '@/lib/formats/brackets';
 import { stageWeight } from '@/lib/formats/stages';
+import { assignScheduledTimes, cursorsFromMatches } from '@/lib/schedule';
+import { getJudgeRole } from '@/lib/server/judges';
 
 export async function POST(request, { params }) {
   const { matchId } = params;
@@ -28,7 +30,7 @@ export async function POST(request, { params }) {
   const { data: match } = await supabaseAdmin
     .from('matches')
     .select(
-      `*, tournaments(status, points_to_win,
+      `*, tournaments(status, points_to_win, event_id,
         tournament_events(format_kind, points_to_win, points_mode, final_points_to_win))`
     )
     .eq('id', matchId)
@@ -38,9 +40,11 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Матч не знайдено' }, { status: 404 });
   }
 
-  // Re-entering a score is an admin correction, allowed only while the
-  // match's stage is still current — a finished category (elo already
-  // paid out) or a stage the tournament has moved past is locked.
+  // Entering a score the first time is open to everyone at the court
+  // (players and judges alike). Re-entering it is a correction: only an
+  // admin or the head judge may, and only while the match's stage is
+  // still current — a finished category (elo already paid out) or a
+  // stage the tournament has moved past is locked.
   if (match.played) {
     if (match.tournaments?.status === 'done') {
       return Response.json(
@@ -48,14 +52,10 @@ export async function POST(request, { params }) {
         { status: 400 }
       );
     }
-    const { data: caller } = await supabaseAdmin
-      .from('players')
-      .select('is_admin')
-      .eq('id', authUser.user.id)
-      .maybeSingle();
-    if (!caller?.is_admin) {
+    const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournaments?.event_id || null);
+    if (!role.isAdmin && !role.isHeadJudge) {
       return Response.json(
-        { success: false, error: 'Рахунок вже введено — змінити його може лише адмін' },
+        { success: false, error: 'Рахунок вже введено — змінити його може адмін або головний суддя' },
         { status: 403 }
       );
     }
@@ -217,7 +217,10 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
 
   const { data: category } = await supabaseAdmin
     .from('tournaments')
-    .select('bracket_system, courts')
+    .select(
+      `bracket_system, courts, scheduled_at, points_to_win,
+       tournament_events(points_to_win, points_mode, final_points_to_win)`
+    )
     .eq('id', match.tournament_id)
     .single();
   const buildPlayoff = CROSS_BUILDERS[category?.bracket_system];
@@ -225,7 +228,10 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
 
   const { data: all } = await supabaseAdmin
     .from('matches')
-    .select('id, stage, round_number, group_index, team_a_players, team_b_players, set1, set2, set3, played')
+    .select(
+      `id, stage, round_number, group_index, court, scheduled_at,
+       team_a_players, team_b_players, set1, set2, set3, played`
+    )
     .eq('tournament_id', match.tournament_id);
   const groupMatches = (all || []).filter((m) => m.stage === 'group');
   if (groupMatches.some((m) => !m.played)) return;
@@ -263,9 +269,25 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
     console.error('[score auto-playoff]:', e.message);
     return;
   }
+  // The playoff is appended to a category that is already running, so its
+  // times queue up behind the group games instead of restarting from the
+  // category time.
+  const ev = category.tournament_events;
+  const scoring = {
+    points_to_win: category.points_to_win ?? ev?.points_to_win ?? 21,
+    points_mode: ev?.points_mode,
+    final_points_to_win: ev?.final_points_to_win,
+  };
+  const targetFor = (m) => pointsTargetForStage(scoring, m.stage);
+  const timed = assignScheduledTimes(rows, {
+    startAt: category.scheduled_at,
+    targetFor,
+    cursors: cursorsFromMatches(groupMatches, targetFor),
+  });
+
   const { error } = await supabaseAdmin
     .from('matches')
-    .insert(rows.map((m) => ({ ...m, tournament_id: match.tournament_id })));
+    .insert(timed.map((m) => ({ ...m, tournament_id: match.tournament_id })));
   if (error) console.error('[score auto-playoff] insert:', error.message);
 }
 

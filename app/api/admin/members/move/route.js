@@ -116,9 +116,12 @@ export async function POST(request, { params }) {
       return Response.json({ success: false, error: 'У цільовій категорії немає місць' }, { status: 400 });
     }
 
+    // The seed belongs to the league it was arranged in — moving the pair
+    // drops it (it would also collide with the target's seed numbering).
+    // The pair reappears at the bottom of the target's «Посів» tab.
     const { error } = await supabaseAdmin
       .from('tournament_teams')
-      .update({ tournament_id: targetCategoryId })
+      .update({ tournament_id: targetCategoryId, slot_index: null })
       .eq('id', teamId);
     if (error) {
       if (error.code === '23505') return Response.json({ success: false, error: 'Гравець вже у цільовій категорії' }, { status: 400 });
@@ -139,7 +142,7 @@ export async function POST(request, { params }) {
 
   const { data: row } = await supabaseAdmin
     .from('tournament_players')
-    .select('elo_at_start')
+    .select('player_id')
     .eq('tournament_id', fromCategoryId)
     .eq('player_id', playerId)
     .maybeSingle();
@@ -147,10 +150,7 @@ export async function POST(request, { params }) {
 
   // Place into target first (capacity/uniqueness checked there); only
   // remove from source if that succeeds.
-  const placed = await placeMember(supabaseAdmin, target, format, {
-    playerId,
-    elo: row.elo_at_start,
-  });
+  const placed = await placeMember(supabaseAdmin, target, format, { playerId });
   if (placed.error) return Response.json({ success: false, error: placed.error }, { status: 400 });
 
   await supabaseAdmin

@@ -10,7 +10,7 @@
 
 import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react';
 import { aggregateScore, teamAWon } from '@/lib/formats/sets';
-import { stageLabel, stageWeight } from '@/lib/formats/stages';
+import { stageLabel, stageWeight, isSharedPlaceStage } from '@/lib/formats/stages';
 import styles from './detail.module.css';
 
 const deNum = (s) => Number(/^(?:wb|lb)(\d+)$/.exec(s)?.[1] || 0);
@@ -38,7 +38,10 @@ function orderLane(cols, orderIdx) {
   return cols;
 }
 
-export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEdit }) {
+// How close the bracket is pulled in when the search jumps to a game.
+const FOCUS_ZOOM = 1.4;
+
+export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEdit, focusId, focusSeq }) {
   const flow = matches.filter((m) => m.stage && m.stage !== 'group' && !/^kr\d+$/.test(m.stage));
 
   const canvasRef = useRef(null);
@@ -158,6 +161,21 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [matches]);
 
+  // A player picked in the search: pull the bracket in and bring their
+  // game to the middle of the view. Games outside the flowchart (the
+  // group stage) are drawn below it and scrolled to by the page.
+  useEffect(() => {
+    if (!focusId || !boxRefs.current[focusId]) return;
+    changeZoom(Math.max(zoomRef.current, FOCUS_ZOOM));
+  }, [focusId, focusSeq, changeZoom]);
+
+  // Declared after the zoom's own scroll correction so the centring
+  // wins when both run for the same change.
+  useLayoutEffect(() => {
+    const el = focusId ? boxRefs.current[focusId] : null;
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  }, [focusId, focusSeq, zoom]);
+
   useLayoutEffect(() => {
     measure();
     const ro = new ResizeObserver(measure);
@@ -212,6 +230,7 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
     hintB: hint(m, 'b'),
     openScore,
     editable: canEdit(m),
+    focused: m.id === focusId,
   });
 
   const column = (key, title, ms, labelOf) => (
@@ -291,7 +310,7 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
   } else {
     // Other knockout formats: a single left-to-right lane.
     const ordered = [...stages].sort((a, b) => stageWeight(a) - stageWeight(b));
-    const places = ordered.filter((s) => /^p\d+_\d+$/.test(s));
+    const places = ordered.filter(isSharedPlaceStage);
     const cols = ordered
       .filter((s) => !places.includes(s))
       .map((s) => ({ key: s, title: stageLabel(s), matches: [...byStage.get(s)] }));
@@ -333,14 +352,14 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
         {body}
       </div>
       </div>
-      {hasGroups && <div className={styles.flowNote}>Груповий етап — у класичній сітці</div>}
+      {hasGroups && <div className={styles.flowNote}>Груповий етап — нижче ↓</div>}
     </div>
   );
 }
 
 // One box: game number badge, both sides with scores, winner in bold.
 // Clicking behaves exactly like the classic view.
-function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, editable }) {
+function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, editable, focused }) {
   const agg = aggregateScore(m);
   const aWon = m.played && teamAWon(m);
   const walkover = m.played && !(m.team_b_players?.length > 0);
@@ -354,11 +373,10 @@ function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, ed
       ref={innerRef}
       className={`${styles.bracketCard} ${styles.flowCard} ${clickable ? styles.bracketCardPending : ''} ${
         future ? styles.cardFuture : ''
-      }`}
+      } ${focused ? styles.cardFocused : ''}`}
       onClick={() => clickable && openScore(m, nameA, nameB)}
     >
       {num != null && <span className={styles.flowNum}>{num}</span>}
-      {editable && <span className={styles.editIcon}>✎</span>}
       {label && <div className={styles.bracketCardLabel}>{label}</div>}
       <div className={`${styles.bracketSide} ${aWon ? styles.bracketWinner : ''}`}>
         {nameA ? (

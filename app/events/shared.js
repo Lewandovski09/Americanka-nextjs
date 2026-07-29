@@ -24,12 +24,50 @@ export function bracketLabel(id) {
   return BRACKET_SYSTEMS.find((b) => b.id === id)?.label || id;
 }
 
-// Loads the event, its categories (with rosters and matches) and the
-// application queue. `load` is stable and safe to call after mutations.
+// The category roster as a flat list in SEED order — the order the
+// bracket is built from. Rows the admin has already seeded come first by
+// `slot_index`; the rest fall back to when they were distributed, so an
+// unseeded category still shows a sensible 1…N to start editing from.
+// Pairs and solo players behave identically: neither gets a seed
+// automatically, both are arranged on the «Посів» tab.
+export function seedRoster(category, isPair) {
+  const rows = isPair
+    ? (category?.tournament_teams || []).map((t) => ({
+        key: t.id,
+        slotIndex: t.slot_index,
+        addedAt: t.created_at || '',
+        name: `${t.p1?.full_name?.split(' ')[0] || t.player1_id?.slice(0, 6)} + ${
+          t.player2_id ? t.p2?.full_name?.split(' ')[0] || t.player2_id.slice(0, 6) : 'шукає напарника'
+        }`,
+        player: null,
+      }))
+    : (category?.tournament_players || []).map((tp) => ({
+        key: tp.player_id,
+        slotIndex: tp.slot_index,
+        addedAt: tp.created_at || '',
+        name: tp.players?.full_name || '—',
+        player: tp.players || null,
+      }));
+
+  return rows.sort((a, b) => {
+    const as = a.slotIndex ?? Infinity;
+    const bs = b.slotIndex ?? Infinity;
+    if (as !== bs) return as - bs;
+    // Same-second distribution (or rows predating the created_at column)
+    // would otherwise shuffle between reloads — settle it by name.
+    if (a.addedAt !== b.addedAt) return a.addedAt < b.addedAt ? -1 : 1;
+    return a.name.localeCompare(b.name);
+  });
+}
+
+// Loads the event, its categories (with rosters and matches), the
+// application queue and the judging crew. `load` is stable and safe to
+// call after mutations.
 export function useEventData(id) {
   const [event, setEvent] = useState(null);
   const [categories, setCategories] = useState([]);
   const [applications, setApplications] = useState([]);
+  const [judges, setJudges] = useState([]);
   const [loading, setLoading] = useState(true);
 
   const load = useCallback(async () => {
@@ -42,8 +80,8 @@ export function useEventData(id) {
       .from('tournaments')
       .select(
         `id, category_label, gender, status, max_participants, bracket_system, elo_min, elo_max, points_to_win,
-         tournament_players(player_id, elo_at_start, players(full_name, photo_url)),
-         tournament_teams(id, player1_id, player2_id,
+         tournament_players(player_id, slot_index, created_at, players(full_name, photo_url)),
+         tournament_teams(id, player1_id, player2_id, slot_index, created_at,
            p1:players!tournament_teams_player1_id_fkey(full_name),
            p2:players!tournament_teams_player2_id_fkey(full_name)),
          matches(*)`
@@ -64,6 +102,16 @@ export function useEventData(id) {
       .order('created_at', { ascending: true });
     setApplications(apps || []);
 
+    // The judging crew — head judge first, then in the order they were
+    // added.
+    const { data: crew } = await supabase
+      .from('tournament_judges')
+      .select('player_id, is_head, created_at, players(full_name, photo_url, login)')
+      .eq('event_id', id)
+      .order('is_head', { ascending: false })
+      .order('created_at', { ascending: true });
+    setJudges(crew || []);
+
     setLoading(false);
   }, [id]);
 
@@ -71,7 +119,7 @@ export function useEventData(id) {
     load();
   }, [load]);
 
-  return { event, categories, applications, loading, load };
+  return { event, categories, applications, judges, loading, load };
 }
 
 // POST helper with shared busy/error state; reloads data on success.
@@ -139,7 +187,50 @@ export function CategoryTabs({ categories, activeId, onSelect }) {
   );
 }
 
-export function CategoryPanel({ category, format, isAdmin, allCategories, busy, onStart, onScore, onMove, onRemove }) {
+// «Запустити» — one button for the whole event: every league that has
+// not started yet gets its bracket at once (the API refuses to start
+// anything unless they all can).
+//
+// The seeding does not have to be arranged first: leagues the admin
+// never got to are seeded by the order their applications were
+// distributed. Only an empty league blocks the start.
+export function StartEventButton({ event, categories, format, busy, post }) {
+  const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
+  const rowsOf = (c) => (isPair ? c.tournament_teams || [] : c.tournament_players || []);
+
+  const pending = categories.filter((c) => c.status === 'scheduled');
+  if (pending.length === 0) return null;
+
+  const empty = pending.filter((c) => rowsOf(c).length === 0);
+  const unseeded = pending.filter((c) => rowsOf(c).some((r) => r.slot_index == null));
+  const label = (c) =>
+    `${c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}${c.category_label || 'Категорія'}`;
+
+  return (
+    <div className={styles.startBox}>
+      {empty.length > 0 && (
+        <div className={styles.hint}>
+          Порожні категорії: {empty.map(label).join(', ')} — додайте учасників або видаліть їх.
+        </div>
+      )}
+      {empty.length === 0 && unseeded.length > 0 && (
+        <div className={styles.hint}>
+          Посів розставлено не всюди ({unseeded.map(label).join(', ')}) — там порядок візьметься з
+          черги заявок.
+        </div>
+      )}
+      <button
+        className={styles.btnPrimary}
+        disabled={busy || empty.length > 0}
+        onClick={() => post(`/api/events/${event.id}/start`)}
+      >
+        {busy ? 'Запуск…' : `Запустити${pending.length > 1 ? ` (${pending.length} категорії)` : ''}`}
+      </button>
+    </div>
+  );
+}
+
+export function CategoryPanel({ category, format, isAdmin, allCategories, busy, onScore, onMove, onRemove }) {
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const teams = category.tournament_teams || [];
   const solos = category.tournament_players || [];
@@ -212,12 +303,6 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
             m.played &&
             (m.is_final || /^p\d+_\d+$/.test(m.stage || '') || m.stage === 'qf' || m.stage === 'play_in')
         ) && <Placements matches={matches} teams={teams} nameById={nameById} />}
-
-      {isAdmin && notStarted && (
-        <button className={styles.btnPrimary} style={{ marginTop: 12 }} disabled={busy} onClick={onStart}>
-          Розпочати категорію →
-        </button>
-      )}
 
       {!notStarted && (
         <Link href={`/tournaments/${category.id}`} className={styles.openLink}>
@@ -342,7 +427,6 @@ function Placements({ matches, teams, nameById }) {
 function Standings({ solos, matches }) {
   const players = solos.map((tp) => ({
     id: tp.player_id,
-    elo_at_start: tp.elo_at_start,
     full_name: tp.players?.full_name || '—',
   }));
   const rows = computeStandings(players, matches);

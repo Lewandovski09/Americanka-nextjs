@@ -142,6 +142,17 @@
   color: var(--rust-dark);
 }
 
+/* «Головний» marker next to a judge's name. */
+.judgeBadge {
+  flex-shrink: 0;
+  font-size: 10px;
+  font-weight: 700;
+  padding: 3px 9px;
+  border-radius: var(--r-lg);
+  background: var(--navy);
+  color: #fff;
+}
+
 .progressBar {
   height: 6px;
   background: var(--border-light);
@@ -462,6 +473,15 @@
 }
 
 /* «Видалити турнір» — destructive, kept visually quiet at the page end. */
+/* «Запустити» — one action for the whole event, under the category
+   panel so it doesn't read as belonging to the open category. */
+.startBox {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+  margin-top: 14px;
+}
+
 .deleteBtn {
   width: 100%;
   margin-top: 24px;
@@ -477,4 +497,233 @@
 
 .deleteBtn:disabled {
   opacity: 0.5;
+}
+
+/* ── Running-event settings: «Головна» fields ──── */
+.fieldLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text2);
+  margin: 12px 0 5px;
+}
+
+.field {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+/* ── Running-event settings: «Посів» list ───────── */
+.seedHead {
+  display: grid;
+  grid-template-columns: 30px 40px 1fr 34px;
+  gap: 8px;
+  padding: 6px 4px;
+  font-size: 10px;
+  text-transform: uppercase;
+  letter-spacing: 0.3px;
+  color: var(--text2);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.seedRow {
+  display: grid;
+  grid-template-columns: 30px 40px 1fr 34px;
+  gap: 8px;
+  align-items: center;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-light);
+  font-size: 13px;
+  color: var(--text);
+  background: var(--surface);
+  /* Rows step aside during a drag; the moved one is positioned so it can
+     ride above its neighbours. */
+  position: relative;
+  transition: transform 0.16s var(--ease);
+  touch-action: pan-y;
+}
+
+/* The row under the finger/cursor: lifted, and it must not animate —
+   it follows the pointer directly. */
+.seedRowDragging {
+  z-index: 4;
+  border-radius: var(--r-sm);
+  box-shadow: 0 10px 24px rgba(13, 35, 71, 0.22);
+  border-bottom-color: transparent;
+  cursor: grabbing;
+}
+
+/* While a drag is on, nothing in the list reacts to hovering/selection. */
+.seedListDragging {
+  user-select: none;
+  -webkit-user-select: none;
+}
+
+/* The one spot where the browser's scrolling is disabled, so a touch
+   drag can start without the page moving instead. */
+.seedGrip {
+  justify-self: center;
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-size: 15px;
+  line-height: 1;
+  padding: 6px 4px;
+  border-radius: var(--r-sm);
+  cursor: grab;
+  touch-action: none;
+}
+
+.seedGrip:active {
+  cursor: grabbing;
+  background: var(--bg-light);
+}
+
+.seedGrip:disabled {
+  opacity: 0.4;
+}
+
+.seedNum {
+  font-weight: 800;
+  color: var(--navy);
+  text-align: center;
+}
+
+.seedName {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.seedMenuWrap {
+  position: relative;
+  justify-self: end;
+}
+
+.seedDots {
+  border: none;
+  background: transparent;
+  color: var(--text2);
+  font-size: 18px;
+  line-height: 1;
+  padding: 4px 8px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+}
+
+.seedDots:disabled {
+  opacity: 0.4;
+}
+
+.seedMenu {
+  position: absolute;
+  right: 0;
+  top: 100%;
+  z-index: 5;
+  display: flex;
+  flex-direction: column;
+  min-width: 170px;
+  padding: 4px;
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+}
+
+.seedMenuItem {
+  border: none;
+  background: transparent;
+  color: var(--text);
+  font-size: 13px;
+  text-align: left;
+  padding: 9px 10px;
+  border-radius: var(--r-sm);
+  cursor: pointer;
+  white-space: nowrap;
+}
+
+.seedMenuItem:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.seedBar {
+  margin-top: 14px;
+}
+
+.seedDirty,
+.seedOk {
+  display: block;
+  font-size: 12px;
+  font-weight: 700;
+  margin-bottom: 8px;
+}
+
+.seedDirty {
+  color: var(--rust);
+}
+
+.seedOk {
+  color: #15803d;
+}
+
+/* ── «Змінити місце на…» dialog ─────────────────── */
+.modalBack {
+  position: fixed;
+  inset: 0;
+  z-index: 50;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(15, 23, 42, 0.45);
+}
+
+.modal {
+  width: 100%;
+  max-width: 320px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 18px;
+  box-shadow: var(--shadow-sm);
+}
+
+.modalTitle {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 6px;
+}
+
+.modalInput {
+  width: 100%;
+  padding: 10px 12px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 16px;
+  font-weight: 700;
+  text-align: center;
+}
+
+.modalRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 14px;
+}
+
+.modalRow > * {
+  flex: 1;
 }

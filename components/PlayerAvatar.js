@@ -1,4 +1,15 @@
+'use client';
+
+import { useState } from 'react';
+
 export default function PlayerAvatar({ player, size = 34 }) {
+  // A photo_url can outlive its file (an upload that never landed, a
+  // deleted object). Falling back to the initials beats showing an
+  // empty box that reads as "this photo is broken". Remembering WHICH
+  // url failed means a new photo is tried again instead of inheriting
+  // the previous one's verdict.
+  const [brokenUrl, setBrokenUrl] = useState(null);
+
   const style = {
     width: size,
     height: size,
@@ -18,10 +29,15 @@ export default function PlayerAvatar({ player, size = 34 }) {
     return <div style={{ ...style, background: '#eee', color: '#888' }}>?</div>;
   }
 
-  if (player.photo_url) {
+  if (player.photo_url && brokenUrl !== player.photo_url) {
     return (
       <div style={style}>
-        <img src={player.photo_url} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        <img
+          src={player.photo_url}
+          alt=""
+          style={{ width: '100%', height: '100%', objectFit: 'cover' }}
+          onError={() => setBrokenUrl(player.photo_url)}
+        />
       </div>
     );
   }

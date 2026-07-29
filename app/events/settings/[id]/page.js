@@ -1,8 +1,12 @@
 'use client';
 
-// Admin settings page for a NOT yet started event. Two tabs:
+// Admin settings page for a NOT yet started event. Four tabs:
 //   «Розподіл» — distribute applications into leagues, park over-capacity
 //   players in the reserve, close/open registration, start the categories.
+//   «Посів» — arrange each league's roster into the seed order the
+//   bracket is built from.
+//   «Судді» — the judging crew of the event (one head judge + as many
+//   ordinary judges as needed).
 //   «Налаштування» — the creation form again (minus the format choice) to
 //   tweak the secondary settings. Once the event goes live, management
 //   moves to /tournaments/settings/[eventId].
@@ -17,17 +21,20 @@ import {
   useEventPost,
   CategoryTabs,
   CategoryPanel,
+  StartEventButton,
   DeleteEventButton,
 } from '../../shared';
+import SeedingTab from '../../SeedingTab';
+import JudgesTab from '../../JudgesTab';
 import EventConfigForm from './EventConfigForm';
 import styles from '../../event.module.css';
 
-const TABS = { QUEUE: 'queue', CONFIG: 'config' };
+const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
 
 export default function EventSettingsPage({ params }) {
   const { id } = params;
   const { player, loading: playerLoading } = useCurrentPlayer();
-  const { event, categories, applications, loading, load } = useEventData(id);
+  const { event, categories, applications, judges, loading, load } = useEventData(id);
   const { post, busy, error } = useEventPost(load);
   const [activeCatId, setActiveCatId] = useState(null);
   const [tab, setTab] = useState(TABS.QUEUE);
@@ -95,6 +102,18 @@ export default function EventSettingsPage({ params }) {
           Розподіл
         </button>
         <button
+          className={`${styles.tabBtn} ${tab === TABS.SEEDING ? styles.tabBtnOn : ''}`}
+          onClick={() => setTab(TABS.SEEDING)}
+        >
+          Посів
+        </button>
+        <button
+          className={`${styles.tabBtn} ${tab === TABS.JUDGES ? styles.tabBtnOn : ''}`}
+          onClick={() => setTab(TABS.JUDGES)}
+        >
+          Судді
+        </button>
+        <button
           className={`${styles.tabBtn} ${tab === TABS.CONFIG ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.CONFIG)}
         >
@@ -104,7 +123,24 @@ export default function EventSettingsPage({ params }) {
 
       {error && <div className={styles.errMsg}>{error}</div>}
 
-      {tab === TABS.CONFIG ? (
+      {tab === TABS.SEEDING ? (
+        categories.length === 0 ? (
+          <div className={styles.loading}>Категорій немає</div>
+        ) : (
+          <>
+            <CategoryTabs categories={categories} activeId={activeCat.id} onSelect={setActiveCatId} />
+            <SeedingTab
+              key={activeCat.id}
+              category={activeCat}
+              isPair={isPair}
+              busy={busy}
+              post={post}
+            />
+          </>
+        )
+      ) : tab === TABS.JUDGES ? (
+        <JudgesTab event={event} judges={judges} busy={busy} post={post} />
+      ) : tab === TABS.CONFIG ? (
         <EventConfigForm
           event={event}
           categories={categories}
@@ -156,7 +192,6 @@ export default function EventSettingsPage({ params }) {
                 isAdmin
                 allCategories={categories}
                 busy={busy}
-                onStart={() => post(`/api/tournaments/${activeCat.id}/start`)}
                 onMove={(ref, targetId, asReserve) =>
                   post('/api/admin/members/move', {
                     fromCategoryId: activeCat.id,
@@ -166,6 +201,14 @@ export default function EventSettingsPage({ params }) {
                   })
                 }
                 onRemove={(ref) => post('/api/admin/members/remove', { categoryId: activeCat.id, ...ref })}
+              />
+              {/* One start for the whole event — every league at once. */}
+              <StartEventButton
+                event={event}
+                categories={categories}
+                format={format}
+                busy={busy}
+                post={post}
               />
             </>
           )}

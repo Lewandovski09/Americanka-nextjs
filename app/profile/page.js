@@ -13,9 +13,13 @@ import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import styles from './profile.module.css';
 
+// Longest side an uploaded avatar is scaled down to before it leaves
+// the phone.
+const PHOTO_MAX_DIM = 1024;
+
 export default function ProfilePage() {
   const router = useRouter();
-  const { player, loading } = useCurrentPlayer();
+  const { player, loading, refresh: refreshPlayer } = useCurrentPlayer();
   const [tournamentHistory, setTournamentHistory] = useState([]);
   const [formatStats, setFormatStats] = useState([]);
   const [partners, setPartners] = useState([]);
@@ -32,6 +36,11 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [calcInfoOpen, setCalcInfoOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState(false);
+  // A just-uploaded avatar, shown immediately — the profile row behind
+  // `player` is re-read right after, but the picture should not wait.
+  const [photoUrl, setPhotoUrl] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const [editForm, setEditForm] = useState(null);
   const [editError, setEditError] = useState('');
   const [editSaving, setEditSaving] = useState(false);
@@ -167,20 +176,61 @@ export default function ProfilePage() {
     openPartnerHistory(data.player, 'together');
   }
 
+  // A photo straight from a phone is 3–20 MB and may be rotated by EXIF
+  // or in a format the browser can decode but not everyone can display.
+  // Re-drawing it through a canvas fixes all three: the result is always
+  // an upright JPEG of at most PHOTO_MAX_DIM px, ~200 KB.
+  async function toJpegDataUrl(file) {
+    const objectUrl = URL.createObjectURL(file);
+    try {
+      const img = await new Promise((resolve, reject) => {
+        const el = new Image();
+        el.onload = () => resolve(el);
+        el.onerror = () => reject(new Error('decode failed'));
+        el.src = objectUrl;
+      });
+      const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+      const canvas = document.createElement('canvas');
+      canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
+      canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));
+      canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+      return canvas.toDataURL('image/jpeg', 0.85);
+    } finally {
+      URL.revokeObjectURL(objectUrl);
+    }
+  }
+
   async function handlePhotoChange(e) {
-    const file = e.target.files[0];
+    const file = e.target.files?.[0];
+    // Reset the input: picking the SAME file twice must fire onChange
+    // again (a retry after an error, say).
+    e.target.value = '';
     if (!file || !player) return;
-    const supabase = createClient();
-    const ext = file.name.split('.').pop();
-    const path = `${player.id}.${ext}`;
-    await supabase.storage.from('player-photos').upload(path, file, { upsert: true });
-    const { data: urlData } = supabase.storage.from('player-photos').getPublicUrl(path);
-    // Cache-bust: the URL itself doesn't change on re-upload (same
-    // path), so without this the browser/CDN may keep showing the
-    // OLD photo even though a new one was uploaded.
-    const bustedUrl = `${urlData.publicUrl}?t=${Date.now()}`;
-    await supabase.from('players').update({ photo_url: bustedUrl }).eq('id', player.id);
-    router.refresh();
+
+    setPhotoError('');
+    setPhotoBusy(true);
+    try {
+      const dataUrl = await toJpegDataUrl(file);
+      const res = await fetch('/api/profile/photo', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dataUrl }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        setPhotoError(data.error || 'Не вдалося зберегти фото');
+        return;
+      }
+      // Show it at once, and re-read the profile so everything else on
+      // the page (and the header avatar) follows.
+      setPhotoUrl(data.photoUrl);
+      refreshPlayer();
+    } catch (err) {
+      console.error('[profile photo]', err.message);
+      setPhotoError('Не вдалося прочитати файл. Спробуйте інше фото (JPG або PNG).');
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   function openEdit() {
@@ -213,6 +263,9 @@ export default function ProfilePage() {
     }
 
     setEditOpen(false);
+    // The profile row is read on the client, so router.refresh() alone
+    // would leave the header showing the old name until a reload.
+    refreshPlayer();
     router.refresh();
   }
 
@@ -245,6 +298,11 @@ export default function ProfilePage() {
   }
   if (!player) return <div className={styles.loading}>Будь ласка, увійдіть в акаунт</div>;
 
+  // The avatar the page shows: the freshly uploaded one wins until the
+  // reloaded profile catches up with it.
+  const shownPhoto = photoUrl || player.photo_url;
+  const me = shownPhoto === player.photo_url ? player : { ...player, photo_url: shownPhoto };
+
   const e = expectedScore(player.elo || 1200, opponentElo);
   const winGain = Math.round(32 * (1 - e));
   const lossDelta = Math.round(32 * (0 - e));
@@ -264,14 +322,21 @@ export default function ProfilePage() {
             <button
               type="button"
               className={styles.avatarZoomBtn}
-              onClick={() => player.photo_url && setPhotoLightbox(true)}
+              onClick={() => shownPhoto && setPhotoLightbox(true)}
               aria-label="Збільшити фото"
             >
-              <PlayerAvatar player={player} size={64} />
+              <PlayerAvatar player={me} size={64} />
+              {photoBusy && <span className={styles.photoBusy}>…</span>}
             </button>
             <label className={styles.photoEditBtn}>
               <IconEdit size={13} color="#fff" />
-              <input type="file" accept="image/*" hidden onChange={handlePhotoChange} />
+              <input
+                type="file"
+                accept="image/*"
+                hidden
+                disabled={photoBusy}
+                onChange={handlePhotoChange}
+              />
             </label>
           </div>
           <div className={styles.headerInfo}>
@@ -286,6 +351,8 @@ export default function ProfilePage() {
             Вийти
           </button>
         </div>
+
+        {photoError && <div className={styles.photoError}>{photoError}</div>}
 
         <div className={styles.heroEloRow}>
           <div className={styles.heroEloBlock}>
@@ -450,13 +517,13 @@ export default function ProfilePage() {
         Головний помічник з технічної частини: Теліга Максим
       </div>
 
-      {photoLightbox && player.photo_url && (
+      {photoLightbox && shownPhoto && (
         <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
           <div className={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>
             <button className={styles.lightboxClose} onClick={() => setPhotoLightbox(false)} aria-label="Закрити">
               <IconX size={14} color="#fff" />
             </button>
-            <img src={player.photo_url} alt={player.full_name} className={styles.lightboxImg} />
+            <img src={shownPhoto} alt={player.full_name} className={styles.lightboxImg} />
           </div>
         </div>
       )}

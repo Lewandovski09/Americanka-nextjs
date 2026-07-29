@@ -67,17 +67,10 @@ export async function POST(request, { params }) {
     return Response.json({ success: true, reserved: true });
   }
 
-  const { data: applicant } = await supabaseAdmin
-    .from('players')
-    .select('elo')
-    .eq('id', application.player_id)
-    .maybeSingle();
-
   const placed = await placeMember(supabaseAdmin, category, format, {
     playerId: application.player_id,
     partnerId: application.partner_id,
     seekingPartner: application.seeking_partner,
-    elo: applicant?.elo,
   });
   if (placed.error) return Response.json({ success: false, error: placed.error }, { status: 400 });
 

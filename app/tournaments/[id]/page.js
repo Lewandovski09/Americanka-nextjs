@@ -1,16 +1,19 @@
 'use client';
 
 import { useEffect, useState, useCallback } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { computeStandings } from '@/lib/tournamentEngine';
 import { getFormat } from '@/lib/formats';
-import { pointsTargetForStage } from '@/lib/formats/scoring';
+import { pointsTargetForStage, targetForSet } from '@/lib/formats/scoring';
 import { aggregateScore, pointsDiffA, teamAWon } from '@/lib/formats/sets';
 import { rankGroupDetailed } from '@/lib/formats/kingOfBeach';
-import { stageWeight, stageLabel, groupTitle } from '@/lib/formats/stages';
+import { stageWeight, stageLabel, groupTitle, isSharedPlaceStage } from '@/lib/formats/stages';
 import { computePlaces } from '@/app/events/shared';
+import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
 import styles from './detail.module.css';
 
@@ -19,16 +22,24 @@ const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket', CHAT: 'ch
 export default function TournamentDetailPage({ params }) {
   const { id } = params;
   const { player } = useCurrentPlayer();
+  const router = useRouter();
 
   const [tournament, setTournament] = useState(null);
+  const [siblings, setSiblings] = useState([]); // the event's other leagues
   const [tournamentPlayers, setTournamentPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState([]);
   const [messages, setMessages] = useState([]);
+  const [judges, setJudges] = useState([]); // the event's judging crew
+  const [judgeInfo, setJudgeInfo] = useState({}); // player id → profile, for the «Суддя» column
   const [tab, setTab] = useState(TABS.PLAYERS);
   const [playersView, setPlayersView] = useState(null); // 'list' | 'results'; null = auto by status
-  const [bracketView, setBracketView] = useState(null); // 'v2' | 'v1'; null = auto
+  // Bracket search: the picked player, the game to zoom in on, and a
+  // counter so picking the same player twice re-centres the view.
+  const [focus, setFocus] = useState(null); // { playerId, matchId, seq }
   const [scoreModal, setScoreModal] = useState(null); // { matchId, teamAName, teamBName, pointsToWin }
+  const [slotModal, setSlotModal] = useState(null); // admin: { matchId, when, court, ... }
+  const [judgeModal, setJudgeModal] = useState(null); // admin / head judge: { matchId, title, current }
   const [chatText, setChatText] = useState('');
 
   const load = useCallback(async () => {
@@ -41,9 +52,23 @@ export default function TournamentDetailPage({ params }) {
       .single();
     setTournament(t);
 
+    // The other leagues of the same event, for the switcher above the
+    // tabs — same order as the admin pages (gender, then label).
+    if (t?.event_id) {
+      const { data: sibs } = await supabase
+        .from('tournaments')
+        .select('id, category_label, gender, status')
+        .eq('event_id', t.event_id)
+        .order('gender', { ascending: true })
+        .order('category_label', { ascending: true });
+      setSiblings(sibs || []);
+    } else {
+      setSiblings([]);
+    }
+
     const { data: tps } = await supabase
       .from('tournament_players')
-      .select('player_id, elo_at_start, players(full_name, photo_url)')
+      .select('player_id, players(full_name, photo_url)')
       .eq('tournament_id', id);
     setTournamentPlayers(tps || []);
 
@@ -61,6 +86,41 @@ export default function TournamentDetailPage({ params }) {
 
     const { data: m } = await supabase.from('matches').select('*').eq('tournament_id', id).order('round_number');
     setMatches(m || []);
+
+    // The judging crew belongs to the EVENT — the same people cover
+    // every league of the day. Head judge first (that's who the score
+    // and court rules give the extra rights to).
+    let crew = [];
+    if (t?.event_id) {
+      const { data: js } = await supabase
+        .from('tournament_judges')
+        .select('player_id, is_head, players(full_name, last_name, photo_url)')
+        .eq('event_id', t.event_id)
+        .order('is_head', { ascending: false })
+        .order('created_at', { ascending: true });
+      crew = js || [];
+    }
+    setJudges(crew);
+
+    // Names for the «Суддя» column. Normally everyone assigned to a game
+    // is in the crew; a legacy category (no event) or a judge dropped
+    // from the crew is looked up separately so the cell never shows a
+    // bare id.
+    const info = {};
+    crew.forEach((j) => {
+      if (j.players) info[j.player_id] = j.players;
+    });
+    const missing = [...new Set((m || []).map((x) => x.judge_id).filter((pid) => pid && !info[pid]))];
+    if (missing.length > 0) {
+      const { data: extra } = await supabase
+        .from('players')
+        .select('id, full_name, last_name, photo_url')
+        .in('id', missing);
+      (extra || []).forEach((p) => {
+        info[p.id] = p;
+      });
+    }
+    setJudgeInfo(info);
 
     const { data: msgs } = await supabase
       .from('tournament_messages')
@@ -93,11 +153,20 @@ export default function TournamentDetailPage({ params }) {
     };
   }, [id, load]);
 
+  // A player picked in the bracket search: bring their game into view.
+  // The flowchart zooms and centres itself; this covers the classic
+  // columns (and the group cards under the flowchart), whose blocks
+  // carry a dom id.
+  useEffect(() => {
+    if (!focus?.matchId) return;
+    const el = document.getElementById(`match-${focus.matchId}`);
+    if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
+  }, [focus?.matchId, focus?.seq]);
+
   if (!tournament) return <div className={styles.loading}>Завантаження...</div>;
 
   const playersForEngine = tournamentPlayers.map((tp) => ({
     id: tp.player_id,
-    elo_at_start: tp.elo_at_start,
     full_name: tp.players.full_name,
   }));
   const standings = computeStandings(playersForEngine, matches);
@@ -114,6 +183,10 @@ export default function TournamentDetailPage({ params }) {
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   // How many sets a match may have (king of the beach: strictly one).
   const maxSets = isSum ? 1 : format?.maxSets ?? 3;
+  // Schedule table width, for the section header rows: №, час, корт,
+  // суддя, команда 1, vs, команда 2, результат — plus «+/-» (solo
+  // formats only) and the per-set columns.
+  const schedColumns = 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
   const scoringConfig = {
     points_to_win: tournament.points_to_win ?? event?.points_to_win ?? 21,
     points_mode: event?.points_mode,
@@ -132,24 +205,27 @@ export default function TournamentDetailPage({ params }) {
   orderedMatches.forEach((m, i) => {
     gameNoById[m.id] = i + 1;
   });
-  // «Сітка v2» (flowchart) needs bracket pointers to draw the lines.
+  // The flowchart bracket needs winner-pointers to draw its lines;
+  // formats without them (americanka rounds, King groups) fall back to
+  // the columns-of-blocks view.
   const hasFlow = matches.some((m) => m.winner_to_match_id);
-  const bracketViewResolved = bracketView || (hasFlow ? 'v2' : 'v1');
 
-  // Projected start time of every game: each court runs its own queue
-  // from the category start time, and a game blocks its court for 30
-  // minutes (партії до 15) or 45 minutes (до 21). So with two courts the
-  // 9:00 slot holds games 1–2 and game 3 starts at 9:30 on court 1.
+  // Start time of every game. Normally it is stored on the match itself
+  // (stamped at category start, movable by an admin). Games created
+  // before that column existed have none — for those the old projection
+  // stands in: each court runs its own queue from the category start
+  // time, and a game blocks its court for one slot.
   const plannedByMatchId = {};
-  if (tournament.scheduled_at) {
-    const startMs = new Date(tournament.scheduled_at).getTime();
+  {
+    const startMs = tournament.scheduled_at ? new Date(tournament.scheduled_at).getTime() : null;
     const courtCursor = {};
     for (const m of orderedMatches) {
       const court = m.court || 1;
-      const t = courtCursor[court] ?? startMs;
+      const t = m.scheduled_at ? new Date(m.scheduled_at).getTime() : courtCursor[court] ?? startMs;
+      if (t == null || Number.isNaN(t)) continue;
       plannedByMatchId[m.id] = t;
       const target = isSum ? 31 : pointsTargetForStage(scoringConfig, m.stage);
-      courtCursor[court] = t + (target <= 15 ? 30 : 45) * 60000;
+      courtCursor[court] = t + slotMinutes(target) * 60000;
     }
   }
 
@@ -174,12 +250,41 @@ export default function TournamentDetailPage({ params }) {
     return ids.map((pid) => playerById(pid)?.full_name?.split(' ')[0] || '—').join('/');
   }
 
-  // An already-played game may be corrected, but only by the admin and
-  // only while its stage is still the current one: once anything of a
-  // later stage has been played (or the bracket match it feeds into is
-  // decided), the score is locked. Mirrors the server-side check.
+  // Everyone playing this category, for the bracket search box.
+  const searchablePlayers = Object.entries(playerInfo)
+    .map(([pid, p]) => ({ id: pid, full_name: p?.full_name || '—', photo_url: p?.photo_url || null }))
+    .sort((a, b) => a.full_name.localeCompare(b.full_name, 'uk'));
+
+  // The game to jump to for a player: the one they are about to play
+  // (first game still without a score), or — if everything of theirs is
+  // done — the last one they played.
+  function activeMatchFor(pid) {
+    const mine = orderedMatches.filter((m) =>
+      [...(m.team_a_players || []), ...(m.team_b_players || [])].includes(pid)
+    );
+    if (mine.length === 0) return null;
+    return mine.find((m) => !m.played) || mine[mine.length - 1];
+  }
+
+  function focusOnPlayer(pid) {
+    const m = pid ? activeMatchFor(pid) : null;
+    setFocus(pid ? { playerId: pid, matchId: m?.id || null, seq: (focus?.seq || 0) + 1 } : null);
+  }
+
+  // Who is running this day. The head judge shares the "on the court"
+  // powers with the admin — correcting a score, moving a game to a free
+  // court, saying who judges it; the timetable stays the admin's.
+  const isAdmin = !!player?.is_admin;
+  const isHeadJudge = judges.some((j) => j.is_head && j.player_id === player?.id);
+  const live = tournament.status !== 'done';
+
+  // An already-played game may be corrected, but only by the admin or
+  // the head judge, and only while its stage is still the current one:
+  // once anything of a later stage has been played (or the bracket match
+  // it feeds into is decided), the score is locked. Mirrors the
+  // server-side check.
   function canEditScore(m) {
-    if (!player?.is_admin || !m.played || tournament.status === 'done') return false;
+    if (!(isAdmin || isHeadJudge) || !m.played || !live) return false;
     const downstream = [m.winner_to_match_id, m.loser_to_match_id].filter(Boolean);
     if (downstream.length > 0) {
       return downstream.every((id) => !matches.find((x) => x.id === id)?.played);
@@ -190,6 +295,74 @@ export default function TournamentDetailPage({ params }) {
     if (!s) return true; // americanka: no stages until the manual finish
     const w = stageWeight(s);
     return !matches.some((x) => x.played && x.stage && stageWeight(x.stage) > w);
+  }
+
+  // Time and court of a single game are theirs to move — the day slips,
+  // a court frees up early. Nothing else on the schedule shifts: only
+  // the game that was touched moves.
+  const courts = tournament.courts?.length ? tournament.courts : [1];
+  const canEditSlot = (isAdmin || isHeadJudge) && live;
+  const canAssignJudge = (isAdmin || isHeadJudge) && live;
+
+  // Judges are listed by surname (the players' own column shows first
+  // names, so this keeps the two apart at a glance). A one-word name has
+  // an empty last_name — fall back to whatever the profile has.
+  function judgeLabel(row) {
+    return row?.last_name?.trim() || row?.full_name || '—';
+  }
+
+  function judgeName(pid) {
+    if (!pid) return '';
+    return judgeLabel(judgeInfo[pid]);
+  }
+
+  function openSlotModal(m, planned) {
+    setSlotModal({
+      matchId: m.id,
+      // Prefilled from the projection when the game has no stored time,
+      // so an old tournament gets a sensible starting point.
+      when: toLocalInput(planned),
+      court: m.court || 1,
+    });
+  }
+
+  async function handleSaveSlot() {
+    const { matchId, when, court } = slotModal;
+    // The head judge may only move the court, so the time is left out of
+    // their request entirely (the API refuses it from them anyway).
+    if (isAdmin && !when) {
+      setSlotModal((prev) => ({ ...prev, error: 'Вкажіть час' }));
+      return;
+    }
+    const res = await fetch(`/api/matches/${matchId}/schedule`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(
+        isAdmin ? { scheduledAt: new Date(when).toISOString(), court } : { court }
+      ),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      setSlotModal((prev) => ({ ...prev, error: data.error }));
+      return;
+    }
+    setSlotModal(null);
+    load();
+  }
+
+  async function handleSaveJudge(playerId) {
+    const res = await fetch(`/api/matches/${judgeModal.matchId}/judge`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ playerId }),
+    });
+    const data = await res.json();
+    if (!data.success) {
+      setJudgeModal((prev) => ({ ...prev, error: data.error }));
+      return;
+    }
+    setJudgeModal(null);
+    load();
   }
 
   // One row of the schedule table. Placeholder games (future rounds
@@ -205,6 +378,34 @@ export default function TournamentDetailPage({ params }) {
     const editable = canEditScore(m);
     const clickable = (!m.played && ready) || editable;
     const future = !m.played && !ready;
+    // The time/court cells are the admin's, the rest of the row opens the
+    // score — so they swallow the click instead of bubbling to the row.
+    const slotProps = canEditSlot
+      ? {
+          className: styles.slotCell,
+          title: isAdmin ? 'Змінити час і корт' : 'Змінити корт',
+          onClick: (e) => {
+            e.stopPropagation();
+            openSlotModal(m, planned);
+          },
+        }
+      : {};
+    // Same idea for the judge cell: it belongs to the admin and the head
+    // judge, so it swallows the click instead of opening the score.
+    const judgeProps = canAssignJudge
+      ? {
+          className: styles.slotCell,
+          title: 'Призначити суддю',
+          onClick: (e) => {
+            e.stopPropagation();
+            setJudgeModal({
+              matchId: m.id,
+              title: `${nameA} — ${nameB}`,
+              current: m.judge_id || null,
+            });
+          },
+        }
+      : {};
     return (
       <tr
         key={m.id}
@@ -212,18 +413,22 @@ export default function TournamentDetailPage({ params }) {
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
       >
         <td>{i + 1}</td>
-        <td>{planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}</td>
-        <td>{m.court || 1}</td>
+        <td {...slotProps}>
+          {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
+        </td>
+        <td {...slotProps}>{m.court || 1}</td>
+        <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
+          {m.judge_id ? judgeName(m.judge_id) : canAssignJudge ? '+' : '—'}
+        </td>
         <td className={styles.schedTeamCol}>{nameA}</td>
         <td className={styles.schedVs}>vs</td>
         <td className={styles.schedTeamCol}>{nameB}</td>
-        <td className={diff > 0 ? styles.positive : diff < 0 ? styles.negative : ''}>
-          {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
-        </td>
-        <td className={styles.schedScore}>
-          {agg ? `${agg[0]}:${agg[1]}` : ''}
-          {editable && <span className={styles.editIcon}> ✎</span>}
-        </td>
+        {!isPair && (
+          <td className={diff > 0 ? styles.positive : diff < 0 ? styles.negative : ''}>
+            {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
+          </td>
+        )}
+        <td className={styles.schedScore}>{agg ? `${agg[0]}:${agg[1]}` : ''}</td>
         {maxSets > 1 && (
           <>
             <td>{m.set1 ? m.set1.join(':') : ''}</td>
@@ -257,6 +462,9 @@ export default function TournamentDetailPage({ params }) {
       visibleSets: Math.max(1, filled),
       mode: isSum ? 'sum' : 'free',
       target: isSum ? 31 : pointsTargetForStage(scoringConfig, m.stage),
+      // The deciding third set is the short one (15), whatever the
+      // first two are played to.
+      decider: isSum ? 31 : targetForSet(pointsTargetForStage(scoringConfig, m.stage), 2),
     });
   }
 
@@ -321,6 +529,24 @@ export default function TournamentDetailPage({ params }) {
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>{tournament.name}</h2>
+
+      {/* Leagues of the same event (Лайт / Медіум, ♂ / ♀) — switching
+          just opens that category's page. */}
+      {siblings.length > 1 && (
+        <div className={styles.leagueTabs}>
+          {siblings.map((c) => (
+            <button
+              key={c.id}
+              className={`${styles.leagueTab} ${c.id === tournament.id ? styles.leagueTabOn : ''}`}
+              onClick={() => c.id !== tournament.id && router.push(`/tournaments/${c.id}`)}
+            >
+              {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+              {c.category_label || 'Категорія'}
+              {c.status === 'scheduled' && <span className={styles.leagueTabNote}> · не почалась</span>}
+            </button>
+          ))}
+        </div>
+      )}
 
       <div className={styles.tabs}>
         <TabBtn active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
@@ -479,10 +705,14 @@ export default function TournamentDetailPage({ params }) {
                     <th>№ гри</th>
                     <th>Час</th>
                     <th>Корт</th>
+                    <th>Суддя</th>
                     <th className={styles.schedTeamCol}>Команда 1</th>
                     <th />
                     <th className={styles.schedTeamCol}>Команда 2</th>
-                    <th title="(+15) → 21:15, (-12) → 12:21">+/-</th>
+                    {/* Points differential is an americanka / King thing —
+                        there it ranks the players. Pair formats are decided
+                        by sets, so the column only adds noise. */}
+                    {!isPair && <th title="(+15) → 21:15, (-12) → 12:21">+/-</th>}
                     <th>Результат</th>
                     {maxSets > 1 && (
                       <>
@@ -499,7 +729,7 @@ export default function TournamentDetailPage({ params }) {
                     return scheduleSections.map((sec) => [
                       scheduleSections.length > 1 && (
                         <tr key={`h-${sec.key}`} className={styles.schedSection}>
-                          <td colSpan={maxSets > 1 ? 11 : 8}>{sec.title}</td>
+                          <td colSpan={schedColumns}>{sec.title}</td>
                         </tr>
                       ),
                       ...sec.matches.map((m) => {
@@ -522,70 +752,75 @@ export default function TournamentDetailPage({ params }) {
         </button>
       )}
 
-      {/* Interactive bracket. Two views: «Сітка v2» — a flowchart with
-          winner-lines like the paper bracket (default when the matches
-          carry bracket pointers), and the classic columns-of-blocks
-          view. Pending games are highlighted and open the score dialog. */}
-      {tab === TABS.BRACKET && matches.length > 0 && hasFlow && (
-        <div className={styles.subTabs}>
-          {[
-            ['v2', 'Схема'],
-            ['v1', 'Класична'],
-          ].map(([key, label]) => (
-            <button
-              key={key}
-              className={`${styles.subTab} ${bracketViewResolved === key ? styles.subTabOn : ''}`}
-              onClick={() => setBracketView(key)}
-            >
-              {label}
-            </button>
-          ))}
-        </div>
+      {/* Interactive bracket: the flowchart with winner-lines like the
+          paper sheet whenever the matches carry bracket pointers, the
+          classic columns-of-blocks otherwise (americanka rounds, King
+          groups). Pending games are highlighted and open the score
+          dialog. The search above jumps to a player's current game. */}
+      {tab === TABS.BRACKET && matches.length > 0 && (
+        <BracketSearch
+          players={searchablePlayers}
+          focus={focus}
+          onPick={focusOnPlayer}
+          onClear={() => setFocus(null)}
+        />
       )}
-      {tab === TABS.BRACKET && hasFlow && bracketViewResolved === 'v2' && matches.length > 0 && (
+      {tab === TABS.BRACKET && hasFlow && matches.length > 0 && (
         <BracketFlow
           matches={matches}
           nameOf={teamLabel}
           numberOf={gameNoById}
           openScore={openScoreModal}
           canEdit={canEditScore}
+          focusId={focus?.matchId || null}
+          focusSeq={focus?.seq || 0}
         />
       )}
-      {tab === TABS.BRACKET && !(hasFlow && bracketViewResolved === 'v2') &&
+      {tab === TABS.BRACKET &&
         (matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
-          <div className={styles.bracketWrap}>
-            <div className={styles.bracketRow}>
-              {buildBracketColumns(matches).map((col) => (
-                <div key={col.key} className={styles.bracketCol}>
-                  <div className={styles.bracketColTitle}>{col.title}</div>
-                  {col.groups
-                    ? col.groups.map((g) => (
-                        <GroupCard
-                          key={g.index}
-                          title={g.title}
-                          solo={!isPair}
-                          matches={g.matches}
-                          nameOf={teamLabel}
-                          openScore={openScoreModal}
-                          canEdit={canEditScore}
-                        />
-                      ))
-                    : col.matches.map((m) => (
-                        <MatchCard
-                          key={m.id}
-                          m={m}
-                          label={col.withLabels ? stageLabel(m.stage) : null}
-                          nameOf={teamLabel}
-                          openScore={openScoreModal}
-                          editable={canEditScore(m)}
-                        />
-                      ))}
+          // Under the flowchart only the group stage is left to draw —
+          // the knockout part is already up there.
+          (() => {
+            const cols = buildBracketColumns(matches).filter((col) => !hasFlow || col.groups);
+            if (cols.length === 0) return null;
+            return (
+              <div className={styles.bracketWrap}>
+                <div className={styles.bracketRow}>
+                  {cols.map((col) => (
+                    <div key={col.key} className={styles.bracketCol}>
+                      <div className={styles.bracketColTitle}>{col.title}</div>
+                      {col.groups
+                        ? col.groups.map((g) => (
+                            <GroupCard
+                              key={g.index}
+                              title={g.title}
+                              solo={!isPair}
+                              matches={g.matches}
+                              nameOf={teamLabel}
+                              openScore={openScoreModal}
+                              canEdit={canEditScore}
+                              focusId={focus?.matchId || null}
+                            />
+                          ))
+                        : col.matches.map((m) => (
+                            <MatchCard
+                              key={m.id}
+                              m={m}
+                              label={col.withLabels ? stageLabel(m.stage) : null}
+                              nameOf={teamLabel}
+                              openScore={openScoreModal}
+                              editable={canEditScore(m)}
+                              focused={focus?.matchId === m.id}
+                            />
+                          ))}
+                    </div>
+                  ))}
                 </div>
-              ))}
-            </div>
-          </div>
+              </div>
+            );
+          })()
         ))}
 
       {tab === TABS.CHAT && (
@@ -613,6 +848,91 @@ export default function TournamentDetailPage({ params }) {
         </div>
       )}
 
+      {slotModal && (
+        <div className={styles.modalOverlay} onClick={() => setSlotModal(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalTitle}>{isAdmin ? 'Час і корт' : 'Корт'}</div>
+            <div className={styles.modalSub}>
+              Змінюється лише ця гра — решта розкладу залишається на місці.
+            </div>
+
+            {/* The head judge moves games between courts; the timetable
+                is the admin's. */}
+            {isAdmin && (
+              <>
+                <label className={styles.slotLabel}>Початок</label>
+                <input
+                  className={styles.slotInput}
+                  type="datetime-local"
+                  value={slotModal.when}
+                  onChange={(e) => setSlotModal((prev) => ({ ...prev, when: e.target.value, error: null }))}
+                />
+              </>
+            )}
+
+            <label className={styles.slotLabel}>Корт</label>
+            <div className={styles.slotCourts}>
+              {courts.map((c) => (
+                <button
+                  key={c}
+                  className={`${styles.subTab} ${slotModal.court === c ? styles.subTabOn : ''}`}
+                  onClick={() => setSlotModal((prev) => ({ ...prev, court: c, error: null }))}
+                >
+                  Корт {c}
+                </button>
+              ))}
+            </div>
+
+            {slotModal.error && <div className={styles.errMsg}>{slotModal.error}</div>}
+            <button className={styles.btnPrimary} onClick={handleSaveSlot}>
+              Зберегти
+            </button>
+          </div>
+        </div>
+      )}
+
+      {/* Who judges this game. The crew of the event is offered first,
+          but the pick is not limited to it — anybody registered can be
+          handed a game, and joins the crew by being picked. */}
+      {judgeModal && (
+        <div className={styles.modalOverlay} onClick={() => setJudgeModal(null)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+            <div className={styles.modalTitle}>Суддя гри</div>
+            <div className={styles.modalSub}>{judgeModal.title}</div>
+
+            {judges.length > 0 && (
+              <>
+                <label className={styles.slotLabel}>Бригада турніру</label>
+                <div className={styles.judgeQuick}>
+                  {judges.map((j) => (
+                    <button
+                      key={j.player_id}
+                      className={`${styles.subTab} ${
+                        judgeModal.current === j.player_id ? styles.subTabOn : ''
+                      }`}
+                      onClick={() => handleSaveJudge(j.player_id)}
+                    >
+                      {judgeLabel(j.players)}
+                      {j.is_head ? ' ★' : ''}
+                    </button>
+                  ))}
+                </div>
+              </>
+            )}
+
+            <label className={styles.slotLabel}>Будь-який гравець</label>
+            <PlayerPicker limit={12} onPick={(p) => handleSaveJudge(p.id)} />
+
+            {judgeModal.error && <div className={styles.errMsg}>{judgeModal.error}</div>}
+            {judgeModal.current && (
+              <button className={styles.judgeClear} onClick={() => handleSaveJudge(null)}>
+                Прибрати суддю
+              </button>
+            )}
+          </div>
+        </div>
+      )}
+
       {scoreModal && (
         <div className={styles.modalOverlay} onClick={() => setScoreModal(null)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -627,7 +947,9 @@ export default function TournamentDetailPage({ params }) {
                 ? `Сума має дорівнювати ${scoreModal.target}`
                 : maxSets === 1
                 ? `Одна партія до ${scoreModal.target}, різниця у 2 очки.`
-                : `Партія до ${scoreModal.target}, різниця у 2 очки. 2-га і 3-тя партії — за потреби.`}
+                : scoreModal.decider === scoreModal.target
+                ? `Партія до ${scoreModal.target}, різниця у 2 очки. 2-га і 3-тя партії — за потреби.`
+                : `Партії до ${scoreModal.target}, вирішальна третя — до ${scoreModal.decider}. Різниця у 2 очки; 2-га і 3-тя — за потреби.`}
             </div>
             {scoreModal.mode === 'sum' ? (
               <div className={styles.scoreInputs}>
@@ -664,7 +986,12 @@ export default function TournamentDetailPage({ params }) {
               <>
                 {scoreModal.sets.slice(0, Math.min(scoreModal.visibleSets, maxSets)).map((s, i) => (
                   <div key={i} className={styles.setRow}>
-                    <span className={styles.setName}>{i + 1} сет</span>
+                    <span className={styles.setName}>
+                      {i + 1} сет
+                      {maxSets > 1 && (
+                        <span className={styles.setTarget}>до {targetForSet(scoreModal.target, i)}</span>
+                      )}
+                    </span>
                     <input
                       className={styles.scoreInput}
                       type="number"
@@ -729,6 +1056,15 @@ export default function TournamentDetailPage({ params }) {
   );
 }
 
+// Date → value for <input type="datetime-local"> in local time.
+function toLocalInput(date) {
+  if (!date) return '';
+  const pad = (n) => String(n).padStart(2, '0');
+  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
+    date.getHours()
+  )}:${pad(date.getMinutes())}`;
+}
+
 function groupByRound(matches) {
   const map = new Map();
   matches.forEach((m) => {
@@ -786,7 +1122,7 @@ function buildBracketColumns(matches) {
       .sort(
         (a, b) => (a.group_index ?? 0) - (b.group_index ?? 0) || (a.round_number || 0) - (b.round_number || 0)
       );
-    if (/^p\d+_\d+$/.test(stage)) {
+    if (isSharedPlaceStage(stage)) {
       placeMatches.push(...ms);
       continue;
     }
@@ -935,9 +1271,64 @@ function rankGroupTeams(groupMatches) {
   return [...stats.values()].sort((x, y) => y.wins - x.wins || y.diff - x.diff);
 }
 
+// «Знайти гравця» over the bracket: type a name, pick from the players
+// of this category, and their current game is centred and outlined in
+// green. The picked player STAYS in the search field — avatar, name and
+// a ✕ — and the game stays highlighted until that ✕ clears it.
+function BracketSearch({ players, focus, onPick, onClear }) {
+  const [query, setQuery] = useState('');
+  const q = query.trim().toLowerCase();
+  const found = q ? players.filter((p) => p.full_name.toLowerCase().includes(q)).slice(0, 8) : [];
+  const picked = focus ? players.find((p) => p.id === focus.playerId) : null;
+
+  if (picked) {
+    return (
+      <div className={styles.searchWrap}>
+        <div className={styles.searchSelected}>
+          <PlayerAvatar player={picked} size={24} />
+          <span className={styles.searchSelectedName}>{picked.full_name}</span>
+          {!focus.matchId && <span className={styles.searchNote}>ігор немає</span>}
+          <button className={styles.searchClear} onClick={onClear} aria-label="Прибрати гравця">
+            ✕
+          </button>
+        </div>
+      </div>
+    );
+  }
+
+  return (
+    <div className={styles.searchWrap}>
+      <input
+        className={styles.searchInput}
+        value={query}
+        placeholder="Знайти гравця у сітці…"
+        onChange={(e) => setQuery(e.target.value)}
+      />
+      {found.length > 0 && (
+        <div className={styles.searchList}>
+          {found.map((p) => (
+            <button
+              key={p.id}
+              className={styles.searchRow}
+              onClick={() => {
+                onPick(p.id);
+                setQuery('');
+              }}
+            >
+              <PlayerAvatar player={p} size={24} />
+              <span className={styles.searchRowName}>{p.full_name}</span>
+            </button>
+          ))}
+        </div>
+      )}
+      {q && found.length === 0 && <div className={styles.searchEmpty}>Нікого не знайдено</div>}
+    </div>
+  );
+}
+
 // One group block: live mini-standings on top, the group's games below.
 // A group whose stage hasn't started yet (no teams known) is grayed out.
-function GroupCard({ title, solo, matches, nameOf, openScore, canEdit }) {
+function GroupCard({ title, solo, matches, nameOf, openScore, canEdit, focusId }) {
   // King ranks the 4 individuals; pair formats rank the teams.
   const rows = solo
     ? rankGroupDetailed(
@@ -967,7 +1358,14 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEdit }) {
         </tbody>
       </table>
       {matches.map((m) => (
-        <MatchCard key={m.id} m={m} nameOf={nameOf} openScore={openScore} editable={canEdit(m)} />
+        <MatchCard
+          key={m.id}
+          m={m}
+          nameOf={nameOf}
+          openScore={openScore}
+          editable={canEdit(m)}
+          focused={focusId === m.id}
+        />
       ))}
     </div>
   );
@@ -978,7 +1376,7 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEdit }) {
 // with both sides known opens the score dialog; a played one does too
 // when the admin may still correct it (editable). Matches of stages
 // that haven't started yet are grayed out.
-function MatchCard({ m, label, nameOf, openScore, editable }) {
+function MatchCard({ m, label, nameOf, openScore, editable, focused }) {
   const agg = aggregateScore(m);
   const walkover = m.played && (!m.team_b_players || m.team_b_players.length === 0);
   const aWon = m.played && teamAWon(m);
@@ -987,12 +1385,12 @@ function MatchCard({ m, label, nameOf, openScore, editable }) {
   const future = !m.played && !ready;
   return (
     <div
+      id={`match-${m.id}`}
       className={`${styles.bracketCard} ${clickable ? styles.bracketCardPending : ''} ${
         future ? styles.cardFuture : ''
-      }`}
+      } ${focused ? styles.cardFocused : ''}`}
       onClick={() => clickable && openScore(m, nameOf(m.team_a_players), nameOf(m.team_b_players))}
     >
-      {editable && <span className={styles.editIcon}>✎</span>}
       {label && <div className={styles.bracketCardLabel}>{label}</div>}
       <div className={`${styles.bracketSide} ${aWon ? styles.bracketWinner : ''}`}>
         <span className={styles.bracketName}>{nameOf(m.team_a_players) || '· · ·'}</span>

@@ -30,6 +30,42 @@
   margin: 4px 0 14px;
 }
 
+/* League switcher above the tabs — the event's other categories. Scrolls
+   sideways rather than wrapping, so a four-league event keeps one line. */
+.leagueTabs {
+  display: flex;
+  gap: 8px;
+  margin-bottom: 12px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.leagueTab {
+  flex: 0 0 auto;
+  padding: 8px 14px;
+  border: 1.5px solid var(--border-light);
+  border-radius: 20px;
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 12px;
+  font-weight: 700;
+  white-space: nowrap;
+  cursor: pointer;
+}
+
+.leagueTabOn {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+  cursor: default;
+}
+
+.leagueTabNote {
+  font-weight: 500;
+  opacity: 0.7;
+}
+
 .tabs {
   display: flex;
   background: var(--surface);
@@ -280,6 +316,131 @@
   cursor: pointer;
 }
 
+/* The game the bracket search jumped to — green edges so it is found at
+   a glance after the view scrolls to it. Two classes deep on purpose:
+   it has to win over .flowCard's navy border and .cardFuture's gray. */
+.bracketCard.cardFocused {
+  border: 2px solid var(--accent-green);
+  box-shadow: 0 0 0 3px rgba(30, 166, 114, 0.22);
+}
+
+/* ── «Знайти гравця» above the bracket ── */
+.searchWrap {
+  position: relative;
+  margin-bottom: 12px;
+}
+
+.searchInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 11px 13px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface);
+  color: var(--text);
+  font-size: 14px;
+}
+
+.searchInput:focus {
+  outline: none;
+  border-color: var(--navy);
+}
+
+.searchList {
+  position: absolute;
+  z-index: 5;
+  left: 0;
+  right: 0;
+  margin-top: 4px;
+  background: var(--surface);
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  overflow: hidden;
+}
+
+.searchRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 8px 12px;
+  border: none;
+  border-bottom: 1px solid var(--border-light);
+  background: none;
+  text-align: left;
+  font-size: 13px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.searchRowName {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.searchRow:last-child {
+  border-bottom: none;
+}
+
+.searchRow:hover {
+  background: var(--bg-light);
+}
+
+.searchEmpty {
+  padding: 8px 2px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+/* The picked player sits IN the search field, in place of the input:
+   same box, green because that is the colour their game is outlined
+   with. The ✕ on the right puts the plain input back. */
+.searchSelected {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  box-sizing: border-box;
+  min-height: 44px;
+  padding: 6px 8px 6px 10px;
+  border: 1.5px solid var(--accent-green);
+  border-radius: var(--r-sm);
+  background: rgba(30, 166, 114, 0.1);
+}
+
+.searchSelectedName {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.searchNote {
+  flex-shrink: 0;
+  font-size: 11px;
+  font-weight: 600;
+  color: var(--text2);
+}
+
+.searchClear {
+  flex-shrink: 0;
+  width: 28px;
+  height: 28px;
+  border: none;
+  border-radius: 50%;
+  background: rgba(30, 166, 114, 0.18);
+  color: var(--accent-green);
+  font-size: 13px;
+  font-weight: 800;
+  line-height: 1;
+  cursor: pointer;
+}
+
 /* A stage that hasn't started yet: its groups and placeholder matches
    turn gray until the teams are known. */
 .cardFuture,
@@ -292,19 +453,6 @@
 .cardFuture .bracketSide,
 .cardFuture .groupMini {
   color: var(--text2);
-}
-
-/* Small pencil marking a played game the admin may still correct. */
-.editIcon {
-  position: absolute;
-  top: 6px;
-  right: 8px;
-  font-size: 10px;
-  color: var(--text2);
-}
-
-.schedScore .editIcon {
-  position: static;
 }
 
 .bracketCardLabel {
@@ -689,6 +837,15 @@
   white-space: nowrap;
 }
 
+/* Points target of this set, under its name — the third one is short. */
+.setTarget {
+  display: block;
+  font-size: 10px;
+  font-weight: 600;
+  text-transform: none;
+  opacity: 0.75;
+}
+
 .setRow .scoreInput {
   padding: 10px 0;
   font-size: 22px;
@@ -733,6 +890,71 @@
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
   color: var(--text);
+}
+
+/* Judge of a game. Blank («+» for those who may assign) until somebody
+   is pinned to it. */
+.judgeCell {
+  white-space: nowrap;
+  color: var(--text2);
+}
+
+/* The event's crew, offered before the full player search. */
+.judgeQuick {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
+}
+
+.judgeClear {
+  width: 100%;
+  margin-top: 12px;
+  padding: 12px;
+  background: var(--surface);
+  color: #b91c1c;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  font-weight: 700;
+  cursor: pointer;
+}
+
+/* Time/court cells of the schedule — the admin's and the head judge's,
+   they open the slot dialog instead of the score one. Underlined so it
+   reads as editable. */
+.slotCell {
+  cursor: pointer;
+  text-decoration: underline dotted var(--border-light);
+  text-underline-offset: 3px;
+}
+
+.slotLabel {
+  display: block;
+  font-size: 11px;
+  font-weight: 700;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 6px;
+}
+
+.slotInput {
+  width: 100%;
+  box-sizing: border-box;
+  padding: 12px;
+  margin-bottom: 14px;
+  font-size: 15px;
+  font-weight: 600;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  color: var(--text);
+  background: var(--surface);
+}
+
+.slotCourts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-bottom: 16px;
 }
 
 .errMsg {

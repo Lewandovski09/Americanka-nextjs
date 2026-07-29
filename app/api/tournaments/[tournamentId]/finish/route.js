@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
 
-  // Guard against double-finishing: elo/stats must be paid out once.
+  // Guard against double-finishing: the stats must be paid out once.
   const { data: tournament } = await supabaseAdmin
     .from('tournaments')
     .select('status')
@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
 
   const { data: tournamentPlayers } = await supabaseAdmin
     .from('tournament_players')
-    .select('player_id, elo_at_start, players(full_name)')
+    .select('player_id, players(full_name)')
     .eq('tournament_id', tournamentId);
 
   const { data: matches } = await supabaseAdmin
@@ -39,43 +39,29 @@ export async function POST(request, { params }) {
 
   const playersForEngine = tournamentPlayers.map((tp) => ({
     id: tp.player_id,
-    elo_at_start: tp.elo_at_start,
     full_name: tp.players.full_name,
   }));
 
   const standings = computeStandings(playersForEngine, matches);
 
-  // Apply Elo changes, update tournament counts, record history.
+  // Tournament counters only — rating is not awarded for results.
   for (let i = 0; i < standings.length; i++) {
     const row = standings[i];
     const placement = i + 1;
 
     const { data: currentPlayer } = await supabaseAdmin
       .from('players')
-      .select('elo, tournaments_played, tournaments_won')
+      .select('tournaments_played, tournaments_won')
       .eq('id', row.player.id)
       .single();
-
-    const newElo = (currentPlayer.elo || 1000) + row.eloDelta;
 
     await supabaseAdmin
       .from('players')
       .update({
-        elo: newElo,
         tournaments_played: currentPlayer.tournaments_played + 1,
         tournaments_won: currentPlayer.tournaments_won + (placement === 1 ? 1 : 0),
       })
       .eq('id', row.player.id);
-
-    await supabaseAdmin.from('elo_history').insert({
-      player_id: row.player.id,
-      tournament_id: tournamentId,
-      delta: row.eloDelta,
-      elo_before: currentPlayer.elo || 1000,
-      elo_after: newElo,
-      reason: 'tournament_result',
-      placement,
-    });
   }
 
   // Update partner_stats for every pair of teammates across all played matches.
