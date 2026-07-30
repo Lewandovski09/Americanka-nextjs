@@ -110,11 +110,20 @@ export default function AuthPage() {
 
     // Sign in immediately so the player is authenticated while they
     // connect Telegram — that's what lets them request a fresh link if
-    // this one expires.
-    await supabase.auth.signInWithPassword({
+    // this one expires. If it fails the account still exists, so send
+    // them to the login tab rather than to a connect screen that would
+    // 401 the moment they touch it.
+    const { error: signInError } = await supabase.auth.signInWithPassword({
       email: emailForLogin(form.login),
       password: form.password,
     });
+
+    if (signInError) {
+      setLoading(false);
+      setError('Акаунт створено, але не вдалося увійти. Увійдіть за своїм логіном і паролем.');
+      setTab('login');
+      return;
+    }
 
     setLoading(false);
     setNonce(data.nonce);

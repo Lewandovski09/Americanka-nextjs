@@ -43,9 +43,10 @@ export async function POST(request) {
   // (admin_notifications table) is the source of truth.
   const { data: allPlayers, error: playersError } = await supabaseAdmin
     .from('players')
-    .select('telegram_chat_id, full_name')
+    .select('telegram_user_id, full_name')
     .eq('approval_status', 'approved')
-    .not('telegram_chat_id', 'is', null);
+    .not('telegram_user_id', 'is', null)
+    .not('telegram_linked_at', 'is', null); // linked_at is nulled when someone blocks the bot
 
   console.log('[send-notification] Telegram recipients found:', (allPlayers || []).length, playersError?.message);
 
@@ -54,20 +55,21 @@ export async function POST(request) {
   const text = `📢 <b>${escapeHtml(title)}</b>\n\n${escapeHtml(body)}`;
 
   const { sent, failed, deadChatIds } = await broadcastTelegramMessage(
-    (allPlayers || []).map((p) => p.telegram_chat_id),
+    (allPlayers || []).map((p) => p.telegram_user_id),
     text
   );
 
   console.log('[send-notification] Broadcast finished:', { sent, failed, dead: deadChatIds.length });
 
-  // Players who blocked the bot (or never really started it) can never
-  // receive anything on that chat_id — unlink them so future broadcasts
-  // don't waste calls, and so the admin panel shows them as unlinked.
+  // Players who blocked the bot can never receive anything — clear their
+  // reachability so future broadcasts don't waste calls and the admin
+  // panel shows them as unlinked. telegram_user_id stays: we still know
+  // who they are, and a fresh /start brings them back.
   if (deadChatIds.length > 0) {
     const { error: unlinkError } = await supabaseAdmin
       .from('players')
-      .update({ telegram_chat_id: null })
-      .in('telegram_chat_id', deadChatIds);
+      .update({ telegram_linked_at: null })
+      .in('telegram_user_id', deadChatIds);
 
     if (unlinkError) {
       console.error('[send-notification] Failed to unlink dead chats:', unlinkError.message);
