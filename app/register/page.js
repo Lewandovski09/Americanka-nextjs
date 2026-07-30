@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
 import { emailForLogin, isValidLogin } from '@/lib/authIdentity';
+import { toJpegDataUrl } from '@/lib/photo';
 import styles from './register.module.css';
 
 const STEPS = {
@@ -42,6 +43,8 @@ export default function AuthPage() {
     category: 'C',
   });
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
+  const [photoBusy, setPhotoBusy] = useState(false);
+  const [photoError, setPhotoError] = useState('');
   const [nonce, setNonce] = useState('');
   const [linkExpired, setLinkExpired] = useState(false);
   const finalizingRef = useRef(false);
@@ -50,12 +53,29 @@ export default function AuthPage() {
     setForm((prev) => ({ ...prev, [key]: value }));
   }
 
-  function handlePhotoChange(e) {
-    const file = e.target.files[0];
+  async function handlePhotoChange(e) {
+    const file = e.target.files?.[0];
+    // Reset the input so picking the SAME file again fires onChange.
+    // Without this, someone whose first attempt failed (a HEIC that
+    // wouldn't preview, say) could re-pick the identical photo forever
+    // and nothing would happen.
+    e.target.value = '';
     if (!file) return;
-    const reader = new FileReader();
-    reader.onload = (ev) => setPhotoDataUrl(ev.target.result);
-    reader.readAsDataURL(file);
+
+    setPhotoError('');
+    setPhotoBusy(true);
+    try {
+      // Canvas re-encode: fixes EXIF rotation, converts HEIC to JPEG so
+      // the preview actually renders, and takes a 3–20 MB phone photo
+      // down to ~200 KB.
+      setPhotoDataUrl(await toJpegDataUrl(file));
+    } catch (err) {
+      console.error('[register photo]', err.message);
+      setPhotoDataUrl(null);
+      setPhotoError('Не вдалося прочитати це фото. Спробуйте інше (JPG або PNG).');
+    } finally {
+      setPhotoBusy(false);
+    }
   }
 
   async function handleLogin() {
@@ -86,6 +106,11 @@ export default function AuthPage() {
   // no longer throw away a half-finished registration.
   async function handleRegister() {
     setError('');
+    // The photo is processed asynchronously, so someone who picks a file
+    // and immediately taps the button would otherwise be told to add a
+    // photo they just added.
+    if (photoBusy) return setError('Зачекайте, фото ще обробляється…');
+    if (photoError) return setError(photoError);
     if (!photoDataUrl) return setError("Будь ласка, додайте фото профілю — це обов'язкове поле");
     if (!form.firstName.trim()) return setError("Вкажіть ім'я");
     if (!form.lastName.trim()) return setError('Вкажіть прізвище');
@@ -293,6 +318,8 @@ export default function AuthPage() {
             form={form}
             updateField={updateField}
             photoDataUrl={photoDataUrl}
+            photoBusy={photoBusy}
+            photoError={photoError}
             onPhotoChange={handlePhotoChange}
             error={error}
             loading={loading}
@@ -351,12 +378,24 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
   );
 }
 
-function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loading, onSubmit }) {
+function FormStep({
+  form,
+  updateField,
+  photoDataUrl,
+  photoBusy,
+  photoError,
+  onPhotoChange,
+  error,
+  loading,
+  onSubmit,
+}) {
   return (
     <div>
       <div className={styles.photoRow}>
         <label className={styles.photoUpload}>
-          {photoDataUrl ? (
+          {photoBusy ? (
+            <span className={styles.photoIcon}>⏳</span>
+          ) : photoDataUrl ? (
             <img src={photoDataUrl} alt="" className={styles.photoPreview} />
           ) : (
             <span className={styles.photoIcon}>📷</span>
@@ -365,7 +404,15 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
         </label>
         <div>
           <div className={styles.photoLabel}>Фото профілю *</div>
-          <div className={styles.photoHint}>Обов&apos;язково</div>
+          <div className={styles.photoHint}>
+            {photoBusy
+              ? 'Обробляємо фото…'
+              : photoError
+                ? photoError
+                : photoDataUrl
+                  ? 'Готово ✓ Натисніть, щоб замінити'
+                  : "Обов'язково"}
+          </div>
         </div>
       </div>
 
@@ -417,8 +464,8 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
 
       {error && <div className={styles.errMsg}>{error}</div>}
 
-      <button className={styles.btnPrimary} disabled={loading} onClick={onSubmit}>
-        {loading ? 'Перевірка...' : 'Зареєструватися →'}
+      <button className={styles.btnPrimary} disabled={loading || photoBusy} onClick={onSubmit}>
+        {photoBusy ? 'Обробляємо фото…' : loading ? 'Перевірка...' : 'Зареєструватися →'}
       </button>
     </div>
   );
