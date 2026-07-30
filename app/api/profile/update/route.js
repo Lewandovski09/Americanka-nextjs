@@ -1,9 +1,11 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { extractTelegramUsername } from '@/lib/telegram';
 
 export async function POST(request) {
-  const { firstName, lastName, city, login, telegramUsername, email } = await request.json();
+  // telegramUsername is deliberately NOT accepted any more: it is
+  // written from what Telegram reports on every interaction, so letting
+  // the profile form overwrite it would just be silently undone.
+  const { firstName, lastName, city, login, email } = await request.json();
 
   const supabase = createClient();
   const { data: authUser } = await supabase.auth.getUser();
@@ -15,29 +17,27 @@ export async function POST(request) {
   const userId = authUser.user.id;
 
   const normalizedLogin = (login || '').trim().toLowerCase();
-  const normalizedTelegram = extractTelegramUsername(telegramUsername || '');
   const normalizedEmail = (email || '').trim().toLowerCase();
 
-  if (!normalizedLogin || !normalizedTelegram || !normalizedEmail || !firstName?.trim() || !lastName?.trim() || !city) {
+  if (!normalizedLogin || !normalizedEmail || !firstName?.trim() || !lastName?.trim() || !city) {
     return Response.json({ success: false, error: "Заповніть всі поля" }, { status: 400 });
   }
 
   // Check uniqueness against every OTHER player (exclude self).
-  const { data: conflicts } = await supabaseAdmin
-    .from('players')
-    .select('id, login, telegram_username, email')
-    .or(`login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram},email.eq.${normalizedEmail}`)
-    .neq('id', userId);
+  // Two .eq() queries instead of one interpolated .or(): a comma or dot
+  // in the login/email used to leak into PostgREST's filter syntax.
+  const [{ data: loginConflicts }, { data: emailConflicts }] = await Promise.all([
+    supabaseAdmin.from('players').select('id').eq('login', normalizedLogin).neq('id', userId),
+    supabaseAdmin.from('players').select('id').eq('email', normalizedEmail).neq('id', userId),
+  ]);
 
-  if (conflicts && conflicts.length > 0) {
-    const taken = [];
-    conflicts.forEach((c) => {
-      if (c.login === normalizedLogin) taken.push('логін');
-      if (c.telegram_username === normalizedTelegram) taken.push('Telegram нікнейм');
-      if (c.email === normalizedEmail) taken.push('email');
-    });
+  const taken = [];
+  if (loginConflicts && loginConflicts.length > 0) taken.push('логін');
+  if (emailConflicts && emailConflicts.length > 0) taken.push('email');
+
+  if (taken.length > 0) {
     return Response.json(
-      { success: false, error: `Вже використовується: ${[...new Set(taken)].join(', ')}` },
+      { success: false, error: `Вже використовується: ${taken.join(', ')}` },
       { status: 409 }
     );
   }
@@ -67,7 +67,6 @@ export async function POST(request) {
       last_name: lastName.trim(),
       city,
       login: normalizedLogin,
-      telegram_username: normalizedTelegram,
       email: normalizedEmail,
     })
     .eq('id', userId);

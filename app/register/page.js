@@ -1,6 +1,6 @@
 'use client';
 
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
@@ -8,8 +8,14 @@ import styles from './register.module.css';
 
 const STEPS = {
   FORM: 'form',
-  VERIFY_TELEGRAM: 'verify_telegram',
+  CONNECT_TELEGRAM: 'connect_telegram',
 };
+
+// Which bot the deep link points at. An env var so switching bots — or
+// pointing a local build at a dev bot — needs no code change.
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'AmericankaVerifyBot';
+
+const LINK_POLL_INTERVAL_MS = 2500;
 
 export default function AuthPage() {
   const router = useRouter();
@@ -19,7 +25,6 @@ export default function AuthPage() {
   const [step, setStep] = useState(STEPS.FORM);
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
-  const [showBotModal, setShowBotModal] = useState(false);
 
   // ── Login state ──
   const [loginField, setLoginField] = useState('');
@@ -31,14 +36,13 @@ export default function AuthPage() {
     lastName: '',
     city: '',
     login: '',
-    telegramUsername: '',
     password: '',
     gender: 'M',
     category: 'C',
   });
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
-  const [telegramCode, setTelegramCode] = useState('');
-  const [hint, setHint] = useState('');
+  const [nonce, setNonce] = useState('');
+  const [linkExpired, setLinkExpired] = useState(false);
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -84,106 +88,90 @@ export default function AuthPage() {
     router.push('/');
   }
 
-  // Step 1: validate fields + check uniqueness, then show the
-  // "open the bot first" instruction modal instead of sending
-  // immediately — this way the user always sees the instruction
-  // before we attempt to send a Telegram message.
-  async function handleValidateAndShowModal() {
+  // Step 1: create the account and get back a one-time nonce for the
+  // Telegram deep link. The account exists from this point on, so
+  // switching to Telegram (and possibly losing this tab on mobile) can
+  // no longer throw away a half-finished registration.
+  async function handleRegister() {
     setError('');
     if (!photoDataUrl) return setError("Будь ласка, додайте фото профілю — це обов'язкове поле");
     if (!form.firstName.trim()) return setError("Вкажіть ім'я");
     if (!form.lastName.trim()) return setError('Вкажіть прізвище');
     if (!form.city) return setError('Оберіть місто зі списку');
     if (!form.login.trim()) return setError('Вкажіть логін');
-    if (!form.telegramUsername.trim()) return setError('Вкажіть Telegram нікнейм');
     if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
 
     setLoading(true);
-    const res = await fetch('/api/auth/check-availability', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({
-        login: form.login,
-        telegramUsername: form.telegramUsername,
-      }),
-    });
-    const data = await res.json();
-    setLoading(false);
-
-    if (!data.success) {
-      setError(data.error || 'Дані вже використовуються');
-      return;
-    }
-
-    setShowBotModal(true);
-  }
-
-  // Step 2: user confirmed they opened the bot — now actually send the code.
-  async function handleConfirmBotStartAndSend() {
-    setShowBotModal(false);
-    setError('');
-    setLoading(true);
-    const res = await fetch('/api/auth/verify-phone/send', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegramUsername: form.telegramUsername }),
-    });
-    const data = await res.json();
-    setLoading(false);
-
-    if (!data.success) {
-      setError(data.error || 'Не вдалося надіслати код');
-      return;
-    }
-
-    setHint('Код надіслано в Telegram!');
-    setStep(STEPS.VERIFY_TELEGRAM);
-  }
-
-  async function handleConfirmTelegram() {
-    setError('');
-    setLoading(true);
-    const res = await fetch('/api/auth/verify-phone/confirm', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ telegramUsername: form.telegramUsername, code: telegramCode }),
-    });
-    const data = await res.json();
-
-    if (!data.success) {
-      setLoading(false);
-      setError(data.error || 'Невірний код');
-      return;
-    }
-
-    const registerRes = await fetch('/api/auth/register', {
+    const res = await fetch('/api/auth/register', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ ...form, photoDataUrl }),
     });
-    const registerData = await registerRes.json();
+    const data = await res.json();
 
-    if (!registerData.success) {
+    if (!data.success) {
       setLoading(false);
-      setError(registerData.error || 'Не вдалося зареєструватися');
+      setError(data.error || 'Не вдалося зареєструватися');
       return;
     }
 
-    const { error: loginError } = await supabase.auth.signInWithPassword({
-      email: registerData.email,
-      password: form.password,
-    });
+    // Sign in immediately so the player is authenticated while they
+    // connect Telegram — that's what lets them request a fresh link if
+    // this one expires.
+    await supabase.auth.signInWithPassword({ email: data.email, password: form.password });
 
     setLoading(false);
+    setNonce(data.nonce);
+    setLinkExpired(false);
+    setStep(STEPS.CONNECT_TELEGRAM);
+  }
 
-    if (loginError) {
-      setError('Акаунт створено, але не вдалося увійти. Спробуйте увійти вручну.');
-      setTab('login');
-      setStep(STEPS.FORM);
+  // Step 2: wait for the bot to report the link. Telegram can't push
+  // this into the browser, and the user has to switch apps anyway, so a
+  // short poll is the honest mechanism here.
+  useEffect(() => {
+    if (step !== STEPS.CONNECT_TELEGRAM || !nonce) return;
+
+    let cancelled = false;
+
+    const timer = setInterval(async () => {
+      try {
+        const res = await fetch(`/api/telegram/link/status?nonce=${encodeURIComponent(nonce)}`);
+        const data = await res.json();
+        if (cancelled || !data.success) return;
+
+        if (data.linked) {
+          clearInterval(timer);
+          router.push('/?justRegistered=1');
+        } else if (data.expired) {
+          clearInterval(timer);
+          setLinkExpired(true);
+        }
+      } catch {
+        // Transient network blip — the next tick retries.
+      }
+    }, LINK_POLL_INTERVAL_MS);
+
+    return () => {
+      cancelled = true;
+      clearInterval(timer);
+    };
+  }, [step, nonce, router]);
+
+  async function handleNewLink() {
+    setError('');
+    setLoading(true);
+    const res = await fetch('/api/telegram/link/new', { method: 'POST' });
+    const data = await res.json();
+    setLoading(false);
+
+    if (!data.success) {
+      setError(data.error || 'Не вдалося створити нове посилання');
       return;
     }
 
-    router.push('/?justRegistered=1');
+    setNonce(data.nonce);
+    setLinkExpired(false);
   }
 
   function switchTab(newTab) {
@@ -268,62 +256,21 @@ export default function AuthPage() {
             onPhotoChange={handlePhotoChange}
             error={error}
             loading={loading}
-            onSubmit={handleValidateAndShowModal}
+            onSubmit={handleRegister}
           />
         )}
 
-        {step === STEPS.VERIFY_TELEGRAM && (
-          <VerifyStep
-            icon="📱"
-            title="ПІДТВЕРДЖЕННЯ TELEGRAM"
-            description={
-              <>
-                Ми надіслали код у Telegram-бот <b>@AmericankaVerifyBot</b>.
-                <br />
-                Якщо нічого не прийшло — переконайтесь, що ви натиснули &quot;Start&quot; у боті.
-              </>
-            }
-            code={telegramCode}
-            setCode={setTelegramCode}
+        {step === STEPS.CONNECT_TELEGRAM && (
+          <ConnectTelegramStep
+            nonce={nonce}
+            expired={linkExpired}
             error={error}
-            hint={hint}
             loading={loading}
-            onBack={() => setStep(STEPS.FORM)}
-            onConfirm={handleConfirmTelegram}
+            onNewLink={handleNewLink}
           />
         )}
 
       </div>
-
-      {showBotModal && (
-        <div className={styles.modalOverlay}>
-          <div className={styles.modalBox}>
-            <div className={styles.modalIcon}>📱</div>
-            <div className={styles.modalTitle}>Останній крок перед кодом!</div>
-            <div className={styles.modalText}>
-              Відкрийте бота <b>@AmericankaVerifyBot</b> у Telegram і натисніть кнопку <b>&quot;Start&quot;</b> (або
-              напишіть <b>/start</b>).
-              <br />
-              <br />
-              Після цього ми надішлемо вам код з <b>4 цифр</b> прямо в чат з ботом.
-            </div>
-            <a
-              href="https://t.me/AmericankaVerifyBot"
-              target="_blank"
-              rel="noopener noreferrer"
-              className={styles.modalLinkBtn}
-            >
-              Відкрити бота →
-            </a>
-            <button className={styles.btnPrimary} onClick={handleConfirmBotStartAndSend}>
-              Я натиснув Start, надіслати код
-            </button>
-            <button className={styles.modalCancelBtn} onClick={() => setShowBotModal(false)}>
-              Скасувати
-            </button>
-          </div>
-        </div>
-      )}
     </div>
   );
 }
@@ -393,13 +340,6 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
       />
 
       <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" />
-      <Field
-        label="Telegram нікнейм *"
-        value={form.telegramUsername}
-        onChange={(v) => updateField('telegramUsername', v)}
-        placeholder="нікнейм або посилання t.me/..."
-      />
-      <div className={styles.fieldHint}>Можна вписати нікнейм (username), @username, або повне посилання t.me/username — будь-який формат розпізнається.</div>
       <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" />
 
       <label className={styles.label}>Стать *</label>
@@ -440,32 +380,44 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
   );
 }
 
-function VerifyStep({ icon, title, description, code, setCode, error, hint, loading, onBack, onConfirm }) {
+function ConnectTelegramStep({ nonce, expired, error, loading, onNewLink }) {
+  // The nonce travels to the bot inside the deep link, so the user never
+  // sees it, types it, or can get it wrong.
+  const deepLink = `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(nonce)}`;
+
   return (
     <div>
-      <button className={styles.backBtn} onClick={onBack}>
-        ← Назад
-      </button>
       <div className={styles.verifyHeader}>
-        <div className={styles.verifyIcon}>{icon}</div>
-        <div className={styles.verifyTitle}>{title}</div>
-        <div className={styles.verifyDesc}>{description}</div>
+        <div className={styles.verifyIcon}>📱</div>
+        <div className={styles.verifyTitle}>ПІДКЛЮЧІТЬ TELEGRAM</div>
+        <div className={styles.verifyDesc}>
+          Акаунт створено! Залишився один крок: відкрийте бота і натисніть <b>&quot;START&quot;</b>.
+          <br />
+          Вводити нічого не потрібно.
+        </div>
       </div>
-      <label className={styles.label}>Код підтвердження *</label>
-      <input
-        className={styles.codeInput}
-        type="text"
-        inputMode="numeric"
-        maxLength={4}
-        value={code}
-        onChange={(e) => setCode(e.target.value)}
-        placeholder="0000"
-      />
+
+      {expired ? (
+        <>
+          <div className={styles.errMsg}>Посилання застаріло — запросіть нове.</div>
+          <button className={styles.btnPrimary} disabled={loading} onClick={onNewLink}>
+            {loading ? 'Створюємо...' : 'Нове посилання →'}
+          </button>
+        </>
+      ) : (
+        <>
+          <a href={deepLink} target="_blank" rel="noopener noreferrer" className={styles.modalLinkBtn}>
+            Підключити Telegram →
+          </a>
+          <div className={styles.okMsg}>Чекаємо підтвердження з Telegram…</div>
+          <div className={styles.fieldHint}>
+            Щойно ви натиснете START у боті, ця сторінка сама пустить вас далі. Якщо закриєте
+            сторінку — нічого не втрачено, просто увійдіть за своїм логіном.
+          </div>
+        </>
+      )}
+
       {error && <div className={styles.errMsg}>{error}</div>}
-      {hint && !error && <div className={styles.okMsg}>{hint}</div>}
-      <button className={styles.btnPrimary} disabled={loading} onClick={onConfirm}>
-        {loading ? 'Перевірка...' : 'Підтвердити →'}
-      </button>
     </div>
   );
 }

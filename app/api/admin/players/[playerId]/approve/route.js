@@ -1,7 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CATEGORY_STARTING_ELO, categoryForElo } from '@/lib/elo';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
 
 export async function POST(request, { params }) {
   const { playerId } = params;
@@ -26,6 +26,23 @@ export async function POST(request, { params }) {
 
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін може підтверджувати рейтинг' }, { status: 403 });
+  }
+
+  // Telegram is how a player hears about approvals, tournaments and
+  // schedule changes, so approving someone who never linked it means
+  // they silently miss everything. This check is where the link is
+  // actually enforced — it replaces the old 4-digit code as the gate.
+  const { data: target } = await supabaseAdmin
+    .from('players')
+    .select('telegram_chat_id')
+    .eq('id', playerId)
+    .maybeSingle();
+
+  if (!target?.telegram_chat_id) {
+    return Response.json(
+      { success: false, error: 'Гравець ще не підключив Telegram — підтвердити неможливо' },
+      { status: 400 }
+    );
   }
 
   const finalElo = requestedElo || CATEGORY_STARTING_ELO[category] || 1050;
@@ -60,14 +77,16 @@ export async function POST(request, { params }) {
   // Push an immediate Telegram notification too (in addition to the
   // in-app popup on next login) — players get the good news right away.
   if (player.telegram_chat_id) {
-    try {
-      await sendTelegramMessage(
-        player.telegram_chat_id,
-        `✅ <b>Ваш рейтинг підтверджено!</b>\n\nСтартовий рейтинг Ело: <b>${finalElo}</b>\nКатегорія: <b>${finalCategory}</b>\n\nТепер ви можете брати участь у турнірах AMERICANKA!`
-      );
-    } catch (e) {
-      console.error('[approve-player] Telegram notification failed:', e.message);
-      // Non-fatal — the in-app popup will still inform them.
+    // Non-fatal by design — the in-app popup still informs them, so a
+    // Telegram failure must never block the approval itself.
+    const { blocked } = await trySendTelegramMessage(
+      player.telegram_chat_id,
+      `✅ <b>Ваш рейтинг підтверджено!</b>\n\nСтартовий рейтинг Ело: <b>${escapeHtml(finalElo)}</b>\nКатегорія: <b>${escapeHtml(finalCategory)}</b>\n\nТепер ви можете брати участь у турнірах AMERICANKA!`
+    );
+
+    if (blocked) {
+      // The chat is unreachable for good — drop the stale link.
+      await supabaseAdmin.from('players').update({ telegram_chat_id: null }).eq('id', playerId);
     }
   }
 

@@ -192,6 +192,8 @@ export default function HomePage() {
 
       <div className={styles.body}>
 
+      {player && !player.telegram_chat_id && <ConnectTelegramBanner />}
+
       {player?.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
       )}
@@ -395,6 +397,52 @@ export default function HomePage() {
         </div>
       </div>
       </div>
+    </div>
+  );
+}
+
+const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'AmericankaVerifyBot';
+
+// Shown to a logged-in player with no Telegram attached: they closed the
+// tab mid-registration, or they blocked the bot and got unlinked. Without
+// this the only way back would be asking an admin, since an approval is
+// impossible without a linked chat.
+function ConnectTelegramBanner() {
+  const [loading, setLoading] = useState(false);
+  const [error, setError] = useState('');
+
+  async function connect() {
+    setError('');
+    setLoading(true);
+    const res = await fetch('/api/telegram/link/new', { method: 'POST' });
+    const data = await res.json();
+    setLoading(false);
+
+    if (!data.success) {
+      setError(data.error || 'Не вдалося створити посилання');
+      return;
+    }
+
+    // A fresh nonce every time, so a stale link can never be reused.
+    window.open(
+      `https://t.me/${BOT_USERNAME}?start=${encodeURIComponent(data.nonce)}`,
+      '_blank',
+      'noopener'
+    );
+  }
+
+  return (
+    <div className={styles.warnMsg}>
+      Telegram не підключено — без нього не буде ні підтвердження рейтингу, ні новин.
+      <button
+        className={styles.guestRegisterBtn}
+        style={{ display: 'block', marginTop: 8, border: 'none', cursor: 'pointer' }}
+        onClick={connect}
+        disabled={loading}
+      >
+        {loading ? 'Створюємо посилання…' : 'Підключити Telegram →'}
+      </button>
+      {error && <div style={{ marginTop: 6 }}>{error}</div>}
     </div>
   );
 }

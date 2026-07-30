@@ -239,7 +239,7 @@ export default function ProfilePage() {
       lastName: player.last_name || '',
       city: player.city || '',
       login: player.login,
-      telegramUsername: player.telegram_username,
+      telegramUsername: player.telegram_username || '',
       email: player.email,
     });
     setEditError('');
@@ -587,11 +587,14 @@ export default function ProfilePage() {
               value={editForm.login}
               onChange={(e) => setEditForm((f) => ({ ...f, login: e.target.value }))}
             />
-            <label className={styles.fieldLabel}>Telegram нікнейм</label>
+            {/* Read-only: the username comes from Telegram itself and is
+                refreshed on every interaction with the bot, so editing it
+                here would just be overwritten. */}
+            <label className={styles.fieldLabel}>Telegram (з бота)</label>
             <input
               className={styles.fieldInput}
-              value={editForm.telegramUsername}
-              onChange={(e) => setEditForm((f) => ({ ...f, telegramUsername: e.target.value }))}
+              value={editForm.telegramUsername ? `@${editForm.telegramUsername}` : 'не підключено'}
+              readOnly
             />
             <label className={styles.fieldLabel}>Email</label>
             <input

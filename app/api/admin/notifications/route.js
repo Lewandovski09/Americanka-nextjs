@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { sendTelegramMessage } from '@/lib/telegram';
+import { broadcastTelegramMessage, escapeHtml } from '@/lib/telegram';
 
 export async function POST(request) {
   const { title, body } = await request.json();
@@ -49,16 +49,30 @@ export async function POST(request) {
 
   console.log('[send-notification] Telegram recipients found:', (allPlayers || []).length, playersError?.message);
 
-  const text = `📢 <b>${title}</b>\n\n${body}`;
+  // Admin-typed text goes through escapeHtml: a stray "<" would
+  // otherwise make Telegram reject every single send with a 400.
+  const text = `📢 <b>${escapeHtml(title)}</b>\n\n${escapeHtml(body)}`;
 
-  const results = await Promise.allSettled(
-    (allPlayers || []).map((p) => sendTelegramMessage(p.telegram_chat_id, text))
+  const { sent, failed, deadChatIds } = await broadcastTelegramMessage(
+    (allPlayers || []).map((p) => p.telegram_chat_id),
+    text
   );
-  results.forEach((r, i) => {
-    if (r.status === 'rejected') {
-      console.error('[send-notification] Failed to send to', allPlayers[i]?.full_name, r.reason?.message);
-    }
-  });
 
-  return Response.json({ success: true, notification });
+  console.log('[send-notification] Broadcast finished:', { sent, failed, dead: deadChatIds.length });
+
+  // Players who blocked the bot (or never really started it) can never
+  // receive anything on that chat_id — unlink them so future broadcasts
+  // don't waste calls, and so the admin panel shows them as unlinked.
+  if (deadChatIds.length > 0) {
+    const { error: unlinkError } = await supabaseAdmin
+      .from('players')
+      .update({ telegram_chat_id: null })
+      .in('telegram_chat_id', deadChatIds);
+
+    if (unlinkError) {
+      console.error('[send-notification] Failed to unlink dead chats:', unlinkError.message);
+    }
+  }
+
+  return Response.json({ success: true, notification, telegram: { sent, failed } });
 }

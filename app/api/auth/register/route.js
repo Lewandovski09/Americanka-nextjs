@@ -1,5 +1,10 @@
+import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { extractTelegramUsername } from '@/lib/telegram';
+
+// How long the user has to tap through to the bot and press Start
+// before the link goes stale. Generous on purpose — people get
+// interrupted mid-registration.
+const LINK_TTL_MS = 30 * 60 * 1000;
 
 export async function POST(request) {
   try {
@@ -9,13 +14,12 @@ export async function POST(request) {
       city,
       login,
       password,
-      telegramUsername,
       gender,
       category,
       photoDataUrl, // base64 data URL from the client file input
     } = await request.json();
 
-    if (!firstName?.trim() || !lastName?.trim() || !city || !login || !password || !telegramUsername || !gender || !category) {
+    if (!firstName?.trim() || !lastName?.trim() || !city || !login || !password || !gender || !category) {
       return Response.json({ success: false, error: "Заповніть всі обов'язкові поля" }, { status: 400 });
     }
     if (!photoDataUrl) {
@@ -27,25 +31,30 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
     const normalizedLogin = login.trim().toLowerCase();
-    const normalizedTelegram = extractTelegramUsername(telegramUsername);
-    // Registration is Telegram-only now — there's no real email to
-    // collect or verify, but Supabase Auth still needs *some* email
-    // to identify the account internally, so we synthesize one from
-    // the (already-unique) login.
+
+    // Telegram is no longer part of this payload: the account is created
+    // first, then linked when the player presses Start on the bot with
+    // the nonce we hand back below. Nothing about their Telegram is
+    // typed by hand any more.
     const normalizedEmail = `${normalizedLogin}@americanka.app`;
 
-    // ── Uniqueness checks (login, telegram username) ──
-    const { data: existing } = await supabaseAdmin
+    // ── Uniqueness check ──
+    // A plain .eq() rather than the old interpolated .or() filter: a
+    // comma or dot in the login used to leak into PostgREST's filter
+    // syntax and change the query.
+    const { data: existing, error: lookupError } = await supabaseAdmin
       .from('players')
       .select('id')
-      .or(`login.eq.${normalizedLogin},telegram_username.eq.${normalizedTelegram}`)
+      .eq('login', normalizedLogin)
       .limit(1);
 
+    if (lookupError) {
+      console.error('[register] Login lookup failed:', lookupError.message);
+      return Response.json({ success: false, error: 'Помилка сервера' }, { status: 500 });
+    }
+
     if (existing && existing.length > 0) {
-      return Response.json(
-        { success: false, error: 'Логін або Telegram вже зареєстровані' },
-        { status: 409 }
-      );
+      return Response.json({ success: false, error: 'Цей логін вже зареєстрований' }, { status: 409 });
     }
 
     // ── Create the Supabase Auth user (handles password hashing) ──
@@ -72,7 +81,6 @@ export async function POST(request) {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       city,
-      telegram_username: normalizedTelegram,
       email: normalizedEmail,
       photo_url: photoUrl,
       gender,
@@ -87,7 +95,25 @@ export async function POST(request) {
       return Response.json({ success: false, error: 'Не вдалося створити профіль' }, { status: 500 });
     }
 
-    return Response.json({ success: true, userId, email: normalizedEmail });
+    // ── Issue the one-time Telegram link ──
+    const nonce = randomUUID();
+    const { error: linkError } = await supabaseAdmin.from('telegram_links').insert({
+      nonce,
+      player_id: userId,
+      expires_at: new Date(Date.now() + LINK_TTL_MS).toISOString(),
+    });
+
+    if (linkError) {
+      // The account exists and is usable, so don't roll back — but the
+      // player can't be approved until they link, so surface it.
+      console.error('[register] Failed to create telegram link:', linkError.message);
+      return Response.json(
+        { success: false, error: 'Акаунт створено, але не вдалося підготувати підключення Telegram' },
+        { status: 500 }
+      );
+    }
+
+    return Response.json({ success: true, userId, email: normalizedEmail, nonce });
   } catch (err) {
     console.error('[register] Unexpected error:', err.message);
     return Response.json({ success: false, error: 'Помилка сервера' }, { status: 500 });
