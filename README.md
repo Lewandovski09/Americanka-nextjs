@@ -35,6 +35,8 @@
    скопіюй весь вміст, встав у редактор, натисни **"Run"**
 4. Повтори те саме для `002_row_level_security.sql`
 5. Повтори те саме для `003_telegram_pending_links.sql`
+6. Повтори те саме для `004_telegram_deep_link.sql`
+7. Повтори те саме для `005_drop_email_and_phone.sql`
 
 Якщо все пройшло без помилок — у розділі **"Table Editor"** ти побачиш
 таблиці: `players`, `tournaments`, `matches`, `tournament_formats` і т.д.
@@ -70,21 +72,27 @@
 
 ### Налаштуй webhook (щоб бот міг отримувати повідомлення)
 
-Після деплою на Vercel (Крок 7) виконай у браузері (заміни значення):
+Після деплою на Vercel (Крок 6) виконай у браузері (заміни значення):
 
 ```
-https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-app.vercel.app/api/telegram/webhook
+https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-app.vercel.app/api/telegram/webhook&secret_token=<TELEGRAM_WEBHOOK_SECRET>
 ```
 
-## Крок 6. Gmail для email-кодів
+`TELEGRAM_WEBHOOK_SECRET` — це випадковий рядок, який ти генеруєш сам:
 
-(Той самий процес, що й раніше)
-1. Увімкни 2FA: https://myaccount.google.com/security
-2. Створи App Password: https://myaccount.google.com/apppasswords
-3. `GMAIL_USER` = твоя gmail адреса
-4. `GMAIL_APP_PASSWORD` = 16-значний пароль додатку
+```
+node -e "console.log(require('crypto').randomBytes(32).toString('hex'))"
+```
 
-## Крок 7. Деплой на Vercel
+Telegram повертає його у заголовку кожного запиту, і вебхук порівнює —
+так ми відрізняємо справжній апдейт від підробленого. Значення має
+збігатися у `setWebhook` і у змінній середовища.
+
+Ще одна змінна: `NEXT_PUBLIC_TELEGRAM_BOT_USERNAME` — юзернейм бота
+**без** `@`. З нього збирається посилання `t.me/<бот>?start=<nonce>`,
+яким гравець підключає Telegram.
+
+## Крок 6. Деплой на Vercel
 
 1. Залий цей проєкт на GitHub (новий репозиторій)
 2. Відкрий https://vercel.com → **"Add New" → "Project"**
@@ -94,7 +102,7 @@ https://api.telegram.org/bot<TELEGRAM_BOT_TOKEN>/setWebhook?url=https://your-app
 5. Натисни **"Deploy"**
 6. Через ~2 хвилини отримаєш посилання типу `https://americanka.vercel.app`
 
-## Крок 8. Створи першого адміна
+## Крок 7. Створи першого адміна
 
 Після деплою зареєструйся як звичайний користувач через сайт. Потім у
 Supabase: **Table Editor → players** → знайди свій рядок → встанови
@@ -106,7 +114,7 @@ Supabase: **Table Editor → players** → знайди свій рядок → 
 
 ```
 app/
-  register/          — сторінка реєстрації (multi-step: форма → Telegram → email)
+  register/          — сторінка реєстрації (форма → підключення Telegram)
   login/              — вхід
   tournaments/        — список і створення турнірів
   profile/            — профіль гравця
@@ -123,8 +131,7 @@ lib/
   elo.js              — математика рейтингу Ело
   tournamentEngine.js — рушій турнірів (працює з БУДЬ-ЯКИМ форматом з бази)
   telegram.js         — відправка повідомлень через Telegram Bot API
-  emailSender.js       — відправка email через Gmail
-  verification.js     — генерація/перевірка кодів (зберігається в базі)
+  authIdentity.js     — логін → адреса акаунта в Supabase Auth (логін незмінний)
 
 supabase/migrations/   — SQL-схема бази даних
 ```

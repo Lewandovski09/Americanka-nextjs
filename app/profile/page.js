@@ -240,7 +240,6 @@ export default function ProfilePage() {
       city: player.city || '',
       login: player.login,
       telegramUsername: player.telegram_username || '',
-      email: player.email,
     });
     setEditError('');
     setEditOpen(true);
@@ -581,26 +580,16 @@ export default function ProfilePage() {
               onChange={(v) => setEditForm((f) => ({ ...f, city: v }))}
               inputClassName={styles.fieldInput}
             />
-            <label className={styles.fieldLabel}>Логін</label>
-            <input
-              className={styles.fieldInput}
-              value={editForm.login}
-              onChange={(e) => setEditForm((f) => ({ ...f, login: e.target.value }))}
-            />
-            {/* Read-only: the username comes from Telegram itself and is
-                refreshed on every interaction with the bot, so editing it
-                here would just be overwritten. */}
+            {/* Both read-only, for different reasons: the login is what
+                the Auth account address is derived from, and the Telegram
+                username is refreshed from the bot on every interaction. */}
+            <label className={styles.fieldLabel}>Логін (незмінний)</label>
+            <input className={styles.fieldInput} value={editForm.login} readOnly />
             <label className={styles.fieldLabel}>Telegram (з бота)</label>
             <input
               className={styles.fieldInput}
               value={editForm.telegramUsername ? `@${editForm.telegramUsername}` : 'не підключено'}
               readOnly
-            />
-            <label className={styles.fieldLabel}>Email</label>
-            <input
-              className={styles.fieldInput}
-              value={editForm.email}
-              onChange={(e) => setEditForm((f) => ({ ...f, email: e.target.value }))}
             />
             {editError && <div className={styles.searchError}>{editError}</div>}
             <button className={styles.saveBtn} disabled={editSaving} onClick={handleSaveEdit}>

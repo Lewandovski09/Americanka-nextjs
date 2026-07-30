@@ -1,5 +1,6 @@
 import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { normalizeLogin, isValidLogin, emailForLogin } from '@/lib/authIdentity';
 
 // How long the user has to tap through to the bot and press Start
 // before the link goes stale. Generous on purpose — people get
@@ -30,13 +31,25 @@ export async function POST(request) {
     }
 
     const supabaseAdmin = createAdminClient();
-    const normalizedLogin = login.trim().toLowerCase();
+    const normalizedLogin = normalizeLogin(login);
+
+    // The login is permanent: it's the only thing the Auth account
+    // address is derived from, so it can never be edited afterwards.
+    if (!isValidLogin(normalizedLogin)) {
+      return Response.json(
+        {
+          success: false,
+          error: 'Логін: 3–32 символи, лише латинські літери, цифри, точка, дефіс або підкреслення',
+        },
+        { status: 400 }
+      );
+    }
 
     // Telegram is no longer part of this payload: the account is created
     // first, then linked when the player presses Start on the bot with
     // the nonce we hand back below. Nothing about their Telegram is
     // typed by hand any more.
-    const normalizedEmail = `${normalizedLogin}@americanka.app`;
+    const syntheticEmail = emailForLogin(normalizedLogin);
 
     // ── Uniqueness check ──
     // A plain .eq() rather than the old interpolated .or() filter: a
@@ -59,7 +72,7 @@ export async function POST(request) {
 
     // ── Create the Supabase Auth user (handles password hashing) ──
     const { data: authUser, error: authError } = await supabaseAdmin.auth.admin.createUser({
-      email: normalizedEmail,
+      email: syntheticEmail,
       password,
       email_confirm: true, // synthetic address — nothing to actually confirm
     });
@@ -81,7 +94,6 @@ export async function POST(request) {
       first_name: firstName.trim(),
       last_name: lastName.trim(),
       city,
-      email: normalizedEmail,
       photo_url: photoUrl,
       gender,
       approval_status: 'pending',
@@ -113,7 +125,7 @@ export async function POST(request) {
       );
     }
 
-    return Response.json({ success: true, userId, email: normalizedEmail, nonce });
+    return Response.json({ success: true, userId, nonce });
   } catch (err) {
     console.error('[register] Unexpected error:', err.message);
     return Response.json({ success: false, error: 'Помилка сервера' }, { status: 500 });

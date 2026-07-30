@@ -4,6 +4,7 @@ import { useState, useEffect } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
+import { emailForLogin, isValidLogin } from '@/lib/authIdentity';
 import styles from './register.module.css';
 
 const STEPS = {
@@ -60,21 +61,11 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
 
-    const lookupRes = await fetch('/api/auth/lookup-email', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: loginField }),
-    });
-    const lookupData = await lookupRes.json();
-
-    if (!lookupData.success) {
-      setLoading(false);
-      setError('Невірний логін або пароль');
-      return;
-    }
-
+    // The Auth address is derived from the login, so there's nothing to
+    // look up on the server any more. A wrong login and a wrong password
+    // now fail identically, which is also what we want.
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: lookupData.email,
+      email: emailForLogin(loginField),
       password: loginPassword,
     });
 
@@ -99,6 +90,8 @@ export default function AuthPage() {
     if (!form.lastName.trim()) return setError('Вкажіть прізвище');
     if (!form.city) return setError('Оберіть місто зі списку');
     if (!form.login.trim()) return setError('Вкажіть логін');
+    if (!isValidLogin(form.login))
+      return setError('Логін: 3–32 символи, лише латиниця, цифри, точка, дефіс, підкреслення');
     if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
 
     setLoading(true);
@@ -118,7 +111,10 @@ export default function AuthPage() {
     // Sign in immediately so the player is authenticated while they
     // connect Telegram — that's what lets them request a fresh link if
     // this one expires.
-    await supabase.auth.signInWithPassword({ email: data.email, password: form.password });
+    await supabase.auth.signInWithPassword({
+      email: emailForLogin(form.login),
+      password: form.password,
+    });
 
     setLoading(false);
     setNonce(data.nonce);
@@ -340,6 +336,10 @@ function FormStep({ form, updateField, photoDataUrl, onPhotoChange, error, loadi
       />
 
       <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" />
+      <div className={styles.fieldHint}>
+        3–32 символи: латинські літери, цифри, точка, дефіс, підкреслення. Змінити логін пізніше
+        не можна.
+      </div>
       <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" />
 
       <label className={styles.label}>Стать *</label>
