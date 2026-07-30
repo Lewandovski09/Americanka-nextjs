@@ -192,7 +192,7 @@ export default function HomePage() {
 
       <div className={styles.body}>
 
-      {player && !player.telegram_chat_id && <ConnectTelegramBanner />}
+      {player && !player.telegram_linked_at && <ConnectTelegramBanner />}
 
       {player?.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>

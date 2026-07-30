@@ -4,9 +4,12 @@
 //   1. Links a browser session to a Telegram account, via the one-time
 //      nonce carried in t.me/<bot>?start=<nonce>.
 //   2. Unlinks players who block the bot (my_chat_member).
-//   3. Refreshes a known player's chat_id/username on any interaction.
+//   3. Refreshes a known player's username/reachability on any
+//      interaction.
 //
-// Identity comes from `from.id` (immutable), never from @username.
+// Identity comes from `from.id` (immutable), never from @username. That
+// same id is the send target, which holds because we only ever handle
+// private chats — see the guard in POST.
 
 import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
@@ -67,24 +70,27 @@ async function isDuplicateUpdate(supabaseAdmin, updateId) {
  * Handling it is what keeps the database honest: otherwise we only
  * discover a dead chat when a send fails, so every broadcast forever
  * pays for people who left long ago.
+ *
+ * telegram_user_id is kept — we still know who they are, and the unique
+ * constraint must keep holding. Only reachability is cleared.
  */
 async function handleMembershipChange(supabaseAdmin, membership) {
-  const chatId = membership.chat?.id;
+  const userId = membership.from?.id;
   const status = membership.new_chat_member?.status;
 
   // 'kicked' means blocked by the user, 'left' covers a deleted chat.
   // Anything else means the link is fine, and a fresh /start re-links.
-  if (!chatId || (status !== 'kicked' && status !== 'left')) return;
+  if (!userId || (status !== 'kicked' && status !== 'left')) return;
 
   const { error } = await supabaseAdmin
     .from('players')
-    .update({ telegram_chat_id: null, telegram_linked_at: null })
-    .eq('telegram_chat_id', chatId);
+    .update({ telegram_linked_at: null })
+    .eq('telegram_user_id', userId);
 
   if (error) {
     console.error('[Telegram webhook] Failed to unlink blocked chat:', error.message);
   } else {
-    console.log('[Telegram webhook] Unlinked chat after block/leave:', chatId);
+    console.log('[Telegram webhook] Unlinked after block/leave:', userId);
   }
 }
 
@@ -92,7 +98,7 @@ async function handleMembershipChange(supabaseAdmin, membership) {
  * Consume a one-time nonce and attach this Telegram account to the
  * player who started registration in the browser.
  */
-async function linkByNonce(supabaseAdmin, nonce, from, chatId) {
+async function linkByNonce(supabaseAdmin, nonce, from) {
   const { data: link, error } = await supabaseAdmin
     .from('telegram_links')
     .select('player_id, expires_at, linked_at')
@@ -111,7 +117,6 @@ async function linkByNonce(supabaseAdmin, nonce, from, chatId) {
   const { error: playerError } = await supabaseAdmin
     .from('players')
     .update({
-      telegram_chat_id: chatId,
       telegram_user_id: from.id,
       telegram_username: from.username ? from.username.toLowerCase() : null,
       telegram_linked_at: new Date().toISOString(),
@@ -119,8 +124,8 @@ async function linkByNonce(supabaseAdmin, nonce, from, chatId) {
     .eq('id', link.player_id);
 
   if (playerError) {
-    // telegram_user_id / telegram_chat_id are unique: this Telegram
-    // account already belongs to a different player.
+    // telegram_user_id is unique: this Telegram account already belongs
+    // to a different player.
     if (playerError.code === UNIQUE_VIOLATION) return { status: 'taken' };
     console.error('[Telegram webhook] Failed to attach telegram to player:', playerError.message);
     return { status: 'error' };
@@ -128,54 +133,40 @@ async function linkByNonce(supabaseAdmin, nonce, from, chatId) {
 
   await supabaseAdmin
     .from('telegram_links')
-    .update({ chat_id: chatId, telegram_user_id: from.id, linked_at: new Date().toISOString() })
+    .update({ telegram_user_id: from.id, linked_at: new Date().toISOString() })
     .eq('nonce', nonce);
 
   return { status: 'linked' };
 }
 
 /**
- * Keep a already-linked player's chat_id and username fresh.
+ * Refresh an already-linked player on any interaction.
  *
- * Matching is by telegram_user_id (immutable). The chat_id fallback
- * exists only to backfill players who were linked before
- * telegram_user_id existed — it trusts a chat_id we already stored, so
- * it can't be used to hijack someone else's row the way the old
- * match-by-@username could.
+ * Matching is by telegram_user_id, which Telegram never changes — the
+ * old match-by-@username could hand one player's row to whoever claimed
+ * their freed username.
+ *
+ * Re-stamping telegram_linked_at is what brings someone back after they
+ * blocked the bot and then started it again.
  */
-async function refreshKnownPlayer(supabaseAdmin, from, chatId) {
-  const username = from.username ? from.username.toLowerCase() : null;
-
-  const { data: byUserId } = await supabaseAdmin
+async function refreshKnownPlayer(supabaseAdmin, from) {
+  const { data: player } = await supabaseAdmin
     .from('players')
     .select('id')
     .eq('telegram_user_id', from.id)
     .maybeSingle();
 
-  if (byUserId) {
-    await supabaseAdmin
-      .from('players')
-      .update({ telegram_chat_id: chatId, telegram_username: username })
-      .eq('id', byUserId.id);
-    return true;
-  }
+  if (!player) return false;
 
-  const { data: byChatId } = await supabaseAdmin
+  await supabaseAdmin
     .from('players')
-    .select('id')
-    .eq('telegram_chat_id', chatId)
-    .is('telegram_user_id', null)
-    .maybeSingle();
+    .update({
+      telegram_username: from.username ? from.username.toLowerCase() : null,
+      telegram_linked_at: new Date().toISOString(),
+    })
+    .eq('id', player.id);
 
-  if (byChatId) {
-    await supabaseAdmin
-      .from('players')
-      .update({ telegram_user_id: from.id, telegram_username: username })
-      .eq('id', byChatId.id);
-    return true;
-  }
-
-  return false;
+  return true;
 }
 
 export async function POST(request) {
@@ -201,6 +192,14 @@ export async function POST(request) {
     return Response.json({ ok: true }); // ignore other update types
   }
 
+  // Only private chats: we store from.id as both identity and send
+  // target, and those two are the same number ONLY in a private chat. In
+  // a group they diverge, and linking there would save a group id as a
+  // person.
+  if (message.chat.type !== 'private') {
+    return Response.json({ ok: true });
+  }
+
   const chatId = message.chat.id;
   const from = message.from;
   const firstName = escapeHtml(from.first_name || '');
@@ -211,7 +210,7 @@ export async function POST(request) {
     : null;
 
   if (startPayload) {
-    const { status } = await linkByNonce(supabaseAdmin, startPayload, from, chatId);
+    const { status } = await linkByNonce(supabaseAdmin, startPayload, from);
 
     const replies = {
       linked:
@@ -237,7 +236,7 @@ export async function POST(request) {
 
   // Any other interaction: keep a known player's link fresh, and give
   // an unknown chat a useful pointer instead of silence.
-  const known = await refreshKnownPlayer(supabaseAdmin, from, chatId);
+  const known = await refreshKnownPlayer(supabaseAdmin, from);
 
   if (message.text === '/start') {
     await trySendTelegramMessage(

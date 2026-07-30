@@ -34,11 +34,11 @@ export async function POST(request, { params }) {
   // actually enforced — it replaces the old 4-digit code as the gate.
   const { data: target } = await supabaseAdmin
     .from('players')
-    .select('telegram_chat_id')
+    .select('telegram_user_id, telegram_linked_at')
     .eq('id', playerId)
     .maybeSingle();
 
-  if (!target?.telegram_chat_id) {
+  if (!target?.telegram_user_id || !target?.telegram_linked_at) {
     return Response.json(
       { success: false, error: 'Гравець ще не підключив Telegram — підтвердити неможливо' },
       { status: 400 }
@@ -76,17 +76,17 @@ export async function POST(request, { params }) {
 
   // Push an immediate Telegram notification too (in addition to the
   // in-app popup on next login) — players get the good news right away.
-  if (player.telegram_chat_id) {
+  if (player.telegram_user_id) {
     // Non-fatal by design — the in-app popup still informs them, so a
     // Telegram failure must never block the approval itself.
     const { blocked } = await trySendTelegramMessage(
-      player.telegram_chat_id,
+      player.telegram_user_id,
       `✅ <b>Ваш рейтинг підтверджено!</b>\n\nСтартовий рейтинг Ело: <b>${escapeHtml(finalElo)}</b>\nКатегорія: <b>${escapeHtml(finalCategory)}</b>\n\nТепер ви можете брати участь у турнірах AMERICANKA!`
     );
 
     if (blocked) {
-      // The chat is unreachable for good — drop the stale link.
-      await supabaseAdmin.from('players').update({ telegram_chat_id: null }).eq('id', playerId);
+      // Unreachable — clear reachability but keep the identity.
+      await supabaseAdmin.from('players').update({ telegram_linked_at: null }).eq('id', playerId);
     }
   }
 
