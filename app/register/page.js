@@ -126,6 +126,15 @@ export default function AuthPage() {
     }
 
     setLoading(false);
+
+    // The server couldn't prepare the link, but the account is complete.
+    // Send them into the app, where the "Підключіть Telegram" banner
+    // hands out a fresh one.
+    if (!data.nonce) {
+      router.push('/?justRegistered=1');
+      return;
+    }
+
     setNonce(data.nonce);
     setLinkExpired(false);
     setStep(STEPS.CONNECT_TELEGRAM);

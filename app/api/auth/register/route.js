@@ -8,6 +8,14 @@ import { normalizeLogin, isValidLogin, emailForLogin } from '@/lib/authIdentity'
 const LINK_TTL_MS = 30 * 60 * 1000;
 
 export async function POST(request) {
+  // Tracked outside the try so the catch below can undo a half-finished
+  // registration. Without this, any unexpected throw after createUser
+  // left an Auth account with no profile — and since the login maps to
+  // exactly one address, that orphan permanently blocked the login with
+  // a misleading "не вдалося створити акаунт".
+  let supabaseAdmin = null;
+  let createdUserId = null;
+
   try {
     const {
       firstName,
@@ -30,7 +38,7 @@ export async function POST(request) {
       return Response.json({ success: false, error: 'Пароль має містити мінімум 4 символи' }, { status: 400 });
     }
 
-    const supabaseAdmin = createAdminClient();
+    supabaseAdmin = createAdminClient();
     const normalizedLogin = normalizeLogin(login);
 
     // The login is permanent: it's the only thing the Auth account
@@ -79,10 +87,26 @@ export async function POST(request) {
 
     if (authError) {
       console.error('[register] Auth user creation failed:', authError.message);
-      return Response.json({ success: false, error: 'Не вдалося створити акаунт' }, { status: 500 });
+
+      // The address is derived from the login, so "this email is taken"
+      // can only mean "this login is taken" — most often by an orphaned
+      // Auth user left behind by an earlier failed attempt. Say so
+      // instead of the generic message, which sent people hunting for a
+      // server problem that isn't there.
+      const emailTaken =
+        authError.code === 'email_exists' || /already been registered/i.test(authError.message || '');
+
+      return Response.json(
+        {
+          success: false,
+          error: emailTaken ? 'Цей логін вже зареєстрований' : 'Не вдалося створити акаунт',
+        },
+        { status: emailTaken ? 409 : 500 }
+      );
     }
 
-    const userId = authUser.user.id;
+    createdUserId = authUser.user.id;
+    const userId = createdUserId;
 
     // ── Upload the profile photo to Supabase Storage ──
     const photoUrl = await uploadProfilePhoto(supabaseAdmin, userId, photoDataUrl);
@@ -116,18 +140,30 @@ export async function POST(request) {
     });
 
     if (linkError) {
-      // The account exists and is usable, so don't roll back — but the
-      // player can't be approved until they link, so surface it.
+      // Non-fatal: the account is complete and usable. Report success
+      // without a nonce — the client signs in and the "Підключіть
+      // Telegram" banner on the home page offers a fresh link. Failing
+      // here used to strand the player on an account they had never
+      // signed into and could no longer register again.
       console.error('[register] Failed to create telegram link:', linkError.message);
-      return Response.json(
-        { success: false, error: 'Акаунт створено, але не вдалося підготувати підключення Telegram' },
-        { status: 500 }
-      );
+      return Response.json({ success: true, userId, nonce: null });
     }
 
     return Response.json({ success: true, userId, nonce });
   } catch (err) {
     console.error('[register] Unexpected error:', err.message);
+
+    if (createdUserId && supabaseAdmin) {
+      const { error: rollbackError } = await supabaseAdmin.auth.admin.deleteUser(createdUserId);
+      if (rollbackError) {
+        // Worth shouting about: the login is now unusable until someone
+        // deletes this account by hand in the Supabase dashboard.
+        console.error('[register] ROLLBACK FAILED, orphaned auth user:', createdUserId, rollbackError.message);
+      } else {
+        console.log('[register] Rolled back orphaned auth user:', createdUserId);
+      }
+    }
+
     return Response.json({ success: false, error: 'Помилка сервера' }, { status: 500 });
   }
 }
