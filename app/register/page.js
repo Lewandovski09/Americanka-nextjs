@@ -1,6 +1,6 @@
 'use client';
 
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
@@ -44,6 +44,7 @@ export default function AuthPage() {
   const [photoDataUrl, setPhotoDataUrl] = useState(null);
   const [nonce, setNonce] = useState('');
   const [linkExpired, setLinkExpired] = useState(false);
+  const finalizingRef = useRef(false);
 
   function updateField(key, value) {
     setForm((prev) => ({ ...prev, [key]: value }));
@@ -94,44 +95,20 @@ export default function AuthPage() {
       return setError('Логін: 3–32 символи, лише латиниця, цифри, точка, дефіс, підкреслення');
     if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
 
+    // Nothing is created yet — this only reserves the login and returns
+    // the nonce for the deep link. The account appears in step 3, after
+    // the bot confirms.
     setLoading(true);
-    const res = await fetch('/api/auth/register', {
+    const res = await fetch('/api/auth/register/reserve', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ ...form, photoDataUrl }),
+      body: JSON.stringify({ login: form.login }),
     });
     const data = await res.json();
-
-    if (!data.success) {
-      setLoading(false);
-      setError(data.error || 'Не вдалося зареєструватися');
-      return;
-    }
-
-    // Sign in immediately so the player is authenticated while they
-    // connect Telegram — that's what lets them request a fresh link if
-    // this one expires. If it fails the account still exists, so send
-    // them to the login tab rather than to a connect screen that would
-    // 401 the moment they touch it.
-    const { error: signInError } = await supabase.auth.signInWithPassword({
-      email: emailForLogin(form.login),
-      password: form.password,
-    });
-
-    if (signInError) {
-      setLoading(false);
-      setError('Акаунт створено, але не вдалося увійти. Увійдіть за своїм логіном і паролем.');
-      setTab('login');
-      return;
-    }
-
     setLoading(false);
 
-    // The server couldn't prepare the link, but the account is complete.
-    // Send them into the app, where the "Підключіть Telegram" banner
-    // hands out a fresh one.
-    if (!data.nonce) {
-      router.push('/?justRegistered=1');
+    if (!data.success) {
+      setError(data.error || 'Не вдалося почати реєстрацію');
       return;
     }
 
@@ -140,11 +117,49 @@ export default function AuthPage() {
     setStep(STEPS.CONNECT_TELEGRAM);
   }
 
-  // Step 2: wait for the bot to report the link. Telegram can't push
-  // this into the browser, and the user has to switch apps anyway, so a
-  // short poll is the honest mechanism here.
+  // Step 3: create the account. Runs once the bot has confirmed, and
+  // carries the password and photo — the only moment they leave the
+  // browser.
+  async function finalizeRegistration(confirmedNonce) {
+    const res = await fetch('/api/auth/register', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ ...form, nonce: confirmedNonce, photoDataUrl }),
+    });
+    const data = await res.json();
+
+    if (!data.success) {
+      setError(data.error || 'Не вдалося завершити реєстрацію');
+      setStep(STEPS.FORM);
+      finalizingRef.current = false;
+      return;
+    }
+
+    const { error: signInError } = await supabase.auth.signInWithPassword({
+      email: emailForLogin(form.login),
+      password: form.password,
+    });
+
+    if (signInError) {
+      setError('Акаунт створено, але не вдалося увійти. Увійдіть за своїм логіном і паролем.');
+      setTab('login');
+      setStep(STEPS.FORM);
+      return;
+    }
+
+    router.push('/?justRegistered=1');
+  }
+
+  // Step 2: wait for the bot. Telegram can't push this into the browser,
+  // and the user has to switch apps anyway, so a short poll is the
+  // honest mechanism here.
   useEffect(() => {
     if (step !== STEPS.CONNECT_TELEGRAM || !nonce) return;
+
+    // A new nonce means a new attempt, so the guard has to start clean —
+    // otherwise a failed finalize would leave it stuck and the retry
+    // would never fire.
+    finalizingRef.current = false;
 
     let cancelled = false;
 
@@ -156,7 +171,12 @@ export default function AuthPage() {
 
         if (data.linked) {
           clearInterval(timer);
-          router.push('/?justRegistered=1');
+          // The interval can fire again while the request is in flight;
+          // creating the account twice would fail the second time with a
+          // confusing "login already registered".
+          if (finalizingRef.current) return;
+          finalizingRef.current = true;
+          finalizeRegistration(nonce);
         } else if (data.expired) {
           clearInterval(timer);
           setLinkExpired(true);
@@ -172,10 +192,16 @@ export default function AuthPage() {
     };
   }, [step, nonce, router]);
 
+  // No account exists yet at this point, so a fresh link means a fresh
+  // reservation — not /api/telegram/link/new, which needs a session.
   async function handleNewLink() {
     setError('');
     setLoading(true);
-    const res = await fetch('/api/telegram/link/new', { method: 'POST' });
+    const res = await fetch('/api/auth/register/reserve', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ login: form.login }),
+    });
     const data = await res.json();
     setLoading(false);
 
@@ -409,7 +435,8 @@ function ConnectTelegramStep({ nonce, expired, error, loading, onNewLink }) {
         <div className={styles.verifyIcon}>📱</div>
         <div className={styles.verifyTitle}>ПІДКЛЮЧІТЬ TELEGRAM</div>
         <div className={styles.verifyDesc}>
-          Акаунт створено! Залишився один крок: відкрийте бота і натисніть <b>&quot;START&quot;</b>.
+          Залишився один крок: відкрийте бота і натисніть <b>&quot;START&quot;</b>. Акаунт буде
+          створено одразу після цього.
           <br />
           Вводити нічого не потрібно.
         </div>
@@ -429,8 +456,8 @@ function ConnectTelegramStep({ nonce, expired, error, loading, onNewLink }) {
           </a>
           <div className={styles.okMsg}>Чекаємо підтвердження з Telegram…</div>
           <div className={styles.fieldHint}>
-            Щойно ви натиснете START у боті, ця сторінка сама пустить вас далі. Якщо закриєте
-            сторінку — нічого не втрачено, просто увійдіть за своїм логіном.
+            Щойно ви натиснете START, поверніться сюди — реєстрація завершиться сама.{' '}
+            <b>Не закривайте цю сторінку</b>: акаунт створюється саме тут, після підтвердження.
           </div>
         </>
       )}

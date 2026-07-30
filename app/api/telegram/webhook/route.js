@@ -95,8 +95,58 @@ async function handleMembershipChange(supabaseAdmin, membership) {
 }
 
 /**
- * Consume a one-time nonce and attach this Telegram account to the
- * player who started registration in the browser.
+ * Confirm a registration that hasn't created an account yet.
+ *
+ * Returns null when the nonce isn't a pending registration, so the
+ * caller can fall through to the re-link flow below.
+ */
+async function confirmPendingRegistration(supabaseAdmin, nonce, from) {
+  const { data: pending, error } = await supabaseAdmin
+    .from('pending_registrations')
+    .select('nonce, expires_at, confirmed_at')
+    .eq('nonce', nonce)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[Telegram webhook] Pending lookup failed:', error.message);
+    return { status: 'error' };
+  }
+
+  if (!pending) return null;
+  if (pending.confirmed_at) return { status: 'already_pending' };
+  if (new Date(pending.expires_at) < new Date()) return { status: 'expired' };
+
+  // Refuse if this Telegram account already belongs to a player — the
+  // unique constraint would catch it at the end anyway, but only after
+  // the person filled everything in.
+  const { data: taken } = await supabaseAdmin
+    .from('players')
+    .select('id')
+    .eq('telegram_user_id', from.id)
+    .limit(1);
+
+  if (taken && taken.length > 0) return { status: 'taken' };
+
+  const { error: updateError } = await supabaseAdmin
+    .from('pending_registrations')
+    .update({
+      telegram_user_id: from.id,
+      telegram_username: from.username ? from.username.toLowerCase() : null,
+      confirmed_at: new Date().toISOString(),
+    })
+    .eq('nonce', nonce);
+
+  if (updateError) {
+    console.error('[Telegram webhook] Failed to confirm registration:', updateError.message);
+    return { status: 'error' };
+  }
+
+  return { status: 'confirmed' };
+}
+
+/**
+ * Consume a one-time nonce and attach this Telegram account to a player
+ * who ALREADY has an account (expired link, or they blocked the bot).
  */
 async function linkByNonce(supabaseAdmin, nonce, from) {
   const { data: link, error } = await supabaseAdmin
@@ -210,16 +260,25 @@ export async function POST(request) {
     : null;
 
   if (startPayload) {
-    const { status } = await linkByNonce(supabaseAdmin, startPayload, from);
+    // A nonce is either a registration waiting to be confirmed, or a
+    // re-link for an account that already exists.
+    const pendingResult = await confirmPendingRegistration(supabaseAdmin, startPayload, from);
+    const { status } = pendingResult ?? (await linkByNonce(supabaseAdmin, startPayload, from));
 
     const replies = {
+      confirmed:
+        `★ <b>Готово, ${firstName}!</b> ★\n\n` +
+        'Telegram підтверджено. Поверніться у застосунок — реєстрація завершиться сама, ' +
+        'і заявка піде адміну.',
+      already_pending:
+        'Цей Telegram уже підтверджено ✅ Поверніться у застосунок, щоб завершити реєстрацію.',
       linked:
         `★ <b>Готово, ${firstName}!</b> ★\n\n` +
         'Ваш Telegram підключено. Заявку відправлено адміну — щойно він підтвердить ваш рейтинг, ' +
         'повідомлення прийде сюди.\n\nМожна повертатися у застосунок.',
       already: 'Цей Telegram уже підключено ✅ Можна повертатися у застосунок.',
       expired:
-        'Посилання застаріло ⏳\n\nВідкрийте застосунок і натисніть «Підключити Telegram» ще раз — ' +
+        'Посилання застаріло ⏳\n\nВідкрийте застосунок і почніть реєстрацію ще раз — ' +
         'зʼявиться нове посилання.',
       not_found:
         'Не вдалося розпізнати посилання 🤔\n\nВідкрийте застосунок і натисніть ' +
