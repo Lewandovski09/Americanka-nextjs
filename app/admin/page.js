@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect, useState } from 'react';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { getFormat } from '@/lib/formats';
 import { CATEGORY_STARTING_ELO } from '@/lib/elo';
@@ -10,6 +11,12 @@ import styles from './admin.module.css';
 const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
 
 export default function AdminPage() {
+  const router = useRouter();
+  // Per-player action errors. Approving and rejecting used to ignore the
+  // server response entirely, so a refusal (no Telegram linked, foreign
+  // key blocking a delete) looked exactly like nothing happening.
+  const [actionError, setActionError] = useState({});
+  const [busyPlayer, setBusyPlayer] = useState(null);
   const [pending, setPending] = useState([]);
   const [males, setMales] = useState([]);
   const [females, setFemales] = useState([]);
@@ -94,38 +101,68 @@ export default function AdminPage() {
     load();
   }, []);
 
+  function setPlayerError(playerId, message) {
+    setActionError((prev) => ({ ...prev, [playerId]: message }));
+  }
+
+  // Every admin action goes through here so a failure is always shown
+  // instead of being swallowed.
+  async function runPlayerAction(playerId, url, options) {
+    setPlayerError(playerId, '');
+    setBusyPlayer(playerId);
+
+    try {
+      const res = await fetch(url, options);
+      const data = await res.json().catch(() => ({}));
+
+      if (!data.success) {
+        setPlayerError(playerId, data.error || `Помилка сервера (${res.status})`);
+        return false;
+      }
+
+      await load();
+      return true;
+    } catch (err) {
+      setPlayerError(playerId, `Немає звʼязку з сервером: ${err.message}`);
+      return false;
+    } finally {
+      setBusyPlayer(null);
+    }
+  }
+
   async function handleApprove(playerId) {
     const category = selectedCategory[playerId];
     if (!category) {
-      alert('Спочатку оберіть категорію рейтингу для цього гравця');
+      setPlayerError(playerId, 'Спочатку оберіть категорію рейтингу');
       return;
     }
-    const elo = CATEGORY_STARTING_ELO[category];
 
-    await fetch(`/api/admin/players/${playerId}/approve`, {
+    await runPlayerAction(playerId, `/api/admin/players/${playerId}/approve`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ elo, category }),
+      body: JSON.stringify({ elo: CATEGORY_STARTING_ELO[category], category }),
     });
-    load();
   }
 
-  async function handleReject(playerId) {
-    if (!confirm('Відхилити та видалити?')) return;
-    await fetch(`/api/admin/players/${playerId}/reject`, { method: 'POST' });
-    load();
+  async function handleReject(playerId, playerName) {
+    if (!confirm(`Відхилити заявку і повністю видалити ${playerName}? Це незворотно.`)) return;
+    await runPlayerAction(playerId, `/api/admin/players/${playerId}/reject`, { method: 'POST' });
   }
 
   async function handleEditCategory(playerId) {
     const newCategory = prompt('Нова категорія (D, C, B або A):');
     if (!newCategory || !CATEGORY_LETTERS.includes(newCategory.toUpperCase())) return;
     const elo = CATEGORY_STARTING_ELO[newCategory.toUpperCase()];
-    await fetch(`/api/admin/players/${playerId}/edit-elo`, {
+
+    await runPlayerAction(playerId, `/api/admin/players/${playerId}/edit-elo`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ elo }),
     });
-    load();
+  }
+
+  function openPlayer(playerId) {
+    router.push(`/players/${playerId}`);
   }
 
   async function handleSendNotification() {
@@ -221,7 +258,15 @@ export default function AdminPage() {
       {showMaleList && (
         <div className={styles.quickList}>
           {males.map((p) => (
-            <div key={p.id} className={styles.quickListRow}>
+            <div
+              key={p.id}
+              className={styles.quickListRow}
+              style={{ cursor: 'pointer' }}
+              role="link"
+              tabIndex={0}
+              onClick={() => openPlayer(p.id)}
+              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+            >
               <PlayerAvatar player={p} size={26} />
               <span>{p.full_name}</span>
               <span className={styles.quickListElo}>{p.elo}</span>
@@ -233,7 +278,15 @@ export default function AdminPage() {
       {showFemaleList && (
         <div className={styles.quickList}>
           {females.map((p) => (
-            <div key={p.id} className={styles.quickListRow}>
+            <div
+              key={p.id}
+              className={styles.quickListRow}
+              style={{ cursor: 'pointer' }}
+              role="link"
+              tabIndex={0}
+              onClick={() => openPlayer(p.id)}
+              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+            >
               <PlayerAvatar player={p} size={26} />
               <span>{p.full_name}</span>
               <span className={styles.quickListElo}>{p.elo}</span>
@@ -270,7 +323,14 @@ export default function AdminPage() {
 
       {pending.map((p) => (
         <div key={p.id} className={styles.pendingCard}>
-          <div className={styles.pendingHeader}>
+          <div
+            className={styles.pendingHeader}
+            style={{ cursor: 'pointer' }}
+            role="link"
+            tabIndex={0}
+            onClick={() => openPlayer(p.id)}
+            onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+          >
             <PlayerAvatar player={p} size={36} />
             <div>
               <div className={styles.pendingName}>{p.full_name}</div>
@@ -297,44 +357,82 @@ export default function AdminPage() {
           <div className={styles.actionRow}>
             <button
               className={styles.approveBtn}
-              disabled={!selectedCategory[p.id]}
+              disabled={!selectedCategory[p.id] || busyPlayer === p.id}
               onClick={() => handleApprove(p.id)}
             >
-              Підтвердити
+              {busyPlayer === p.id ? 'Зачекайте…' : 'Підтвердити'}
             </button>
-            <button className={styles.rejectBtn} onClick={() => handleReject(p.id)}>
+            <button
+              className={styles.rejectBtn}
+              disabled={busyPlayer === p.id}
+              onClick={() => handleReject(p.id, p.full_name)}
+            >
               Відхилити
             </button>
           </div>
+
+          {actionError[p.id] && <div className={styles.actionError}>{actionError[p.id]}</div>}
         </div>
       ))}
 
       <div className={styles.sectionLabel}>Гравці · Чоловіки</div>
       {males.map((p) => (
-        <PlayerRow key={p.id} player={p} onEditCategory={() => handleEditCategory(p.id)} />
+        <PlayerRow
+          key={p.id}
+          player={p}
+          error={actionError[p.id]}
+          onOpen={() => openPlayer(p.id)}
+          onEditCategory={() => handleEditCategory(p.id)}
+        />
       ))}
 
       <div className={styles.sectionLabel}>Гравці · Жінки</div>
       {females.map((p) => (
-        <PlayerRow key={p.id} player={p} onEditCategory={() => handleEditCategory(p.id)} />
+        <PlayerRow
+          key={p.id}
+          player={p}
+          error={actionError[p.id]}
+          onOpen={() => openPlayer(p.id)}
+          onEditCategory={() => handleEditCategory(p.id)}
+        />
       ))}
     </div>
   );
 }
 
-function PlayerRow({ player, onEditCategory }) {
+function PlayerRow({ player, error, onOpen, onEditCategory }) {
   return (
-    <div className={styles.playerRow}>
-      <PlayerAvatar player={player} size={32} />
-      <div className={styles.playerInfo}>
-        <div className={styles.playerName}>{player.full_name}</div>
-        <div className={styles.playerMeta}>
-          @{player.login} · {player.elo ?? '—'} Ело · Кат. {player.category ?? '—'}
+    <>
+      <div className={styles.playerRow}>
+        {/* The row opens the player's page; the button inside must not,
+            hence stopPropagation on it. */}
+        <div
+          className={styles.playerRowMain}
+          style={{ display: 'flex', alignItems: 'center', gap: 10, flex: 1, cursor: 'pointer' }}
+          role="link"
+          tabIndex={0}
+          onClick={onOpen}
+          onKeyDown={(e) => e.key === 'Enter' && onOpen()}
+        >
+          <PlayerAvatar player={player} size={32} />
+          <div className={styles.playerInfo}>
+            <div className={styles.playerName}>{player.full_name}</div>
+            <div className={styles.playerMeta}>
+              @{player.login} · {player.elo ?? '—'} Ело · Кат. {player.category ?? '—'}
+            </div>
+          </div>
         </div>
+        <button
+          className={styles.editEloBtn}
+          onClick={(e) => {
+            e.stopPropagation();
+            onEditCategory();
+          }}
+        >
+          Змінити категорію
+        </button>
       </div>
-      <button className={styles.editEloBtn} onClick={onEditCategory}>
-        Змінити категорію
-      </button>
-    </div>
+      {error && <div className={styles.actionError}>{error}</div>}
+    </>
   );
 }

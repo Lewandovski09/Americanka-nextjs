@@ -324,3 +324,16 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* Shown when an admin action is refused — previously these failures were
+   swallowed and the button just looked broken. */
+.actionError {
+  margin-top: 8px;
+  padding: 8px 10px;
+  border-radius: 8px;
+  background: rgba(200, 60, 40, 0.1);
+  border: 1px solid rgba(200, 60, 40, 0.35);
+  color: #b3341f;
+  font-size: 12.5px;
+  line-height: 1.4;
+}
