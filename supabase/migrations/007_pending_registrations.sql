@@ -1,14 +1,15 @@
 -- ============================================================
 -- AMERICANKA — registration is finished by Telegram, not before it
 -- ============================================================
+
 -- Previously the account was created first and Telegram was linked
 -- afterwards. Now nothing exists until the player presses START in the
 -- bot: this table holds the reservation in between.
---
+
 -- Deliberately absent: password and photo. They stay in the browser and
 -- reach the server only on the final call that creates the account, so
 -- a plaintext password is never written anywhere.
---
+
 -- `login` is unique here as well as in players — that's what stops two
 -- people from reserving the same login while both are in the bot.
 

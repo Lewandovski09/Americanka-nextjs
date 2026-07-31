@@ -76,12 +76,45 @@ export async function POST(request, { params }) {
     }
   }
 
-  // Mark the application withdrawn (keep the row for history).
-  await supabaseAdmin
+  // Keep the application in step with the team. One person = one
+  // application per event, so the row this player belongs to is either
+  // their own or the one a partner filed naming them — and it is either
+  // withdrawn or handed over to whoever stays on.
+  const { data: appRows } = await supabaseAdmin
     .from('tournament_applications')
-    .update({ status: 'withdrawn', assigned_tournament_id: null })
+    .select('id, player_id, partner_id')
     .eq('event_id', eventId)
-    .eq('player_id', playerId);
+    .or(`player_id.eq.${playerId},partner_id.eq.${playerId}`);
+
+  const withdraw = (id) =>
+    supabaseAdmin
+      .from('tournament_applications')
+      .update({ status: 'withdrawn', assigned_tournament_id: null })
+      .eq('id', id);
+
+  for (const row of appRows || []) {
+    if (row.player_id !== playerId) {
+      // The named partner leaves: alone — the applicant stays on and is
+      // now looking for someone; together — the application is gone.
+      if (withPartner) await withdraw(row.id);
+      else
+        await supabaseAdmin
+          .from('tournament_applications')
+          .update({ partner_id: null, seeking_partner: true })
+          .eq('id', row.id);
+    } else if (!withPartner && row.partner_id) {
+      // The applicant leaves alone — the partner inherits the row, just
+      // as they inherit the team. A leftover row of their own (legacy
+      // data) would collide, so fall back to a plain withdrawal.
+      const { error } = await supabaseAdmin
+        .from('tournament_applications')
+        .update({ player_id: row.partner_id, partner_id: null, seeking_partner: true })
+        .eq('id', row.id);
+      if (error) await withdraw(row.id);
+    } else {
+      await withdraw(row.id);
+    }
+  }
 
   return Response.json({ success: true });
 }

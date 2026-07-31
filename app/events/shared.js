@@ -80,10 +80,10 @@ export function useEventData(id) {
       .from('tournaments')
       .select(
         `id, category_label, gender, status, max_participants, bracket_system, elo_min, elo_max, points_to_win,
-         tournament_players(player_id, slot_index, created_at, players(full_name, photo_url)),
+         tournament_players(player_id, slot_index, created_at, players(full_name, photo_url, gender)),
          tournament_teams(id, player1_id, player2_id, slot_index, created_at,
-           p1:players!tournament_teams_player1_id_fkey(full_name),
-           p2:players!tournament_teams_player2_id_fkey(full_name)),
+           p1:players!tournament_teams_player1_id_fkey(full_name, gender),
+           p2:players!tournament_teams_player2_id_fkey(full_name, gender)),
          matches(*)`
       )
       .eq('event_id', id)
@@ -96,7 +96,7 @@ export function useEventData(id) {
       .select(
         `id, player_id, partner_id, seeking_partner, requested_category, status, assigned_tournament_id,
          applicant:players!tournament_applications_player_id_fkey(full_name, photo_url, elo, gender),
-         partner:players!tournament_applications_partner_id_fkey(full_name, elo)`
+         partner:players!tournament_applications_partner_id_fkey(full_name, elo, gender)`
       )
       .eq('event_id', id)
       .order('created_at', { ascending: true });
@@ -167,6 +167,56 @@ export function DeleteEventButton({ event, busy, post }) {
     >
       Видалити турнір
     </button>
+  );
+}
+
+// ── Заявки as a two-column table ────────────────────────────────
+// A pair is read as two columns. In mix the man is always the left
+// column and the woman the right one, no matter who of the two filed
+// the application; same-gender pairs keep their registered order.
+// Every name carries its own ♂/♀ badge.
+
+export function isMixFormat(format) {
+  return format?.registrationType === 'mix_pair';
+}
+
+export function GenderMark({ gender }) {
+  if (gender !== 'M' && gender !== 'F') return null;
+  return (
+    <span className={`${styles.genderMark} ${gender === 'M' ? styles.genderM : styles.genderF}`}>
+      {gender === 'M' ? '♂' : '♀'}
+    </span>
+  );
+}
+
+// Half of a pair: { name, gender }, or null for the missing half.
+function PersonCell({ person, empty }) {
+  if (!person) return <span className={`${styles.pairCell} ${styles.pairCellEmpty}`}>{empty}</span>;
+  return (
+    <span className={styles.pairCell}>
+      <GenderMark gender={person.gender} />
+      <span className={styles.pairName}>{person.name}</span>
+    </span>
+  );
+}
+
+// Left column first. Only mix reorders — in a same-gender pair there is
+// nothing to sort by, and a lone player must stay in the first column.
+export function orderPair(a, b, mix) {
+  if (!mix) return [a, b];
+  if (a && b) return a.gender === 'F' && b.gender === 'M' ? [b, a] : [a, b];
+  const one = a || b;
+  return one?.gender === 'F' ? [null, one] : [one, null];
+}
+
+export function PairRow({ a, b, mix, empty = 'шукає напарника', children }) {
+  const [left, right] = orderPair(a, b, mix);
+  return (
+    <div className={styles.pairRow}>
+      <PersonCell person={left} empty={empty} />
+      <PersonCell person={right} empty={empty} />
+      {children ? <div className={styles.pairControls}>{children}</div> : <span />}
+    </div>
   );
 }
 
@@ -275,6 +325,7 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
       {matches.length === 0 ? (
         <RegisteredList
           isPair={isPair}
+          mix={isMixFormat(format)}
           teams={teams}
           solos={solos}
           admin={isAdmin && notStarted}
@@ -566,7 +617,7 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
   );
 }
 
-function RegisteredList({ isPair, teams, solos, admin, currentCategory, allCategories, busy, onMove, onRemove }) {
+function RegisteredList({ isPair, mix, teams, solos, admin, currentCategory, allCategories, busy, onMove, onRemove }) {
   const catTag = (c) => `${c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}${c.label || c.category_label}`;
 
   function AdminControls({ member }) {
@@ -611,16 +662,20 @@ function RegisteredList({ isPair, teams, solos, admin, currentCategory, allCateg
   if (isPair) {
     if (teams.length === 0) return <div className={styles.empty}>Ще немає заявок</div>;
     return (
-      <div>
+      <div className={styles.pairList}>
         {teams.map((t) => (
-          <div key={t.id} className={styles.regRow}>
-            <span className={styles.regNames}>
-              {t.p1?.full_name?.split(' ')[0] || t.player1_id?.slice(0, 6)}
-              <span className={styles.regVs}> + </span>
-              {t.player2_id ? t.p2?.full_name?.split(' ')[0] || t.player2_id.slice(0, 6) : 'шукає напарника'}
-            </span>
+          <PairRow
+            key={t.id}
+            mix={mix}
+            a={{ name: t.p1?.full_name || t.player1_id?.slice(0, 6), gender: t.p1?.gender }}
+            b={
+              t.player2_id
+                ? { name: t.p2?.full_name || t.player2_id.slice(0, 6), gender: t.p2?.gender }
+                : null
+            }
+          >
             <AdminControls member={{ teamId: t.id }} />
-          </div>
+          </PairRow>
         ))}
       </div>
     );
@@ -632,6 +687,7 @@ function RegisteredList({ isPair, teams, solos, admin, currentCategory, allCateg
       {solos.map((tp) => (
         <div key={tp.player_id} className={styles.regRow}>
           <span className={styles.regNames}>
+            <GenderMark gender={tp.players?.gender} />
             <PlayerAvatar player={tp.players} size={24} />
             {tp.players?.full_name || '—'}
           </span>

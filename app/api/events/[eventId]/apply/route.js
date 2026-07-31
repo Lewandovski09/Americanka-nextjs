@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
+import { eventParticipantIds } from '@/lib/server/registration';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -54,6 +55,18 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Ви вже подали заявку на цю подію' }, { status: 400 });
   }
 
+  // One person = one application per event. Besides their own row that
+  // also covers being named as somebody's partner, or having been
+  // entered by an admin by hand — in both cases there is no row of their
+  // own to find above.
+  const taken = await eventParticipantIds(supabaseAdmin, eventId);
+  if (taken.has(playerId)) {
+    return Response.json(
+      { success: false, error: 'Вас вже заявлено на цю подію — знайдіть свою заявку нижче' },
+      { status: 400 }
+    );
+  }
+
   // Resolve partner (pair formats)
   let partner = null;
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
@@ -68,6 +81,9 @@ export async function POST(request, { params }) {
     }
     if (p.id === playerId) {
       return Response.json({ success: false, error: 'Не можна бути напарником самому собі' }, { status: 400 });
+    }
+    if (taken.has(p.id)) {
+      return Response.json({ success: false, error: 'Напарник вже заявлений на цю подію' }, { status: 400 });
     }
     partner = p;
   }

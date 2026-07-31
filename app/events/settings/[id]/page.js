@@ -23,10 +23,13 @@ import {
   CategoryPanel,
   StartEventButton,
   DeleteEventButton,
+  PairRow,
+  isMixFormat,
 } from '../../shared';
 import SeedingTab from '../../SeedingTab';
 import JudgesTab from '../../JudgesTab';
 import EventConfigForm from './EventConfigForm';
+import ManualEntry from './ManualEntry';
 import styles from '../../event.module.css';
 
 const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
@@ -63,6 +66,21 @@ export default function EventSettingsPage({ params }) {
 
   const pending = applications.filter((a) => a.status === 'pending');
   const reserve = applications.filter((a) => a.status === 'reserve');
+
+  // Everyone this event already holds — a live application (their own or
+  // as somebody's partner) or a place in any league. Manual entry offers
+  // only the rest; the server checks the same thing.
+  const takenIds = [
+    ...new Set([
+      ...applications
+        .filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected')
+        .flatMap((a) => [a.player_id, a.partner_id]),
+      ...categories.flatMap((c) => [
+        ...(c.tournament_players || []).map((tp) => tp.player_id),
+        ...(c.tournament_teams || []).flatMap((t) => [t.player1_id, t.player2_id]),
+      ]),
+    ]),
+  ].filter(Boolean);
 
   // Free slots per league — drives the queue dropdown and the reserve
   // hint (over-capacity applicants go to the reserve, not the roster).
@@ -174,6 +192,8 @@ export default function EventSettingsPage({ params }) {
             pending={pending}
             reserve={reserve}
             catStats={catStats}
+            isPair={isPair}
+            mix={isMixFormat(format)}
             busy={busy}
             onAssign={(appId, categoryId, asReserve) =>
               post(`/api/admin/applications/${appId}/assign`, { categoryId, asReserve })
@@ -202,6 +222,16 @@ export default function EventSettingsPage({ params }) {
                 }
                 onRemove={(ref) => post('/api/admin/members/remove', { categoryId: activeCat.id, ...ref })}
               />
+              {/* Sign people up by hand, straight into the open league. */}
+              <ManualEntry
+                key={activeCat.id}
+                category={activeCat}
+                isPair={isPair}
+                mix={isMixFormat(format)}
+                takenIds={takenIds}
+                busy={busy}
+                post={post}
+              />
               {/* One start for the whole event — every league at once. */}
               <StartEventButton
                 event={event}
@@ -224,7 +254,11 @@ export default function EventSettingsPage({ params }) {
 // league so the admin can distribute by hand. Over-capacity applicants
 // can be parked in a league's reserve and promoted later. Reserve rows
 // can be moved into the roster once a slot frees up.
-function AdminQueue({ pending, reserve, catStats, busy, onAssign, onReject }) {
+//
+// Pair applications are laid out as a table — one column per half of the
+// pair (in mix: the man left, the woman right) — so a long queue can be
+// read down a column instead of untangling «А + Б» strings.
+function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, onReject }) {
   const [choice, setChoice] = useState({});
 
   function catOption(cs) {
@@ -244,14 +278,22 @@ function AdminQueue({ pending, reserve, catStats, busy, onAssign, onReject }) {
     ]
       .filter(Boolean)
       .join(' · ');
+    const applicant = {
+      name: a.applicant?.full_name || a.player_id.slice(0, 8),
+      gender: a.applicant?.gender,
+    };
     return (
       <div className={styles.appRow}>
-        <div className={styles.appName}>
-          {a.applicant?.full_name || a.player_id.slice(0, 8)}
-          {a.partner?.full_name && ` + ${a.partner.full_name.split(' ')[0]}`}
-          {a.seeking_partner && ' (шукає напарника)'}
-          {pref && <div className={styles.appPref}>{pref}</div>}
-        </div>
+        {/* Two name columns; what the applicant asked for rides in the
+            third one, to the right of them. */}
+        <PairRow
+          mix={mix}
+          a={applicant}
+          b={isPair && a.partner?.full_name ? { name: a.partner.full_name, gender: a.partner.gender } : null}
+          empty={isPair ? (a.seeking_partner ? 'шукає напарника' : '—') : ''}
+        >
+          {pref ? <span className={styles.appPref}>{pref}</span> : null}
+        </PairRow>
         <div className={styles.row}>
           <select
             className={styles.select}

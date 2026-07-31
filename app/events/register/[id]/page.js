@@ -9,6 +9,8 @@ import { useState } from 'react';
 import Link from 'next/link';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
+import PlayerAvatar from '@/components/PlayerAvatar';
+import PlayerPicker from '@/components/PlayerPicker';
 import { LOCATION_LABEL, useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
 import styles from '../../event.module.css';
 
@@ -53,9 +55,30 @@ export default function EventRegisterPage({ params }) {
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const regClosed = event.registration_open === false;
 
+  // One application per person — mine is the one I filed OR the one a
+  // partner filed naming me, so the second half of a pair sees their
+  // status instead of a form that would be refused anyway.
   const myApp = applications.find(
-    (a) => a.player_id === player?.id && a.status !== 'withdrawn' && a.status !== 'rejected'
+    (a) =>
+      (a.player_id === player?.id || a.partner_id === player?.id) &&
+      a.status !== 'withdrawn' &&
+      a.status !== 'rejected'
   );
+
+  // Everyone the event already holds — they cannot be picked as a
+  // partner (the server refuses it too), so keep them out of the search.
+  const takenIds = [
+    ...new Set([
+      ...applications
+        .filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected')
+        .flatMap((a) => [a.player_id, a.partner_id]),
+      ...categories.flatMap((c) => [
+        ...(c.tournament_players || []).map((tp) => tp.player_id),
+        ...(c.tournament_teams || []).flatMap((t) => [t.player1_id, t.player2_id]),
+      ]),
+      player?.id,
+    ]),
+  ].filter(Boolean);
 
   return (
     <div className={styles.page}>
@@ -82,6 +105,8 @@ export default function EventRegisterPage({ params }) {
       {player && player.approval_status === 'approved' && (
         <MyRegistration
           isPair={isPair}
+          me={player}
+          takenIds={takenIds}
           categories={categories}
           myApp={myApp}
           regClosed={regClosed}
@@ -103,36 +128,27 @@ export default function EventRegisterPage({ params }) {
   );
 }
 
-function MyRegistration({ isPair, categories, myApp, regClosed, busy, onApply, onWithdraw }) {
-  const [partnerLogin, setPartnerLogin] = useState('');
+function MyRegistration({ isPair, me, takenIds = [], categories, myApp, regClosed, busy, onApply, onWithdraw }) {
   const [partner, setPartner] = useState(null);
   const [seeking, setSeeking] = useState(false);
   const [catId, setCatId] = useState(categories[0]?.id || '');
-  const [msg, setMsg] = useState('');
-
-  async function findPartner() {
-    setMsg('');
-    const res = await fetch('/api/players/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: partnerLogin }),
-    });
-    const data = await res.json();
-    if (!data.success) return setMsg(data.error);
-    setPartner(data.player);
-  }
 
   if (myApp) {
     const inTeam = myApp.status === 'assigned';
     const inReserve = myApp.status === 'reserve';
+    // The application may have been filed by the partner — then the other
+    // half of the pair is the applicant, not the `partner` column.
+    const filedByPartner = myApp.player_id !== me?.id;
+    const otherName = filedByPartner ? myApp.applicant?.full_name : myApp.partner?.full_name;
     return (
       <div className={styles.myBox}>
         <div className={styles.myStatus}>
           {inTeam ? '✅ Ви зареєстровані' : inReserve ? '🟡 Ви у резерві' : '🕓 Заявку подано, очікує розподілу'}
-          {myApp.partner?.full_name && ` · напарник: ${myApp.partner.full_name.split(' ')[0]}`}
-          {myApp.seeking_partner && ' · шукаєте напарника'}
+          {otherName && ` · напарник: ${otherName}`}
+          {filedByPartner && ' (заявку подав напарник)'}
+          {myApp.seeking_partner && !filedByPartner && ' · шукаєте напарника'}
         </div>
-        {isPair && myApp.partner_id ? (
+        {isPair && otherName ? (
           <div className={styles.row}>
             <button className={styles.btnGhost} disabled={busy} onClick={() => onWithdraw(false)}>
               Знятися (я один)
@@ -181,21 +197,28 @@ function MyRegistration({ isPair, categories, myApp, regClosed, busy, onApply, o
             <input type="checkbox" checked={seeking} onChange={(e) => setSeeking(e.target.checked)} />
             <span>Шукаю напарника (запишусь один)</span>
           </label>
-          {!seeking && (
-            <div className={styles.row}>
-              <input
-                className={styles.select}
-                placeholder="Логін напарника"
-                value={partnerLogin}
-                onChange={(e) => setPartnerLogin(e.target.value)}
+          {!seeking &&
+            (partner ? (
+              <div className={styles.regRow}>
+                <span className={styles.regNames}>
+                  <PlayerAvatar player={partner} size={24} />
+                  {partner.full_name}
+                </span>
+                <button
+                  className={styles.miniRemove}
+                  title="Вибрати іншого"
+                  onClick={() => setPartner(null)}
+                >
+                  ✕
+                </button>
+              </div>
+            ) : (
+              <PlayerPicker
+                placeholder="Напарник: ім’я, прізвище або нік…"
+                excludeIds={takenIds}
+                onPick={setPartner}
               />
-              <button className={styles.btnGhost} onClick={findPartner} type="button">
-                Знайти
-              </button>
-            </div>
-          )}
-          {partner && !seeking && <div className={styles.myStatus}>Напарник: {partner.full_name}</div>}
-          {msg && <div className={styles.errMsg}>{msg}</div>}
+            ))}
         </div>
       )}
 

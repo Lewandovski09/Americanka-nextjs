@@ -55,6 +55,21 @@
   cursor: default;
 }
 
+.gender {
+  flex-shrink: 0;
+  width: 10px;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.genderM {
+  color: var(--accent-blue);
+}
+
+.genderF {
+  color: var(--accent-pink);
+}
+
 .name {
   flex: 1;
   overflow: hidden;

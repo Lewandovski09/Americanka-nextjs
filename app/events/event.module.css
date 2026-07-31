@@ -183,10 +183,91 @@
   align-items: center;
   gap: 8px;
   min-width: 0;
+  /* Full names (with surnames) can outgrow a phone-wide row — let the
+     halves of a pair drop to the next line instead of overflowing. */
+  flex-wrap: wrap;
 }
 
 .regVs {
   color: var(--text2);
+}
+
+/* Заявки of a pair format as a two-column table: one half of the pair
+   per column (mix — the man left, the woman right), each name behind its
+   ♂/♀ badge. On a phone the row's controls drop under the two names
+   instead of squeezing them into unreadable slivers. */
+.pairRow {
+  display: grid;
+  grid-template-columns: 1fr 1fr auto;
+  align-items: center;
+  gap: 8px;
+  padding: 9px 4px;
+  font-size: 13px;
+  color: var(--text);
+}
+
+/* Manual entry: the two halves of a pair side by side (mix — the man
+   left, the woman right), collapsing to one column on a narrow phone. */
+.manualGrid {
+  display: grid;
+  grid-template-columns: repeat(auto-fit, minmax(210px, 1fr));
+  gap: 12px;
+  margin-bottom: 4px;
+}
+
+.pairList > .pairRow {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.pairList > .pairRow:last-child {
+  border-bottom: none;
+}
+
+.pairCell {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.pairCellEmpty {
+  color: var(--text2);
+  font-style: italic;
+}
+
+.pairName {
+  overflow-wrap: anywhere;
+}
+
+.pairControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 6px;
+}
+
+.genderMark {
+  flex-shrink: 0;
+  font-size: 14px;
+  line-height: 1;
+}
+
+.genderM {
+  color: var(--accent-blue);
+}
+
+.genderF {
+  color: var(--accent-pink);
+}
+
+@media (max-width: 560px) {
+  .pairRow {
+    grid-template-columns: 1fr 1fr;
+  }
+
+  .pairControls {
+    grid-column: 1 / -1;
+  }
 }
 
 .memberControls {
@@ -363,16 +444,14 @@
   border-bottom: 1px solid var(--border-light);
 }
 
-.appName {
-  font-size: 13px;
-  font-weight: 700;
-  color: var(--text);
-  margin-bottom: 8px;
-}
-
+/* «хоче Pro · резерв» — sits in the row's right-hand column, next to the
+   names rather than under them. */
 .appPref {
   font-weight: 500;
+  font-size: 12px;
   color: var(--text2);
+  text-align: right;
+  white-space: nowrap;
 }
 
 .hint {
