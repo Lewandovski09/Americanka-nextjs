@@ -919,9 +919,9 @@
   cursor: pointer;
 }
 
-/* Time/court cells of the schedule — the admin's and the head judge's,
-   they open the slot dialog instead of the score one. Underlined so it
-   reads as editable. */
+/* Time and court cells of the schedule — the time is the admin's, the
+   court is the head judge's too. Each opens its own small dialog instead
+   of the score one. Underlined so it reads as editable. */
 .slotCell {
   cursor: pointer;
   text-decoration: underline dotted var(--border-light);

@@ -19,6 +19,14 @@ import styles from './detail.module.css';
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket', CHAT: 'chat' };
 
+// How a person is named on the schedule, in the bracket and in the
+// «Суддя» column — by surname, the way a game is called out on court.
+// `last_name` is NOT NULL but may be empty (a one-word profile), so the
+// full name stands in for those.
+function surnameOf(row) {
+  return row?.last_name?.trim() || row?.full_name || '—';
+}
+
 export default function TournamentDetailPage({ params }) {
   const { id } = params;
   const { player } = useCurrentPlayer();
@@ -38,7 +46,8 @@ export default function TournamentDetailPage({ params }) {
   // counter so picking the same player twice re-centres the view.
   const [focus, setFocus] = useState(null); // { playerId, matchId, seq }
   const [scoreModal, setScoreModal] = useState(null); // { matchId, teamAName, teamBName, pointsToWin }
-  const [slotModal, setSlotModal] = useState(null); // admin: { matchId, when, court, ... }
+  // Time and court are moved one at a time: { field: 'time'|'court', matchId, … }
+  const [slotModal, setSlotModal] = useState(null);
   const [judgeModal, setJudgeModal] = useState(null); // admin / head judge: { matchId, title, current }
   const [chatText, setChatText] = useState('');
 
@@ -68,7 +77,7 @@ export default function TournamentDetailPage({ params }) {
 
     const { data: tps } = await supabase
       .from('tournament_players')
-      .select('player_id, players(full_name, photo_url)')
+      .select('player_id, players(full_name, last_name, photo_url)')
       .eq('tournament_id', id);
     setTournamentPlayers(tps || []);
 
@@ -244,10 +253,13 @@ export default function TournamentDetailPage({ params }) {
     return playerInfo[pid];
   }
 
-  // Short label for a match side: 'Ірина/Олена' (pair) or 'Максим'.
+  // Short label for a match side: 'Коваль/Мельник' (pair) or 'Коваль'.
+  // Surnames, not first names — that is how the club calls a game out
+  // loud and how the paper sheets are written. A one-word profile has an
+  // empty last_name, so it falls back to whatever the profile has.
   function teamLabel(ids) {
     if (!ids || ids.length === 0) return '';
-    return ids.map((pid) => playerById(pid)?.full_name?.split(' ')[0] || '—').join('/');
+    return ids.map((pid) => surnameOf(playerById(pid))).join('/');
   }
 
   // Everyone playing this category, for the bracket search box.
@@ -301,45 +313,39 @@ export default function TournamentDetailPage({ params }) {
   // a court frees up early. Nothing else on the schedule shifts: only
   // the game that was touched moves.
   const courts = tournament.courts?.length ? tournament.courts : [1];
-  const canEditSlot = (isAdmin || isHeadJudge) && live;
+  // The timetable stays the admin's; moving a game to a free court is the
+  // head judge's call on the day — so the two cells open on their own.
+  const canEditTime = isAdmin && live;
+  const canEditCourt = (isAdmin || isHeadJudge) && live;
   const canAssignJudge = (isAdmin || isHeadJudge) && live;
-
-  // Judges are listed by surname (the players' own column shows first
-  // names, so this keeps the two apart at a glance). A one-word name has
-  // an empty last_name — fall back to whatever the profile has.
-  function judgeLabel(row) {
-    return row?.last_name?.trim() || row?.full_name || '—';
-  }
 
   function judgeName(pid) {
     if (!pid) return '';
-    return judgeLabel(judgeInfo[pid]);
+    return surnameOf(judgeInfo[pid]);
   }
 
-  function openSlotModal(m, planned) {
-    setSlotModal({
-      matchId: m.id,
-      // Prefilled from the projection when the game has no stored time,
-      // so an old tournament gets a sensible starting point.
-      when: toLocalInput(planned),
-      court: m.court || 1,
-    });
+  // «Час» — only the clock is editable. The DAY the game is played on is
+  // never in question (nobody moves a game to another date from here), so
+  // it is kept aside and the hours/minutes are put back onto it — which
+  // also means a category that runs past midnight keeps its own day.
+  function openTimeModal(m, planned) {
+    // No stored time and no projection (a category with no start time at
+    // all) — fall back to the day of the category itself.
+    const base = planned || (tournament.scheduled_at ? new Date(tournament.scheduled_at) : new Date());
+    setSlotModal({ field: 'time', matchId: m.id, day: base, time: toTimeInput(base) });
   }
 
-  async function handleSaveSlot() {
-    const { matchId, when, court } = slotModal;
-    // The head judge may only move the court, so the time is left out of
-    // their request entirely (the API refuses it from them anyway).
-    if (isAdmin && !when) {
-      setSlotModal((prev) => ({ ...prev, error: 'Вкажіть час' }));
-      return;
-    }
-    const res = await fetch(`/api/matches/${matchId}/schedule`, {
+  function openCourtModal(m) {
+    setSlotModal({ field: 'court', matchId: m.id, court: m.court || 1 });
+  }
+
+  // One field per request: whatever is left out keeps its value (and the
+  // head judge's court-only request stays a court-only request).
+  async function saveSlot(patch) {
+    const res = await fetch(`/api/matches/${slotModal.matchId}/schedule`, {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(
-        isAdmin ? { scheduledAt: new Date(when).toISOString(), court } : { court }
-      ),
+      body: JSON.stringify(patch),
     });
     const data = await res.json();
     if (!data.success) {
@@ -348,6 +354,17 @@ export default function TournamentDetailPage({ params }) {
     }
     setSlotModal(null);
     load();
+  }
+
+  function handleSaveTime() {
+    const [h, min] = (slotModal.time || '').split(':').map(Number);
+    if (!Number.isInteger(h) || !Number.isInteger(min)) {
+      setSlotModal((prev) => ({ ...prev, error: 'Вкажіть час' }));
+      return;
+    }
+    const when = new Date(slotModal.day);
+    when.setHours(h, min, 0, 0);
+    saveSlot({ scheduledAt: when.toISOString() });
   }
 
   async function handleSaveJudge(playerId) {
@@ -378,15 +395,28 @@ export default function TournamentDetailPage({ params }) {
     const editable = canEditScore(m);
     const clickable = (!m.played && ready) || editable;
     const future = !m.played && !ready;
-    // The time/court cells are the admin's, the rest of the row opens the
-    // score — so they swallow the click instead of bubbling to the row.
-    const slotProps = canEditSlot
+    // The time and the court are moved SEPARATELY — one is the timetable
+    // (admin), the other is what happens on the day (admin or head
+    // judge), and they are almost never changed together. Both cells
+    // swallow the click instead of bubbling to the row, which opens the
+    // score.
+    const timeProps = canEditTime
       ? {
           className: styles.slotCell,
-          title: isAdmin ? 'Змінити час і корт' : 'Змінити корт',
+          title: 'Змінити час',
           onClick: (e) => {
             e.stopPropagation();
-            openSlotModal(m, planned);
+            openTimeModal(m, planned);
+          },
+        }
+      : {};
+    const courtProps = canEditCourt
+      ? {
+          className: styles.slotCell,
+          title: 'Змінити корт',
+          onClick: (e) => {
+            e.stopPropagation();
+            openCourtModal(m);
           },
         }
       : {};
@@ -413,10 +443,10 @@ export default function TournamentDetailPage({ params }) {
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
       >
         <td>{i + 1}</td>
-        <td {...slotProps}>
+        <td {...timeProps}>
           {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
         </td>
-        <td {...slotProps}>{m.court || 1}</td>
+        <td {...courtProps}>{m.court || 1}</td>
         <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
           {m.judge_id ? judgeName(m.judge_id) : canAssignJudge ? '+' : '—'}
         </td>
@@ -851,42 +881,47 @@ export default function TournamentDetailPage({ params }) {
       {slotModal && (
         <div className={styles.modalOverlay} onClick={() => setSlotModal(null)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalTitle}>{isAdmin ? 'Час і корт' : 'Корт'}</div>
+            <div className={styles.modalTitle}>{slotModal.field === 'time' ? 'Час гри' : 'Корт'}</div>
             <div className={styles.modalSub}>
               Змінюється лише ця гра — решта розкладу залишається на місці.
             </div>
 
-            {/* The head judge moves games between courts; the timetable
-                is the admin's. */}
-            {isAdmin && (
+            {slotModal.field === 'time' ? (
               <>
-                <label className={styles.slotLabel}>Початок</label>
+                <label className={styles.slotLabel}>
+                  Початок ·{' '}
+                  {slotModal.day.toLocaleDateString('uk', { day: 'numeric', month: 'long' })}
+                </label>
                 <input
                   className={styles.slotInput}
-                  type="datetime-local"
-                  value={slotModal.when}
-                  onChange={(e) => setSlotModal((prev) => ({ ...prev, when: e.target.value, error: null }))}
+                  type="time"
+                  value={slotModal.time}
+                  autoFocus
+                  onChange={(e) => setSlotModal((prev) => ({ ...prev, time: e.target.value, error: null }))}
+                  onKeyDown={(e) => e.key === 'Enter' && handleSaveTime()}
                 />
+                {slotModal.error && <div className={styles.errMsg}>{slotModal.error}</div>}
+                <button className={styles.btnPrimary} onClick={handleSaveTime}>
+                  Зберегти
+                </button>
+              </>
+            ) : (
+              <>
+                {/* One tap is the whole edit — no «Зберегти» to hunt for. */}
+                <div className={styles.slotCourts}>
+                  {courts.map((c) => (
+                    <button
+                      key={c}
+                      className={`${styles.subTab} ${slotModal.court === c ? styles.subTabOn : ''}`}
+                      onClick={() => saveSlot({ court: c })}
+                    >
+                      Корт {c}
+                    </button>
+                  ))}
+                </div>
+                {slotModal.error && <div className={styles.errMsg}>{slotModal.error}</div>}
               </>
             )}
-
-            <label className={styles.slotLabel}>Корт</label>
-            <div className={styles.slotCourts}>
-              {courts.map((c) => (
-                <button
-                  key={c}
-                  className={`${styles.subTab} ${slotModal.court === c ? styles.subTabOn : ''}`}
-                  onClick={() => setSlotModal((prev) => ({ ...prev, court: c, error: null }))}
-                >
-                  Корт {c}
-                </button>
-              ))}
-            </div>
-
-            {slotModal.error && <div className={styles.errMsg}>{slotModal.error}</div>}
-            <button className={styles.btnPrimary} onClick={handleSaveSlot}>
-              Зберегти
-            </button>
           </div>
         </div>
       )}
@@ -912,7 +947,7 @@ export default function TournamentDetailPage({ params }) {
                       }`}
                       onClick={() => handleSaveJudge(j.player_id)}
                     >
-                      {judgeLabel(j.players)}
+                      {surnameOf(j.players)}
                       {j.is_head ? ' ★' : ''}
                     </button>
                   ))}
@@ -1056,13 +1091,11 @@ export default function TournamentDetailPage({ params }) {
   );
 }
 
-// Date → value for <input type="datetime-local"> in local time.
-function toLocalInput(date) {
+// Date → value for <input type="time"> in local time.
+function toTimeInput(date) {
   if (!date) return '';
   const pad = (n) => String(n).padStart(2, '0');
-  return `${date.getFullYear()}-${pad(date.getMonth() + 1)}-${pad(date.getDate())}T${pad(
-    date.getHours()
-  )}:${pad(date.getMinutes())}`;
+  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
 }
 
 function groupByRound(matches) {
