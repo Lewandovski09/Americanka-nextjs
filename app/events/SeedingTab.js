@@ -12,6 +12,12 @@
 // distribution order, so this tab is optional. After the start the
 // seeding is baked into the matches, so the list becomes read-only.
 //
+// A Double Elimination category shows its WHOLE grid (16 or 32 places),
+// so a short field leaves visible empty places — dragged wherever the
+// admin wants them. Each one becomes a round-1 bye, i.e. a free pass for
+// whoever sits opposite it in the bracket. Every other system plays
+// exactly the roster it has, so its list is a dense 1…N (see seedSlots).
+//
 // Reordering runs on Pointer Events, not HTML5 drag-and-drop: the latter
 // never fires on a phone, which is where the seeding is actually done.
 // Touch drags from the ☰ handle (the only spot where scrolling is
@@ -19,6 +25,7 @@
 
 import { useCallback, useEffect, useMemo, useRef, useState } from 'react';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { placeIntoSlots, seedCapacity } from '@/lib/formats/seedSlots';
 import { seedRoster } from './shared';
 import styles from './event.module.css';
 
@@ -27,8 +34,21 @@ import styles from './event.module.css';
 const EDGE = 70;
 const EDGE_SPEED = 12;
 
+// The signature the «unsaved changes» check compares: only WHERE the real
+// rows sit matters — swapping two empty places changes nothing.
+const signature = (list) => list.map((r) => (r.empty ? '' : r.key)).join('|');
+
 export default function SeedingTab({ category, isPair, busy, post }) {
-  const initial = useMemo(() => seedRoster(category, isPair), [category, isPair]);
+  const initial = useMemo(() => {
+    const rows = seedRoster(category, isPair);
+    // The empty places are ordinary list items (they drag and renumber
+    // like everybody else); their keys only have to stay stable while the
+    // list is being edited, which they do — the array is reordered, the
+    // items themselves are not rebuilt.
+    return placeIntoSlots(rows, seedCapacity(category)).map(
+      (row, i) => row || { key: `__empty_${i}`, empty: true, name: 'Вільне місце (бай)', player: null }
+    );
+  }, [category, isPair]);
   const [order, setOrder] = useState(initial);
   const [menuFor, setMenuFor] = useState(null);
   const [moving, setMoving] = useState(null); // row being placed via the modal
@@ -41,7 +61,7 @@ export default function SeedingTab({ category, isPair, busy, post }) {
   const [settling, setSettling] = useState(false);
 
   const locked = category.status !== 'scheduled';
-  const savedOrder = useMemo(() => initial.map((r) => r.key).join('|'), [initial]);
+  const savedOrder = useMemo(() => signature(initial), [initial]);
 
   // Mirrors of the drag state for the pointer handlers, which must not
   // re-subscribe on every move.
@@ -58,8 +78,9 @@ export default function SeedingTab({ category, isPair, busy, post }) {
     setMenuFor(null);
   }, [initial]);
 
-  const dirty = order.map((r) => r.key).join('|') !== savedOrder;
-  const unseeded = initial.some((r) => r.slotIndex == null);
+  const dirty = signature(order) !== savedOrder;
+  const unseeded = initial.some((r) => !r.empty && r.slotIndex == null);
+  const byes = initial.filter((r) => r.empty).length;
 
   const moveTo = useCallback((fromIdx, toIdx) => {
     setSaved(false);
@@ -174,12 +195,14 @@ export default function SeedingTab({ category, isPair, busy, post }) {
 
   async function save() {
     const ok = await post(`/api/admin/categories/${category.id}/seeding`, {
-      order: order.map((r) => r.key),
+      // An empty place is sent as a hole so the server can keep the
+      // places after it — that is the whole point of the grid.
+      order: order.map((r) => (r.empty ? null : r.key)),
     });
     if (ok) setSaved(true);
   }
 
-  if (order.length === 0) {
+  if (order.every((r) => r.empty)) {
     return <div className={styles.empty}>У категорії ще немає {isPair ? 'пар' : 'учасників'}</div>;
   }
 
@@ -192,6 +215,13 @@ export default function SeedingTab({ category, isPair, busy, post }) {
           ? 'Посів не збережено — за замовчуванням порядок такий, як показано нижче: черга заявок. Змініть і збережіть за потреби.'
           : 'Посів №1 грає з останнім номером, №2 — з передостаннім і так далі.'}
       </div>
+      {!locked && byes > 0 && (
+        <div className={styles.hint}>
+          Сітка на {initial.length} — {initial.length - byes}{' '}
+          {isPair ? 'пар заявлено' : 'учасників заявлено'}, {byes} вільних місць. Перетягніть їх туди,
+          де хочете бачити бай: суперник вільного місця проходить перше коло без гри.
+        </div>
+      )}
 
       <div className={styles.seedHead}>
         <span />
@@ -209,7 +239,9 @@ export default function SeedingTab({ category, isPair, busy, post }) {
               ref={(el) => {
                 rowRefs.current[row.key] = el;
               }}
-              className={`${styles.seedRow} ${isDragged ? styles.seedRowDragging : ''}`}
+              className={`${styles.seedRow} ${isDragged ? styles.seedRowDragging : ''} ${
+                row.empty ? styles.seedRowEmpty : ''
+              }`}
               style={{
                 transform: shift ? `translateY(${shift}px)` : undefined,
                 // The dragged row must not lag behind the finger; the
@@ -249,7 +281,7 @@ export default function SeedingTab({ category, isPair, busy, post }) {
               )}
 
               <span className={styles.seedNum}>{placeOf(i) + 1}</span>
-              <span className={styles.seedName}>
+              <span className={`${styles.seedName} ${row.empty ? styles.seedNameEmpty : ''}`}>
                 {row.player && <PlayerAvatar player={row.player} size={24} />}
                 {row.name}
               </span>

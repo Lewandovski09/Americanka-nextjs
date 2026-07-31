@@ -631,6 +631,20 @@
 
 /* The row under the finger/cursor: lifted, and it must not animate —
    it follows the pointer directly. */
+/* A place left empty on purpose — it becomes a bye in the bracket. */
+.seedRowEmpty {
+  background: repeating-linear-gradient(
+    45deg,
+    var(--bg-light) 0 6px,
+    var(--surface) 6px 12px
+  );
+}
+
+.seedNameEmpty {
+  color: var(--text2);
+  font-style: italic;
+}
+
 .seedRowDragging {
   z-index: 4;
   border-radius: var(--r-sm);
