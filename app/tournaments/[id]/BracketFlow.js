@@ -41,7 +41,7 @@ function orderLane(cols, orderIdx) {
 // How close the bracket is pulled in when the search jumps to a game.
 const FOCUS_ZOOM = 1.4;
 
-export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEdit, focusId, focusSeq }) {
+export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEnter, canEdit, focusId, focusSeq }) {
   const flow = matches.filter((m) => m.stage && m.stage !== 'group' && !/^kr\d+$/.test(m.stage));
 
   const canvasRef = useRef(null);
@@ -229,6 +229,7 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
     hintA: hint(m, 'a'),
     hintB: hint(m, 'b'),
     openScore,
+    canEnter,
     editable: canEdit(m),
     focused: m.id === focusId,
   });
@@ -359,14 +360,14 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
 
 // One box: game number badge, both sides with scores, winner in bold.
 // Clicking behaves exactly like the classic view.
-function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, editable, focused }) {
+function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, canEnter, editable, focused }) {
   const agg = aggregateScore(m);
   const aWon = m.played && teamAWon(m);
   const walkover = m.played && !(m.team_b_players?.length > 0);
   const nameA = nameOf(m.team_a_players);
   const nameB = nameOf(m.team_b_players);
   const ready = m.team_a_players?.length > 0 && m.team_b_players?.length > 0;
-  const clickable = (!m.played && ready) || editable;
+  const clickable = (canEnter && !m.played && ready) || editable;
   const future = !m.played && !ready;
   return (
     <div

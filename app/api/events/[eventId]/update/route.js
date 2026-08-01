@@ -6,6 +6,7 @@ import {
   computeEloBands,
   categoryRow,
   resolveScoring,
+  resolveAvpTier,
 } from '@/lib/server/eventConfig';
 
 // Update a scheduled event's secondary settings (name, date, venue,
@@ -67,6 +68,11 @@ export async function POST(request, { params }) {
   const scoring = resolveScoring(format, body, FIRST_TO_OPTIONS);
   if (scoring.error) {
     return Response.json({ success: false, error: scoring.error }, { status: 400 });
+  }
+
+  const avp = resolveAvpTier(body.avpTier);
+  if (avp.error) {
+    return Response.json({ success: false, error: avp.error }, { status: 400 });
   }
 
   const seen = new Set();
@@ -136,6 +142,7 @@ export async function POST(request, { params }) {
       points_to_win: scoring.points,
       points_mode: scoring.mode,
       final_points_to_win: scoring.finalPoints,
+      avp_tier: avp.tier,
     })
     .eq('id', eventId)
     .select()

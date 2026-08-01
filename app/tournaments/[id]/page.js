@@ -10,7 +10,8 @@ import { pointsTargetForStage, targetForSet } from '@/lib/formats/scoring';
 import { aggregateScore, pointsDiffA, teamAWon } from '@/lib/formats/sets';
 import { rankGroupDetailed } from '@/lib/formats/kingOfBeach';
 import { stageWeight, stageLabel, groupTitle, isSharedPlaceStage } from '@/lib/formats/stages';
-import { computePlaces } from '@/app/events/shared';
+import { placementsFor } from '@/lib/formats/placements';
+import { effectiveTier, pointsForPlace } from '@/lib/avp/tiers';
 import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
@@ -56,7 +57,7 @@ export default function TournamentDetailPage({ params }) {
 
     const { data: t } = await supabase
       .from('tournaments')
-      .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win)')
+      .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
       .eq('id', id)
       .single();
     setTournament(t);
@@ -181,6 +182,7 @@ export default function TournamentDetailPage({ params }) {
   const standings = computeStandings(playersForEngine, matches);
   const playedCount = matches.filter((m) => m.played).length;
   const allDone = playedCount === matches.length && matches.length > 0;
+  const avpTier = effectiveTier(tournament, tournament.tournament_events);
   // A finished category opens on its results; before that — on the roster.
   const playersViewResolved = playersView || (tournament.status === 'done' ? 'results' : 'list');
 
@@ -287,8 +289,13 @@ export default function TournamentDetailPage({ params }) {
   // powers with the admin — correcting a score, moving a game to a free
   // court, saying who judges it; the timetable stays the admin's.
   const isAdmin = !!player?.is_admin;
+  const isJudge = judges.some((j) => j.player_id === player?.id);
   const isHeadJudge = judges.some((j) => j.is_head && j.player_id === player?.id);
   const live = tournament.status !== 'done';
+  // Entering a score belongs to the crew, same as the server enforces.
+  // Everyone else still sees every game and every result — they just
+  // don't get a dialog that would come back 403.
+  const canEnterScore = (isAdmin || isJudge) && live;
 
   // An already-played game may be corrected, but only by the admin or
   // the head judge, and only while its stage is still the current one:
@@ -393,7 +400,7 @@ export default function TournamentDetailPage({ params }) {
     const agg = m.played ? aggregateScore(m) : null;
     const planned = plannedByMatchId[m.id] ? new Date(plannedByMatchId[m.id]) : null;
     const editable = canEditScore(m);
-    const clickable = (!m.played && ready) || editable;
+    const clickable = (canEnterScore && !m.played && ready) || editable;
     const future = !m.played && !ready;
     // The time and the court are moved SEPARATELY — one is the timetable
     // (admin), the other is what happens on the day (admin or head
@@ -530,23 +537,10 @@ export default function TournamentDetailPage({ params }) {
     if (data.success) load();
   }
 
-  // «Результати» view: placement rows [{ place, ids }] for the format at
-  // hand. Only decided placements are listed — participants still in the
-  // running don't show up until they finish or are knocked out.
-  function resultRows() {
-    if (matches.length === 0) return [];
-    // Americanka: nobody is ever knocked out, so places exist only once
-    // every game has been played.
-    if (!matches.some((m) => m.stage)) {
-      if (!allDone) return [];
-      return standings.map((s, i) => ({ place: i + 1, ids: [s.player.id] }));
-    }
-    if (matches.some((m) => /^kr\d+$/.test(m.stage || ''))) return kingResults(matches);
-    if (matches.some((m) => m.stage === 'gf' || /^(wb|lb)\d+$/.test(m.stage || ''))) return deResults(matches);
-    // Crosses playoffs (incl. the file format): places come from the
-    // final and the pX_Y placement matches.
-    return computePlaces(matches, teams).map((p) => ({ place: p.place, ids: p.players }));
-  }
+  // «Результати» view. The same function the server pays out from, so
+  // what a player reads here is literally what their season points are
+  // computed from — see lib/formats/placements.js.
+  const resultRows = () => placementsFor({ matches, teams, players: playersForEngine });
 
   async function handleSendChat() {
     if (!chatText.trim() || !player) return;
@@ -618,7 +612,7 @@ export default function TournamentDetailPage({ params }) {
       {tab === TABS.PLAYERS && playersViewResolved === 'results' && (
         <>
           {(() => {
-            const rows = resultRows().filter((r) => r.ids?.length > 0);
+            const rows = resultRows().filter((r) => r.playerIds?.length > 0);
             if (rows.length === 0) return <div className={styles.loading}>Результатів ще немає</div>;
             return (
               <table className={styles.table}>
@@ -626,20 +620,26 @@ export default function TournamentDetailPage({ params }) {
                   <tr>
                     <th>Місце</th>
                     <th>{isPair ? 'Пара' : 'Гравець'}</th>
+                    {avpTier && <th>AVP</th>}
                   </tr>
                 </thead>
                 <tbody>
                   {rows.map((r, i) => (
-                    <tr key={i} className={r.ids.includes(player?.id) ? styles.meRow : ''}>
+                    <tr key={i} className={r.playerIds.includes(player?.id) ? styles.meRow : ''}>
                       <td className={styles.placeCell}>
                         {r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : r.place}
                       </td>
                       <td className={styles.nameCell}>
-                        {r.ids.map((pid) => (
+                        {r.playerIds.map((pid) => (
                           <PlayerAvatar key={pid} player={playerById(pid)} size={22} />
                         ))}
-                        {r.ids.map((pid) => playerById(pid)?.full_name || '—').join(' / ')}
+                        {r.playerIds.map((pid) => playerById(pid)?.full_name || '—').join(' / ')}
                       </td>
+                      {/* Shown from the first decided place, not only at
+                          the end — so it is visible what is still being
+                          played for. Each player of a pair gets this in
+                          full. */}
+                      {avpTier && <td className={styles.avpCell}>+{pointsForPlace(avpTier, r.place)}</td>}
                     </tr>
                   ))}
                 </tbody>
@@ -801,6 +801,7 @@ export default function TournamentDetailPage({ params }) {
           nameOf={teamLabel}
           numberOf={gameNoById}
           openScore={openScoreModal}
+          canEnter={canEnterScore}
           canEdit={canEditScore}
           focusId={focus?.matchId || null}
           focusSeq={focus?.seq || 0}
@@ -830,6 +831,7 @@ export default function TournamentDetailPage({ params }) {
                               matches={g.matches}
                               nameOf={teamLabel}
                               openScore={openScoreModal}
+                              canEnter={canEnterScore}
                               canEdit={canEditScore}
                               focusId={focus?.matchId || null}
                             />
@@ -841,6 +843,7 @@ export default function TournamentDetailPage({ params }) {
                               label={col.withLabels ? stageLabel(m.stage) : null}
                               nameOf={teamLabel}
                               openScore={openScoreModal}
+                              canEnter={canEnterScore}
                               editable={canEditScore(m)}
                               focused={focus?.matchId === m.id}
                             />
@@ -1182,101 +1185,6 @@ function buildBracketColumns(matches) {
   return cols;
 }
 
-// ── Results («Результати») ────────────────────────────────────
-
-const winnerLoserOf = (m) =>
-  teamAWon(m)
-    ? { w: m.team_a_players, l: m.team_b_players }
-    : { w: m.team_b_players, l: m.team_a_players };
-
-// King of the Beach placements: everyone is ranked by the last round
-// they reached, and inside it by their performance (wins, points diff).
-// The final four take places 1-4 by the final-round ranking, those
-// knocked out a round earlier take 5+, and so on. Players whose fate
-// isn't decided yet (their round is still being played, or they'd
-// advance from it) are not listed — their places stay reserved.
-function kingResults(matches) {
-  const lastRound = {};
-  for (const m of matches) {
-    const kr = /^kr(\d+)$/.exec(m.stage || '');
-    if (!kr) continue;
-    const r = Number(kr[1]);
-    for (const pid of [...(m.team_a_players || []), ...(m.team_b_players || [])]) {
-      lastRound[pid] = Math.max(lastRound[pid] || 0, r);
-    }
-  }
-  const rounds = [...new Set(Object.values(lastRound))].sort((a, b) => b - a);
-
-  const out = [];
-  let place = 1;
-  for (const r of rounds) {
-    const rm = matches.filter((m) => m.stage === `kr${r}`);
-    const stayedIds = Object.keys(lastRound).filter((pid) => lastRound[pid] === r);
-
-    // Placements of this round are decided only once it's fully played
-    // AND its stayers are really out: either this was the final (a single
-    // group of 4) or the next round has been dealt without them.
-    const complete = rm.length > 0 && rm.every((m) => m.played);
-    const isFinal = new Set(rm.map((m) => m.group_index ?? 0)).size === 1;
-    const nextDealt = matches.some((m) => m.stage === `kr${r + 1}` && m.team_a_players?.length > 0);
-    if (!complete || !(isFinal || nextDealt)) {
-      place += stayedIds.length; // keep their places reserved
-      continue;
-    }
-
-    // Rank each group of the round, then merge the stayers across groups.
-    const stats = [];
-    for (const gi of [...new Set(rm.map((m) => m.group_index ?? 0))]) {
-      const gm = rm.filter((m) => (m.group_index ?? 0) === gi);
-      const ids = [...new Set(gm.flatMap((m) => [...(m.team_a_players || []), ...(m.team_b_players || [])]))];
-      stats.push(...rankGroupDetailed(ids, gm));
-    }
-    const ranked = stats
-      .filter((s) => stayedIds.includes(s.id))
-      .sort((a, b) => b.wins - a.wins || b.diff - a.diff);
-    for (const s of ranked) out.push({ place: place++, ids: [s.id] });
-  }
-  return out;
-}
-
-// Double elimination placements: the final decides 1-2 and the bronze
-// match 3-4 (the crossed-semifinal losers), then the losers of each
-// lower-bracket round share a place, last round first (5-6, 7-8, 9-12,
-// 13-16, …). Legacy grand-final brackets ('gf') have no bronze match —
-// their shared places start at 3.
-function deResults(matches) {
-  const out = [];
-  const legacy = matches.some((m) => m.stage === 'gf');
-  const playedOut = legacy
-    ? [['gf', 1, 2]]
-    : [
-        ['final', 1, 2],
-        ['p3_4', 3, 4],
-      ];
-  for (const [stage, hi, lo] of playedOut) {
-    const m = matches.find((x) => x.stage === stage && x.played);
-    if (!m) continue;
-    const { w, l } = winnerLoserOf(m);
-    if (w?.length) out.push({ place: hi, ids: w });
-    if (l?.length) out.push({ place: lo, ids: l });
-  }
-  let place = legacy ? 3 : 5;
-  const lbRounds = [
-    ...new Set(
-      matches.filter((m) => /^lb\d+$/.test(m.stage || '')).map((m) => Number(m.stage.slice(2)))
-    ),
-  ].sort((a, b) => b - a);
-  for (const r of lbRounds) {
-    const losers = matches
-      .filter((m) => m.stage === `lb${r}` && m.played)
-      .map((m) => winnerLoserOf(m).l)
-      .filter((l) => l?.length);
-    for (const l of losers) out.push({ place, ids: l });
-    place += losers.length;
-  }
-  return out;
-}
-
 // Rank the teams of one group (best first) by wins, then points diff.
 function rankGroupTeams(groupMatches) {
   const stats = new Map();
@@ -1361,7 +1269,7 @@ function BracketSearch({ players, focus, onPick, onClear }) {
 
 // One group block: live mini-standings on top, the group's games below.
 // A group whose stage hasn't started yet (no teams known) is grayed out.
-function GroupCard({ title, solo, matches, nameOf, openScore, canEdit, focusId }) {
+function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit, focusId }) {
   // King ranks the 4 individuals; pair formats rank the teams.
   const rows = solo
     ? rankGroupDetailed(
@@ -1396,6 +1304,7 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEdit, focusId }
           m={m}
           nameOf={nameOf}
           openScore={openScore}
+          canEnter={canEnter}
           editable={canEdit(m)}
           focused={focusId === m.id}
         />
@@ -1409,12 +1318,12 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEdit, focusId }
 // with both sides known opens the score dialog; a played one does too
 // when the admin may still correct it (editable). Matches of stages
 // that haven't started yet are grayed out.
-function MatchCard({ m, label, nameOf, openScore, editable, focused }) {
+function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused }) {
   const agg = aggregateScore(m);
   const walkover = m.played && (!m.team_b_players || m.team_b_players.length === 0);
   const aWon = m.played && teamAWon(m);
   const ready = m.team_a_players?.length > 0 && m.team_b_players?.length > 0;
-  const clickable = (!m.played && ready) || editable;
+  const clickable = (canEnter && !m.played && ready) || editable;
   const future = !m.played && !ready;
   return (
     <div

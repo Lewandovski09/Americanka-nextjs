@@ -294,7 +294,7 @@ function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, o
         >
           {pref ? <span className={styles.appPref}>{pref}</span> : null}
         </PairRow>
-        <div className={styles.row}>
+        <div className={styles.appActions}>
           <select
             className={styles.select}
             value={target}

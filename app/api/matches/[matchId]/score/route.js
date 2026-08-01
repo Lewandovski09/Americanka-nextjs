@@ -8,6 +8,7 @@ import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from
 import { stageWeight } from '@/lib/formats/stages';
 import { assignScheduledTimes, cursorsFromMatches } from '@/lib/schedule';
 import { getJudgeRole } from '@/lib/server/judges';
+import { finishCategory } from '@/lib/server/finishCategory';
 
 export async function POST(request, { params }) {
   const { matchId } = params;
@@ -40,11 +41,29 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Матч не знайдено' }, { status: 404 });
   }
 
-  // Entering a score the first time is open to everyone at the court
-  // (players and judges alike). Re-entering it is a correction: only an
-  // admin or the head judge may, and only while the match's stage is
-  // still current — a finished category (elo already paid out) or a
-  // stage the tournament has moved past is locked.
+  // A score is entered by the crew running the day — an admin or a judge
+  // of this event. It used to be open to anyone signed in, which was
+  // survivable while a score was just a number on a page and stopped
+  // being so once results pay out tournament counters, partner stats and
+  // AVP season points. Any judge of the event may enter any of its
+  // games: `matches.judge_id` pins who is expected at a court, it is not
+  // a permission (a crew swaps courts all day).
+  //
+  // Legacy categories that predate events have no crew, so only an admin
+  // can score them.
+  const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournaments?.event_id || null);
+  if (!role.isAdmin && !role.isJudge) {
+    return Response.json(
+      { success: false, error: 'Рахунок може вводити лише суддя або адміністратор' },
+      { status: 403 }
+    );
+  }
+
+  // Re-entering a score is a correction, and that is narrower: an
+  // ordinary judge enters the game in front of them, but unpicking a
+  // result the bracket has already built on is the head judge's call —
+  // and only while the match's stage is still current. A finished
+  // category is locked outright.
   if (match.played) {
     if (match.tournaments?.status === 'done') {
       return Response.json(
@@ -52,7 +71,6 @@ export async function POST(request, { params }) {
         { status: 400 }
       );
     }
-    const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournaments?.event_id || null);
     if (!role.isAdmin && !role.isHeadJudge) {
       return Response.json(
         { success: false, error: 'Рахунок вже введено — змінити його може адмін або головний суддя' },
@@ -154,16 +172,12 @@ async function autoAdvanceKing(supabaseAdmin, match) {
     return rankGroupDetailed(ids, gm);
   });
 
-  // A single group was the final — its winner is the king.
+  // A single group was the final — the category is over. The king comes
+  // out of the shared placement table rather than being read off here, so
+  // the winner the payout records is the winner the results page shows.
   if (rankedGroups.length === 1) {
-    await supabaseAdmin
-      .from('tournaments')
-      .update({
-        status: 'done',
-        finished_at: new Date().toISOString(),
-        winner_player_id: rankedGroups[0][0]?.id || null,
-      })
-      .eq('id', match.tournament_id);
+    const res = await finishCategory(supabaseAdmin, match.tournament_id);
+    if (!res.ok && !res.alreadyDone) console.error('[score king-finish]:', res.error);
     return;
   }
 
@@ -322,28 +336,15 @@ async function propagateBracket(supabaseAdmin, match, sets) {
   if (!isBracket) return;
 
   // Finish only once EVERY bracket match is played — the 1-2 final may be
-  // decided before the lower-placement matches. Champion = winner of the
-  // is_final match.
+  // decided before the lower-placement matches.
   const { data: all } = await supabaseAdmin
     .from('matches')
-    .select('is_final, played, set1, set2, set3, team_a_players, team_b_players')
+    .select('played')
     .eq('tournament_id', match.tournament_id);
   if (!all || all.some((m) => !m.played)) return;
 
-  const finalMatch = all.find((m) => m.is_final);
-  const championPlayers = finalMatch
-    ? teamAWon(finalMatch)
-      ? finalMatch.team_a_players
-      : finalMatch.team_b_players
-    : null;
-  await supabaseAdmin
-    .from('tournaments')
-    .update({
-      status: 'done',
-      finished_at: new Date().toISOString(),
-      winner_player_id: championPlayers?.[0] || null,
-    })
-    .eq('id', match.tournament_id);
+  const res = await finishCategory(supabaseAdmin, match.tournament_id);
+  if (!res.ok && !res.alreadyDone) console.error('[score bracket-finish]:', res.error);
 }
 
 // Pick the scoring rule from the event's format. Eventless categories

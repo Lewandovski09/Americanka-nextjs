@@ -12,6 +12,7 @@ import CityPicker from '@/components/CityPicker';
 import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
+import AvpSeasonCard from '@/components/AvpSeasonCard';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -436,6 +437,9 @@ export default function ProfilePage() {
           </div>
         ))}
       </div>
+
+      <div className={styles.sectionLabel}>Рейтинг AVP</div>
+      <AvpSeasonCard playerId={player.id} gender={player.gender} />
 
       <div className={styles.sectionLabel}>Історія турнірів</div>
       {tournamentHistory.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}

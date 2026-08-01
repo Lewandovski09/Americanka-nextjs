@@ -6,6 +6,7 @@ import {
   computeEloBands,
   categoryRow,
   resolveScoring,
+  resolveAvpTier,
 } from '@/lib/server/eventConfig';
 
 // Create an EVENT (tournament_events) plus its CATEGORIES (one
@@ -52,6 +53,11 @@ export async function POST(request) {
     return Response.json({ success: false, error: scoring.error }, { status: 400 });
   }
 
+  const avp = resolveAvpTier(body.avpTier);
+  if (avp.error) {
+    return Response.json({ success: false, error: avp.error }, { status: 400 });
+  }
+
   // Validate every category against the format's rules before writing
   // anything, so a bad category can't leave a half-created event.
   const seen = new Set();
@@ -86,6 +92,7 @@ export async function POST(request) {
       points_to_win: scoring.points,
       points_mode: scoring.mode,
       final_points_to_win: scoring.finalPoints,
+      avp_tier: avp.tier,
       // Single registration flow: everyone applies to a chosen league and
       // the admin distributes. The column is kept for schema stability.
       registration_mode: 'admin_assign',

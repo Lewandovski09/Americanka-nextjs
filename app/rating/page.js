@@ -9,11 +9,17 @@ import styles from './rating.module.css';
 
 export default function RatingPage() {
   const { player } = useCurrentPlayer();
-  const [tab, setTab] = useState('rating'); // 'rating' | 'stats'
+  const [tab, setTab] = useState('rating'); // 'rating' | 'avp' | 'stats'
   const [gender, setGender] = useState('M');
   const [category, setCategory] = useState('all');
   const [players, setPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
+
+  // ── AVP season standings ──
+  const [seasons, setSeasons] = useState([]);
+  const [seasonId, setSeasonId] = useState(null);
+  const [avpRows, setAvpRows] = useState([]);
+  const [avpLoading, setAvpLoading] = useState(false);
 
   // ── Compare players state ──
   const [loginA, setLoginA] = useState('');
@@ -43,6 +49,62 @@ export default function RatingPage() {
     }
     load();
   }, [gender, category, tab]);
+
+  // Seasons are loaded once — the newest first, and the newest is what
+  // the tab opens on.
+  useEffect(() => {
+    if (tab !== 'avp' || seasons.length > 0) return;
+    async function load() {
+      const supabase = createClient();
+      const { data } = await supabase
+        .from('avp_seasons')
+        .select('id, name, starts_on, ends_on')
+        .order('starts_on', { ascending: false });
+      setSeasons(data || []);
+      setSeasonId((prev) => prev || data?.[0]?.id || null);
+    }
+    load();
+  }, [tab, seasons.length]);
+
+  // The standings view sums the ledger, so it holds points but no
+  // profiles — the players are fetched alongside and joined here.
+  useEffect(() => {
+    if (tab !== 'avp' || !seasonId) return;
+    async function load() {
+      setAvpLoading(true);
+      const supabase = createClient();
+      const { data: standings } = await supabase
+        .from('avp_standings')
+        .select('player_id, points, tournaments_counted')
+        .eq('season_id', seasonId)
+        .order('points', { ascending: false });
+
+      const ids = (standings || []).map((s) => s.player_id);
+      const { data: profiles } = ids.length
+        ? await supabase
+            .from('players')
+            .select('id, full_name, login, photo_url, gender, elo')
+            .in('id', ids)
+        : { data: [] };
+
+      const byId = new Map((profiles || []).map((p) => [p.id, p]));
+      setAvpRows(
+        (standings || [])
+          .map((s) => ({ ...s, player: byId.get(s.player_id) }))
+          .filter((s) => s.player)
+      );
+      setAvpLoading(false);
+    }
+    load();
+  }, [tab, seasonId]);
+
+  const filteredAvp = avpRows
+    .filter((r) => r.player.gender === gender)
+    .filter((r) => {
+      const q = searchTerm.trim().toLowerCase();
+      if (!q) return true;
+      return r.player.login?.toLowerCase().includes(q) || r.player.full_name?.toLowerCase().includes(q);
+    });
 
   const filteredPlayers = searchTerm.trim()
     ? players.filter(
@@ -104,8 +166,14 @@ export default function RatingPage() {
   return (
     <div className={styles.page}>
       <div className={styles.tabs}>
+        {/* Elo and AVP answer different questions and sit side by side:
+            Elo is how strong a player is, AVP is what they have won this
+            season. Neither is derived from the other. */}
         <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => setTab('rating')}>
-          Рейтинг
+          Ело
+        </button>
+        <button className={`${styles.tabBtn} ${tab === 'avp' ? styles.tabBtnOn : ''}`} onClick={() => setTab('avp')}>
+          AVP
         </button>
         <button className={`${styles.tabBtn} ${tab === 'stats' ? styles.tabBtnOn : ''}`} onClick={() => setTab('stats')}>
           Статистика
@@ -179,6 +247,71 @@ export default function RatingPage() {
               </div>
             ))}
           </div>
+        </>
+      )}
+
+      {tab === 'avp' && (
+        <>
+          <input
+            className={styles.searchInput}
+            placeholder="Пошук за нікнеймом або іменем..."
+            value={searchTerm}
+            onChange={(e) => setSearchTerm(e.target.value)}
+          />
+
+          <div className={styles.row}>
+            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')}>
+              Чоловіки
+            </button>
+            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')}>
+              Жінки
+            </button>
+          </div>
+
+          {seasons.length > 1 && (
+            <div className={styles.chipsRow}>
+              {seasons.map((s) => (
+                <button
+                  key={s.id}
+                  className={`${styles.chip} ${seasonId === s.id ? styles.chipOn : ''}`}
+                  onClick={() => setSeasonId(s.id)}
+                >
+                  {s.name}
+                </button>
+              ))}
+            </div>
+          )}
+
+          {seasons.length === 0 && !avpLoading && (
+            <div className={styles.empty}>Сезон ще не створено</div>
+          )}
+          {avpLoading && <div className={styles.empty}>Завантаження...</div>}
+          {!avpLoading && seasons.length > 0 && filteredAvp.length === 0 && (
+            <div className={styles.empty}>У цьому сезоні ще немає нарахованих очок</div>
+          )}
+
+          {filteredAvp.map((r, i) => (
+            <a
+              key={r.player_id}
+              href={r.player_id === player?.id ? '/profile' : `/players/${r.player_id}`}
+              className={`${styles.playerRow} ${r.player_id === player?.id ? styles.meRow : ''}`}
+            >
+              <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>
+                {i + 1}
+              </div>
+              <PlayerAvatar player={r.player} size={36} />
+              <div className={styles.playerInfo}>
+                <div className={styles.playerName}>{highlightMatch(r.player.full_name, searchTerm.trim())}</div>
+                <div className={styles.playerMeta}>
+                  @{highlightMatch(r.player.login, searchTerm.trim())} · {r.tournaments_counted} турн.
+                </div>
+              </div>
+              <div className={styles.playerEloBox}>
+                <div className={styles.playerElo}>{r.points}</div>
+                <div className={styles.playerCat}>очок</div>
+              </div>
+            </a>
+          ))}
         </>
       )}
 

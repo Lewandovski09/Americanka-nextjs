@@ -277,7 +277,11 @@
   flex-shrink: 0;
 }
 
+/* The closed state only ever shows «Перенести…», but a select is as wide
+   as its widest option — and «→ Ж · Профі — резерв» would drag the row
+   past the edge of a phone. */
 .miniSelect {
+  max-width: 120px;
   padding: 5px 8px;
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
@@ -357,8 +361,11 @@
   margin-bottom: 10px;
 }
 
+/* Buttons are nowrap, so a row of them has to be allowed to break onto a
+   second line — otherwise a narrow phone gets a page wider than itself. */
 .row {
   display: flex;
+  flex-wrap: wrap;
   gap: 8px;
   align-items: center;
   margin-bottom: 8px;
@@ -366,6 +373,7 @@
 
 .select {
   flex: 1;
+  min-width: 0;
   padding: 10px 12px;
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
@@ -442,6 +450,25 @@
 .appRow {
   padding: 10px 0;
   border-bottom: 1px solid var(--border-light);
+}
+
+/* The verdict controls of a queue row: league picker + «Розподілити» /
+   «У резерв» / «✕». They never fit on one line on a phone, so the picker
+   takes the first line on its own and the buttons wrap under it. */
+.appActions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  align-items: center;
+}
+
+.appActions .select {
+  flex: 1 1 160px;
+  margin-bottom: 0;
+}
+
+.appActions .btnGhost {
+  flex: 0 1 auto;
 }
 
 /* «хоче Pro · резерв» — sits in the row's right-hand column, next to the

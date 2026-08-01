@@ -14,6 +14,7 @@ import {
   getBracketSystem,
   defaultParticipantsFor,
 } from '@/lib/formats';
+import AvpTierPicker from '@/components/AvpTierPicker';
 import styles from '@/app/tournaments/create/create.module.css';
 
 const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
@@ -39,6 +40,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   const [pointsToWin, setPointsToWin] = useState(event.points_to_win ?? 21);
   const [useFinalPoints, setUseFinalPoints] = useState(event.points_mode === 'from_semifinal');
   const [finalPointsToWin, setFinalPointsToWin] = useState(event.final_points_to_win ?? 15);
+  const [avpTier, setAvpTier] = useState(event.avp_tier ?? null);
 
   const [categories, setCategories] = useState(() => fromRows(categoryRows, isPair));
   const [error, setError] = useState('');
@@ -57,6 +59,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
     setPointsToWin(event.points_to_win ?? 21);
     setUseFinalPoints(event.points_mode === 'from_semifinal');
     setFinalPointsToWin(event.final_points_to_win ?? 15);
+    setAvpTier(event.avp_tier ?? null);
   }, [event]);
 
   const courtRange = COURT_RANGES[location] || [1, 2];
@@ -125,6 +128,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       pointsToWin: format.scoring === 'first_to' ? pointsToWin : null,
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
+      avpTier,
       categories: categories.map(({ hasMembers, ...c }) => c),
     });
     if (ok) setSaved(true);
@@ -208,6 +212,9 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       {format.scoring === 'sum31' && (
         <div className={styles.infoBox}>Американка — рахунок завжди до суми 31.</div>
       )}
+
+      <label className={styles.label}>Рівень AVP</label>
+      <AvpTierPicker value={avpTier} onChange={setAvpTier} styles={styles} />
 
       {/* Category picker */}
       <label className={styles.label}>Категорії</label>

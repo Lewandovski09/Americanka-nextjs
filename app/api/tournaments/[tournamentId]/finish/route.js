@@ -1,7 +1,10 @@
+// Manual finish — the americanka path. A round-robin has no final to
+// close itself on, so an admin says when the day is over; every other
+// format reaches finishCategory() from the score route instead.
+
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { computeStandings } from '@/lib/tournamentEngine';
-import { teamAWon } from '@/lib/formats/sets';
+import { finishCategory } from '@/lib/server/finishCategory';
 
 export async function POST(request, { params }) {
   const { tournamentId } = params;
@@ -14,102 +17,39 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
 
-  // Guard against double-finishing: the stats must be paid out once.
-  const { data: tournament } = await supabaseAdmin
-    .from('tournaments')
-    .select('status')
-    .eq('id', tournamentId)
+  // Closing a category pays out its results, so it is an admin action —
+  // the button was already admin-only, the endpoint behind it was not.
+  const { data: me } = await supabaseAdmin
+    .from('players')
+    .select('is_admin')
+    .eq('id', authUser.user.id)
     .maybeSingle();
-  if (!tournament) {
-    return Response.json({ success: false, error: 'Категорію не знайдено' }, { status: 404 });
-  }
-  if (tournament.status === 'done') {
-    return Response.json({ success: false, error: 'Категорію вже завершено' }, { status: 400 });
+  if (!me?.is_admin) {
+    return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }
 
-  const { data: tournamentPlayers } = await supabaseAdmin
-    .from('tournament_players')
-    .select('player_id, players(full_name)')
-    .eq('tournament_id', tournamentId);
-
+  // Places in a round-robin exist only once every game is in, so an
+  // early finish would pay out nothing at all — refuse it outright
+  // instead of silently closing an empty result.
   const { data: matches } = await supabaseAdmin
     .from('matches')
-    .select('*')
+    .select('played')
     .eq('tournament_id', tournamentId);
-
-  const playersForEngine = tournamentPlayers.map((tp) => ({
-    id: tp.player_id,
-    full_name: tp.players.full_name,
-  }));
-
-  const standings = computeStandings(playersForEngine, matches);
-
-  // Tournament counters only — rating is not awarded for results.
-  for (let i = 0; i < standings.length; i++) {
-    const row = standings[i];
-    const placement = i + 1;
-
-    const { data: currentPlayer } = await supabaseAdmin
-      .from('players')
-      .select('tournaments_played, tournaments_won')
-      .eq('id', row.player.id)
-      .single();
-
-    await supabaseAdmin
-      .from('players')
-      .update({
-        tournaments_played: currentPlayer.tournaments_played + 1,
-        tournaments_won: currentPlayer.tournaments_won + (placement === 1 ? 1 : 0),
-      })
-      .eq('id', row.player.id);
+  if (!matches?.length || matches.some((m) => !m.played)) {
+    return Response.json(
+      { success: false, error: 'Ще зіграні не всі матчі' },
+      { status: 400 }
+    );
   }
 
-  // Update partner_stats for every pair of teammates across all played matches.
-  await updatePartnerStats(supabaseAdmin, matches);
+  const res = await finishCategory(supabaseAdmin, tournamentId);
+  if (!res.ok) {
+    return Response.json({ success: false, error: res.error }, { status: res.alreadyDone ? 400 : 500 });
+  }
 
-  const winner = standings[0]?.player;
-
-  await supabaseAdmin
-    .from('tournaments')
-    .update({
-      status: 'done',
-      finished_at: new Date().toISOString(),
-      winner_player_id: winner?.id,
-    })
-    .eq('id', tournamentId);
+  const { data: winner } = res.winnerPlayerId
+    ? await supabaseAdmin.from('players').select('full_name').eq('id', res.winnerPlayerId).maybeSingle()
+    : { data: null };
 
   return Response.json({ success: true, winner: winner?.full_name });
-}
-
-async function updatePartnerStats(supabaseAdmin, matches) {
-  for (const match of matches.filter((m) => m.played)) {
-    const aWon = teamAWon(match);
-    await recordPartnerPair(supabaseAdmin, match.team_a_players, aWon);
-    await recordPartnerPair(supabaseAdmin, match.team_b_players, !aWon);
-  }
-}
-
-async function recordPartnerPair(supabaseAdmin, teamPlayerIds, won) {
-  if (teamPlayerIds.length < 2) return;
-  const [p1, p2] = teamPlayerIds;
-
-  for (const [a, b] of [
-    [p1, p2],
-    [p2, p1],
-  ]) {
-    const { data: existing } = await supabaseAdmin
-      .from('partner_stats')
-      .select('games_together, wins_together')
-      .eq('player_id', a)
-      .eq('partner_id', b)
-      .maybeSingle();
-
-    await supabaseAdmin.from('partner_stats').upsert({
-      player_id: a,
-      partner_id: b,
-      games_together: (existing?.games_together || 0) + 1,
-      wins_together: (existing?.wins_together || 0) + (won ? 1 : 0),
-      last_played_at: new Date().toISOString(),
-    });
-  }
 }

@@ -25,6 +25,8 @@ import {
   DeleteEventButton,
 } from '@/app/events/shared';
 import JudgesTab from '@/app/events/JudgesTab';
+import AvpTierPicker from '@/components/AvpTierPicker';
+import createStyles from '@/app/tournaments/create/create.module.css';
 import styles from '@/app/events/event.module.css';
 
 const TABS = { MAIN: 'main', JUDGES: 'judges' };
@@ -129,6 +131,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
   const [name, setName] = useState(event.name || '');
   const [scheduledAt, setScheduledAt] = useState(toLocalInput(event.scheduled_at));
   const [location, setLocation] = useState(event.location || 'beach13');
+  const [avpTier, setAvpTier] = useState(event.avp_tier ?? null);
   const [saved, setSaved] = useState(false);
 
   const members = isPair ? (category.tournament_teams || []).length : (category.tournament_players || []).length;
@@ -141,13 +144,15 @@ function MainTab({ event, category, format, isPair, busy, post }) {
   const dirty =
     name !== (event.name || '') ||
     scheduledAt !== toLocalInput(event.scheduled_at) ||
-    location !== (event.location || 'beach13');
+    location !== (event.location || 'beach13') ||
+    (avpTier ?? null) !== (event.avp_tier ?? null);
 
   async function saveBasics() {
     const ok = await post(`/api/events/${event.id}/basics`, {
       name,
       location,
       scheduledAt: new Date(scheduledAt).toISOString(),
+      avpTier,
     });
     if (ok) setSaved(true);
   }
@@ -193,8 +198,23 @@ function MainTab({ event, category, format, isPair, busy, post }) {
         ))}
       </div>
 
+      {/* The tier changes nothing about how the event is played, so it
+          stays editable after the start — that is what lets an event
+          that began before anyone set it still enter the rating. Saving
+          repays every category of this event that has already finished. */}
+      <label className={styles.fieldLabel}>Рівень AVP</label>
+      <AvpTierPicker
+        value={avpTier}
+        onChange={(t) => {
+          setAvpTier(t);
+          setSaved(false);
+        }}
+        styles={createStyles}
+      />
+
       <div className={styles.hint}>
-        Формат, корти, рахунок і перелік категорій зафіксовані після старту турніру.
+        Формат, корти, рахунок і перелік категорій зафіксовані після старту турніру. Рівень AVP —
+        ні: його можна виставити й зараз, очки за вже завершені категорії перерахуються.
       </div>
 
       {saved && !dirty && <div className={styles.seedOk}>✓ Збережено</div>}

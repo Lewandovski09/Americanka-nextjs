@@ -122,6 +122,15 @@
   white-space: nowrap;
 }
 
+/* Season points this place is worth. Right-aligned so the column reads
+   as a number even when the names beside it wrap. */
+.avpCell {
+  font-weight: 800;
+  white-space: nowrap;
+  text-align: right;
+  color: var(--rust);
+}
+
 .table {
   width: 100%;
   border-collapse: collapse;

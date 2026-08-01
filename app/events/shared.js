@@ -9,12 +9,13 @@ import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { computeStandings } from '@/lib/tournamentEngine';
-import { teamAWon, scoreLabel } from '@/lib/formats/sets';
+import { scoreLabel } from '@/lib/formats/sets';
 import { stageWeight, stageLabel, groupTitle } from '@/lib/formats/stages';
+import { computePlaces } from '@/lib/formats/placements';
 import { BRACKET_SYSTEMS } from '@/lib/formats';
 
 // Re-exported for the pages that historically imported them from here.
-export { stageWeight, stageLabel };
+export { stageWeight, stageLabel, computePlaces };
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './event.module.css';
 
@@ -364,89 +365,6 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
   );
 }
 
-// Order-independent identity for a team from its player ids.
-function teamKey(ids) {
-  return [...(ids || [])].filter(Boolean).map(String).sort().join('|');
-}
-
-const winnerLoser = (m) => {
-  const aWon = teamAWon(m);
-  return {
-    w: aWon ? m.team_a_players : m.team_b_players,
-    l: aWon ? m.team_b_players : m.team_a_players,
-  };
-};
-
-// Final placement table. Two shapes:
-//   • File format (groups_top1_bye_top23_crosses) — has play-in/qf stages:
-//     placement by elimination round WITH TIES (5-8, 9-12, 13-16 each share
-//     a place). Only the final and 3rd-place match are played out.
-//   • Full-placement crosses (groups_crosses_1_2) — every 'final'/'pX_Y'
-//     match awards unique places X (winner) and Y (loser).
-// Inlined here to avoid pulling the bracket builder (which imports node
-// 'crypto') into the client bundle. Also used by the category page's
-// «Результати» view.
-export function computePlaces(matches, teams) {
-  const played = (matches || []).filter((m) => m.played);
-  const isFileFormat = played.some((m) => m.stage === 'play_in' || m.stage === 'qf');
-  const out = [];
-
-  if (isFileFormat) {
-    const finalM = played.find((m) => m.stage === 'final');
-    if (finalM) {
-      const { w, l } = winnerLoser(finalM);
-      if (w?.length) out.push({ place: 1, players: w });
-      if (l?.length) out.push({ place: 2, players: l });
-    }
-    const bronze = played.find((m) => /^p3_4$/.test(m.stage || ''));
-    if (bronze) {
-      const { w, l } = winnerLoser(bronze);
-      if (w?.length) out.push({ place: 3, players: w });
-      if (l?.length) out.push({ place: 4, players: l });
-    }
-    // QF losers tie 5th, play-in losers tie 9th (blocks, like the file).
-    played
-      .filter((m) => m.stage === 'qf')
-      .forEach((m) => winnerLoser(m).l?.length && out.push({ place: 5, players: winnerLoser(m).l }));
-    played
-      .filter((m) => m.stage === 'play_in')
-      .forEach((m) => winnerLoser(m).l?.length && out.push({ place: 9, players: winnerLoser(m).l }));
-    // Group 4th = teams that never reached the play-in/qf → tie 13th.
-    // Count every dealt play-in/qf pairing (not just the played ones), so
-    // a team whose quarterfinal is still ahead isn't listed as knocked out.
-    const advanced = new Set();
-    (matches || [])
-      .filter((m) => m.stage === 'play_in' || m.stage === 'qf')
-      .forEach((m) => {
-        advanced.add(teamKey(m.team_a_players));
-        advanced.add(teamKey(m.team_b_players));
-      });
-    (teams || []).forEach((t) => {
-      const key = teamKey([t.player1_id, t.player2_id]);
-      if (key && !advanced.has(key)) out.push({ place: 13, players: [t.player1_id, t.player2_id] });
-    });
-    return out.sort((a, b) => a.place - b.place);
-  }
-
-  for (const m of played) {
-    let hi;
-    let lo;
-    if (m.stage === 'final') {
-      hi = 1;
-      lo = 2;
-    } else {
-      const g = /^p(\d+)_(\d+)$/.exec(m.stage || '');
-      if (!g) continue;
-      hi = Number(g[1]);
-      lo = Number(g[2]);
-    }
-    const { w, l } = winnerLoser(m);
-    if (w?.length) out.push({ place: hi, players: w });
-    if (l?.length) out.push({ place: lo, players: l });
-  }
-  return out.sort((a, b) => a.place - b.place);
-}
-
 function Placements({ matches, teams, nameById }) {
   const places = computePlaces(matches, teams);
   if (places.length === 0) return null;
@@ -466,7 +384,7 @@ function Placements({ matches, teams, nameById }) {
           {places.map((p, i) => (
             <tr key={i}>
               <td>{p.place}</td>
-              <td>{teamName(p.players)}</td>
+              <td>{teamName(p.playerIds)}</td>
             </tr>
           ))}
         </tbody>

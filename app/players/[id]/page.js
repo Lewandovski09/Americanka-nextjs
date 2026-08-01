@@ -9,6 +9,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconTrophy, IconMedal, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
+import AvpSeasonCard from '@/components/AvpSeasonCard';
 import styles from './player.module.css';
 
 export default function PlayerProfilePage() {
@@ -217,6 +218,9 @@ export default function PlayerProfilePage() {
       <div className="riseIn" style={{ animationDelay: '0.12s' }}>
         <EloChart history={tournamentHistory} currentElo={player.elo} playerName={player.full_name} />
       </div>
+
+      <div className={styles.sectionLabel}>Рейтинг AVP</div>
+      <AvpSeasonCard playerId={player.id} gender={player.gender} />
 
       <div className={styles.sectionLabel}>Історія турнірів</div>
       {tournamentHistory.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}
