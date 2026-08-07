@@ -1,4 +1,6 @@
 /** @type {import('next').NextConfig} */
+const { withSentryConfig } = require('@sentry/nextjs');
+
 const nextConfig = {
   reactStrictMode: true,
   // Required on Next.js 14 for instrumentation.js (Sentry server/edge
@@ -28,4 +30,18 @@ const nextConfig = {
   },
 };
 
-module.exports = nextConfig;
+// withSentryConfig is what actually wires sentry.client.config.js into
+// the browser bundle — without it the client-side Sentry.init() never
+// runs (server/edge still work via instrumentation.js, which doesn't
+// need this). No SENTRY_AUTH_TOKEN is configured here, so source map
+// upload is skipped with a harmless build-time warning — errors still
+// report correctly, just with a minified (not original) stack trace
+// until an auth token is added later.
+module.exports = withSentryConfig(nextConfig, {
+  silent: true,
+  org: process.env.SENTRY_ORG,
+  project: process.env.SENTRY_PROJECT,
+  disableLogger: true,
+  widenClientFileUpload: false,
+  sourcemaps: { disable: true },
+});
