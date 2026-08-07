@@ -1,0 +1,38 @@
+{
+  "compilerOptions": {
+    "target": "ES2020",
+    "lib": ["dom", "dom.iterable", "esnext"],
+    // Untouched .js files (app/, components/, hooks/) keep working as-is
+    // and are NOT type-checked (checkJs: false) — only files that have
+    // actually been migrated to .ts/.tsx opt into type checking. This
+    // is the "incremental, starting with lib/" migration: converting a
+    // file to .ts is what turns its checking on, nothing else changes
+    // behavior.
+    "allowJs": true,
+    "checkJs": false,
+    "skipLibCheck": true,
+    "strict": true,
+    "noEmit": true,
+    "esModuleInterop": true,
+    "module": "esnext",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "isolatedModules": true,
+    "jsx": "preserve",
+    "incremental": true,
+    "plugins": [{ "name": "next" }],
+    "baseUrl": ".",
+    "paths": {
+      "@/*": ["./*"]
+    }
+  },
+  "include": [
+    "next-env.d.ts",
+    "**/*.ts",
+    "**/*.tsx",
+    "**/*.js",
+    "**/*.jsx",
+    ".next/types/**/*.ts"
+  ],
+  "exclude": ["node_modules"]
+}

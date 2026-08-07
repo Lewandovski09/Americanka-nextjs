@@ -197,9 +197,12 @@ async function uploadProfilePhoto(supabaseAdmin, userId, dataUrl) {
   const ext = mimeType.split('/')[1] || 'jpg';
   const path = `${userId}.${ext}`;
 
+  // See app/api/profile/photo/route.js for why this is a full year: the
+  // path is per-user and any later re-upload goes through the profile
+  // route, which busts the cache with a ?t= query string.
   const { error } = await supabaseAdmin.storage
     .from('player-photos')
-    .upload(path, buffer, { contentType: mimeType, upsert: true });
+    .upload(path, buffer, { contentType: mimeType, upsert: true, cacheControl: '31536000' });
 
   if (error) {
     console.error('[register] Photo upload failed:', error.message);
