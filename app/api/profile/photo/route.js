@@ -47,9 +47,14 @@ export async function POST(request) {
   const path = `${authUser.user.id}.${subtype}`;
   const supabaseAdmin = createAdminClient();
 
+  // Default cacheControl is only 1 hour, so the browser and Supabase's
+  // CDN re-fetch the full photo on every visit even though it almost
+  // never changes. A new upload gets a fresh ?t= query string below, so
+  // the old cached URL is simply never requested again — safe to cache
+  // this one for a full year.
   const { error: uploadError } = await supabaseAdmin.storage
     .from('player-photos')
-    .upload(path, buffer, { contentType: mimeType, upsert: true });
+    .upload(path, buffer, { contentType: mimeType, upsert: true, cacheControl: '31536000' });
   if (uploadError) {
     console.error('[profile photo] upload:', uploadError.message);
     return Response.json({ success: false, error: 'Не вдалося завантажити фото' }, { status: 500 });

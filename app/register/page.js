@@ -17,7 +17,14 @@ const STEPS = {
 // pointing a local build at a dev bot — needs no code change.
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'AmericankaVerifyBot';
 
-const LINK_POLL_INTERVAL_MS = 2500;
+// This page creates a Supabase client and reads live registration state
+// the moment it renders — there's nothing on it worth prerendering to
+// static HTML, and doing so means `next build` tries to run that
+// Supabase client creation at build time, which throws if env vars
+// aren't present in the build environment. force-dynamic skips that
+// entirely: this route always renders per-request, like it effectively
+// already did in practice.
+export const dynamic = 'force-dynamic';
 
 export default function AuthPage() {
   const router = useRouter();
@@ -176,8 +183,13 @@ export default function AuthPage() {
   }
 
   // Step 2: wait for the bot. Telegram can't push this into the browser,
-  // and the user has to switch apps anyway, so a short poll is the
-  // honest mechanism here.
+  // and the user has to switch apps anyway, so waiting on a signal from
+  // the server is the honest mechanism here. This used to be a client
+  // poll every 2.5s (a new HTTP request each time); it's now a single
+  // Server-Sent Events connection that the server pushes updates on —
+  // same wait, a fraction of the requests. The browser reconnects
+  // EventSource automatically on a dropped connection, so a transient
+  // network blip is handled without extra code here.
   useEffect(() => {
     if (step !== STEPS.CONNECT_TELEGRAM || !nonce) return;
 
@@ -186,34 +198,28 @@ export default function AuthPage() {
     // would never fire.
     finalizingRef.current = false;
 
-    let cancelled = false;
+    const source = new EventSource(`/api/telegram/link/watch?nonce=${encodeURIComponent(nonce)}`);
 
-    const timer = setInterval(async () => {
-      try {
-        const res = await fetch(`/api/telegram/link/status?nonce=${encodeURIComponent(nonce)}`);
-        const data = await res.json();
-        if (cancelled || !data.success) return;
+    source.onmessage = (event) => {
+      const data = JSON.parse(event.data);
+      if (!data.success) return;
 
-        if (data.linked) {
-          clearInterval(timer);
-          // The interval can fire again while the request is in flight;
-          // creating the account twice would fail the second time with a
-          // confusing "login already registered".
-          if (finalizingRef.current) return;
-          finalizingRef.current = true;
-          finalizeRegistration(nonce);
-        } else if (data.expired) {
-          clearInterval(timer);
-          setLinkExpired(true);
-        }
-      } catch {
-        // Transient network blip — the next tick retries.
+      if (data.linked) {
+        source.close();
+        // The event can arrive again before finalize resolves; creating
+        // the account twice would fail the second time with a
+        // confusing "login already registered".
+        if (finalizingRef.current) return;
+        finalizingRef.current = true;
+        finalizeRegistration(nonce);
+      } else if (data.expired) {
+        source.close();
+        setLinkExpired(true);
       }
-    }, LINK_POLL_INTERVAL_MS);
+    };
 
     return () => {
-      cancelled = true;
-      clearInterval(timer);
+      source.close();
     };
   }, [step, nonce, router]);
 

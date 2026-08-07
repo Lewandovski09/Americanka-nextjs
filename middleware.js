@@ -1,5 +1,6 @@
 import { createServerClient } from '@supabase/ssr';
 import { NextResponse } from 'next/server';
+import { checkRateLimit, clientIp, RATE_LIMITS, DEFAULT_API_LIMIT } from '@/lib/rateLimit';
 
 // Wrap any promise with a timeout so a slow/hanging Supabase call
 // can never block the entire site from loading.
@@ -11,6 +12,25 @@ function withTimeout(promise, ms) {
 }
 
 export async function middleware(request) {
+  const { pathname } = request.nextUrl;
+
+  // Rate limit unauthenticated API routes only. Telegram's webhook is
+  // excluded — it's authenticated separately (secret_token header) and
+  // needs to accept whatever burst Telegram sends.
+  if (pathname.startsWith('/api/') && pathname !== '/api/telegram/webhook') {
+    const bucket = RATE_LIMITS.find((r) => pathname.startsWith(r.prefix));
+    const limit = bucket?.limit ?? DEFAULT_API_LIMIT;
+    const key = `${clientIp(request)}:${bucket?.prefix ?? 'default'}`;
+    const { limited, resetAt } = checkRateLimit(key, limit);
+
+    if (limited) {
+      return NextResponse.json(
+        { success: false, error: 'Забагато запитів. Спробуйте пізніше.' },
+        { status: 429, headers: { 'Retry-After': String(Math.ceil((resetAt - Date.now()) / 1000)) } }
+      );
+    }
+  }
+
   // IMPORTANT: response must be re-created any time cookies are
   // set, and built from the (possibly updated) request — otherwise
   // a refreshed session token never actually reaches the browser,
