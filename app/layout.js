@@ -1,6 +1,7 @@
 import './globals.css';
 import AppShell from '@/components/AppShell';
 import RegisterSW from '@/components/RegisterSW';
+import SentryInit from '@/components/SentryInit';
 
 export const metadata = {
   title: 'AMERICANKA — Пляж 13',
@@ -34,6 +35,7 @@ export default function RootLayout({ children }) {
   return (
     <html lang="uk">
       <body>
+        <SentryInit />
         <RegisterSW />
         <AppShell>{children}</AppShell>
       </body>
