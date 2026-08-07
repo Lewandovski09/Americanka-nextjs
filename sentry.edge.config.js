@@ -1,6 +1,6 @@
 // middleware.js runs on the Edge runtime, which can't use the Node
 // server SDK — this lighter config covers it. Same no-DSN-no-op note
-// as sentry.client.config.js.
+// as instrumentation-client.js.
 import * as Sentry from '@sentry/nextjs';
 
 Sentry.init({

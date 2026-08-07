@@ -1,6 +1,6 @@
 // Runs once per server process (route handlers, server components,
 // middleware runs separately — see sentry.edge.config.js). Same
-// no-DSN-no-op note as sentry.client.config.js.
+// no-DSN-no-op note as instrumentation-client.js.
 import * as Sentry from '@sentry/nextjs';
 
 Sentry.init({
