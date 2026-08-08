@@ -17,6 +17,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
 import styles from './detail.module.css';
+import TabBtn from '@/components/TabBtn';
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket', CHAT: 'chat' };
 
@@ -574,16 +575,16 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       <div className={styles.tabs}>
-        <TabBtn active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
+        <TabBtn styles={styles} active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
           Учасники
         </TabBtn>
-        <TabBtn active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
+        <TabBtn styles={styles} active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
           Таблиця
         </TabBtn>
-        <TabBtn active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
+        <TabBtn styles={styles} active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
           Сітка
         </TabBtn>
-        <TabBtn active={tab === TABS.CHAT} onClick={() => setTab(TABS.CHAT)}>
+        <TabBtn styles={styles} active={tab === TABS.CHAT} onClick={() => setTab(TABS.CHAT)}>
           Чат
         </TabBtn>
       </div>
@@ -1353,13 +1354,5 @@ function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused })
         <span className={styles.bracketScore}>{agg ? agg[1] : ''}</span>
       </div>
     </div>
-  );
-}
-
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
-      {children}
-    </button>
   );
 }

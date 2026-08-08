@@ -16,6 +16,7 @@ import {
 } from '@/lib/formats';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import styles from '@/app/tournaments/create/create.module.css';
+import OptionBtn from '@/components/OptionBtn';
 
 const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
 
@@ -160,10 +161,10 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
 
       <label className={styles.label}>Місце проведення</label>
       <div className={styles.row}>
-        <OptionBtn active={location === 'beach13'} onClick={() => setLocation('beach13')}>
+        <OptionBtn styles={styles} active={location === 'beach13'} onClick={() => setLocation('beach13')}>
           Beach 13
         </OptionBtn>
-        <OptionBtn active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
+        <OptionBtn styles={styles} active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
           Dynamo SC
         </OptionBtn>
       </div>
@@ -356,12 +357,4 @@ function fromRows(rows, isPair) {
       ? (r.tournament_teams || []).length > 0
       : (r.tournament_players || []).length > 0,
   }));
-}
-
-function OptionBtn({ active, onClick, children }) {
-  return (
-    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
-      {children}
-    </button>
-  );
 }

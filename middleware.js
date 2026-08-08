@@ -11,6 +11,17 @@ function withTimeout(promise, ms) {
   ]);
 }
 
+// Mirrors components/AppShell.js's GATED_PREFIXES exactly — that file
+// is still the source of truth and still does its own check; this is a
+// second, server-side line of defense so a direct link or a crawler
+// hitting a gated URL gets redirected before any HTML ships, instead of
+// after a client-side redirect flashes the page first. If either list
+// changes, change both — there is no shared import here because
+// AppShell.js is a Client Component and this file runs on the Edge
+// runtime, which makes sharing a plain constant more trouble than it's
+// worth for five strings.
+const GATED_PREFIXES = ['/tournaments', '/rating', '/profile', '/admin', '/players'];
+
 export async function middleware(request) {
   const { pathname } = request.nextUrl;
 
@@ -43,6 +54,16 @@ export async function middleware(request) {
     request: { headers: request.headers },
   });
 
+  // Tracks whether the auth check below actually completed, as opposed
+  // to timing out or throwing. The gate a few lines down only ever acts
+  // on a CONFIRMED "no user" result — on any uncertainty it does
+  // nothing and lets the request through, same as before this existed.
+  // A slow Supabase response bouncing someone who is genuinely logged
+  // in would be a worse bug than the one this is fixing; AppShell.js's
+  // own client-side check is still there as the reliable fallback.
+  let user = null;
+  let authCheckSucceeded = false;
+
   try {
     const supabase = createServerClient(
       process.env.NEXT_PUBLIC_SUPABASE_URL,
@@ -69,9 +90,22 @@ export async function middleware(request) {
     const result = await withTimeout(supabase.auth.getUser(), 5000);
     if (result?.timedOut) {
       console.error('[middleware] supabase.auth.getUser() timed out after 5s');
+    } else {
+      user = result?.data?.user ?? null;
+      authCheckSucceeded = true;
     }
   } catch (err) {
     console.error('[middleware] Unexpected error:', err.message);
+  }
+
+  // Server-side half of the auth gate — see the GATED_PREFIXES comment
+  // above. Only fires on a confirmed logged-out visitor hitting a
+  // gated path directly; everything else (including any uncertainty)
+  // falls through to AppShell.js's own check, exactly as before.
+  if (authCheckSucceeded && !user && GATED_PREFIXES.some((p) => pathname.startsWith(p))) {
+    const url = request.nextUrl.clone();
+    url.pathname = '/';
+    return NextResponse.redirect(url);
   }
 
   return response;
@@ -82,3 +116,4 @@ export const config = {
     '/((?!_next/static|_next/image|favicon.ico|.*\\.(?:svg|png|jpg|jpeg|gif|webp)$).*)',
   ],
 };
+

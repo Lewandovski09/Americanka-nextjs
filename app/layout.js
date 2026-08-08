@@ -2,10 +2,11 @@ import './globals.css';
 import AppShell from '@/components/AppShell';
 import RegisterSW from '@/components/RegisterSW';
 import SentryInit from '@/components/SentryInit';
+import { VENUE } from '@/lib/venue';
 
 export const metadata = {
-  title: 'AMERICANKA — Пляж 13',
-  description: 'Турніри американка для пляжного волейболу. Пляж 13, Станція Фонтана, Одеса.',
+  title: `${VENUE.brandName.toUpperCase()} — ${VENUE.venueName}`,
+  description: `Турніри американка для пляжного волейболу. ${VENUE.fullLocation}.`,
   manifest: '/manifest.json',
   icons: {
     icon: [
@@ -19,7 +20,7 @@ export const metadata = {
   appleWebApp: {
     capable: true,
     statusBarStyle: 'black-translucent',
-    title: 'Americanka',
+    title: VENUE.brandName,
   },
 };
 

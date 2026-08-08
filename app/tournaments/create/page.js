@@ -13,6 +13,7 @@ import {
 } from '@/lib/formats';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import styles from './create.module.css';
+import OptionBtn from '@/components/OptionBtn';
 
 const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
 const GENDERS = [
@@ -182,10 +183,10 @@ export default function CreateEventPage() {
 
       <label className={styles.label}>Місце проведення</label>
       <div className={styles.row}>
-        <OptionBtn active={location === 'beach13'} onClick={() => setLocation('beach13')}>
+        <OptionBtn styles={styles} active={location === 'beach13'} onClick={() => setLocation('beach13')}>
           Beach 13
         </OptionBtn>
-        <OptionBtn active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
+        <OptionBtn styles={styles} active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
           Dynamo SC
         </OptionBtn>
       </div>
@@ -367,13 +368,5 @@ export default function CreateEventPage() {
         {loading ? 'Створення...' : 'Створити подію →'}
       </button>
     </div>
-  );
-}
-
-function OptionBtn({ active, onClick, children }) {
-  return (
-    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
-      {children}
-    </button>
   );
 }

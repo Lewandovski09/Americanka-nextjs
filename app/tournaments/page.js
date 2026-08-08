@@ -6,6 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import styles from './tournaments.module.css';
+import TabBtn from '@/components/TabBtn';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 const LOCATION_LABEL = { beach13: 'Beach 13', dynamo_sc: 'Dynamo SC' };
@@ -37,13 +38,13 @@ export default function EventsPage() {
   return (
     <div className={styles.page}>
       <div className={styles.tabs}>
-        <TabBtn active={tab === TABS.SCHEDULED} onClick={() => setTab(TABS.SCHEDULED)}>
+        <TabBtn styles={styles} active={tab === TABS.SCHEDULED} onClick={() => setTab(TABS.SCHEDULED)}>
           Розклад
         </TabBtn>
-        <TabBtn active={tab === TABS.LIVE} onClick={() => setTab(TABS.LIVE)}>
+        <TabBtn styles={styles} active={tab === TABS.LIVE} onClick={() => setTab(TABS.LIVE)}>
           Активні
         </TabBtn>
-        <TabBtn active={tab === TABS.DONE} onClick={() => setTab(TABS.DONE)}>
+        <TabBtn styles={styles} active={tab === TABS.DONE} onClick={() => setTab(TABS.DONE)}>
           Завершені
         </TabBtn>
       </div>
@@ -137,13 +138,5 @@ export default function EventsPage() {
           );
         })}
     </div>
-  );
-}
-
-function TabBtn({ active, onClick, children }) {
-  return (
-    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
-      {children}
-    </button>
   );
 }

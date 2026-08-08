@@ -5,6 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo } from '@/lib/elo';
+import { VENUE } from '@/lib/venue';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket } from '@/components/Icons';
 import styles from './page.module.css';
@@ -147,12 +148,12 @@ export default function HomePage() {
             <span className={styles.headerBrandIcon}>
               <img src="/icons/icon-192.png" alt="" width={28} height={28} className={styles.headerBrandIconImg} />
             </span>
-            <span className={styles.headerBrandName}>Americanka</span>
+            <span className={styles.headerBrandName}>{VENUE.brandName}</span>
           </div>
         </div>
         <div className={styles.headerLocation}>
           <IconMapPin size={13} />
-          <span>Пляж 13 · Станція Фонтана, Одеса</span>
+          <span>{VENUE.fullLocation}</span>
         </div>
         {player ? (
           <div className={styles.headerPlayerRow}>
