@@ -355,7 +355,7 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
   return (
     <div>
       <label className={styles.label}>Логін</label>
-      <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login" />
+      <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login" aria-label="Логін" />
 
       <label className={styles.label}>Пароль</label>
       <div className={styles.passwordWrap}>
@@ -365,6 +365,7 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
           value={loginPassword}
           onChange={(e) => setLoginPassword(e.target.value)}
           placeholder="Password"
+          aria-label="Пароль"
           style={{ marginBottom: 0 }}
         />
         <button
@@ -432,6 +433,7 @@ function FormStep({
         value={form.city}
         onChange={(v) => updateField('city', v)}
         inputClassName={styles.input}
+        ariaLabel="Місто"
       />
 
       <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" />
@@ -540,6 +542,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }) {
             value={value}
             onChange={(e) => onChange(e.target.value)}
             placeholder={placeholder}
+            aria-label={label}
             style={{ marginBottom: 0 }}
           />
           <button
@@ -558,6 +561,7 @@ function Field({ label, value, onChange, placeholder, type = 'text' }) {
           value={value}
           onChange={(e) => onChange(e.target.value)}
           placeholder={placeholder}
+          aria-label={label}
         />
       )}
     </>

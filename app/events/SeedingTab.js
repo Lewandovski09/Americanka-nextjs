@@ -381,6 +381,7 @@ function MoveDialog({ row, from, total, onCancel, onConfirm }) {
           max={total}
           value={value}
           autoFocus
+          aria-label={`Нове місце для ${row.name} (від 1 до ${total})`}
           onChange={(e) => setValue(e.target.value)}
           onKeyDown={(e) => {
             if (e.key === 'Enter' && valid) onConfirm(place);

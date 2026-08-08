@@ -169,13 +169,13 @@ export default function RatingPage() {
         {/* Elo and AVP answer different questions and sit side by side:
             Elo is how strong a player is, AVP is what they have won this
             season. Neither is derived from the other. */}
-        <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => setTab('rating')}>
+        <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => setTab('rating')} aria-pressed={tab === 'rating'}>
           Ело
         </button>
-        <button className={`${styles.tabBtn} ${tab === 'avp' ? styles.tabBtnOn : ''}`} onClick={() => setTab('avp')}>
+        <button className={`${styles.tabBtn} ${tab === 'avp' ? styles.tabBtnOn : ''}`} onClick={() => setTab('avp')} aria-pressed={tab === 'avp'}>
           AVP
         </button>
-        <button className={`${styles.tabBtn} ${tab === 'stats' ? styles.tabBtnOn : ''}`} onClick={() => setTab('stats')}>
+        <button className={`${styles.tabBtn} ${tab === 'stats' ? styles.tabBtnOn : ''}`} onClick={() => setTab('stats')} aria-pressed={tab === 'stats'}>
           Статистика
         </button>
       </div>
@@ -185,25 +185,26 @@ export default function RatingPage() {
           <input
             className={styles.searchInput}
             placeholder="Пошук за нікнеймом або іменем..."
+            aria-label="Пошук гравця за нікнеймом або іменем"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <div className={styles.row}>
-            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')}>
+            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')} aria-pressed={gender === 'M'}>
               Чоловіки
             </button>
-            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')}>
+            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')} aria-pressed={gender === 'F'}>
               Жінки
             </button>
           </div>
 
           <div className={styles.chipsRow}>
-            <button className={`${styles.chip} ${category === 'all' ? styles.chipOn : ''}`} onClick={() => setCategory('all')}>
+            <button className={`${styles.chip} ${category === 'all' ? styles.chipOn : ''}`} onClick={() => setCategory('all')} aria-pressed={category === 'all'}>
               Всі
             </button>
             {['A', 'B', 'C', 'D'].map((c) => (
-              <button key={c} className={`${styles.chip} ${category === c ? styles.chipOn : ''}`} onClick={() => setCategory(c)}>
+              <button key={c} className={`${styles.chip} ${category === c ? styles.chipOn : ''}`} onClick={() => setCategory(c)} aria-pressed={category === c}>
                 {c}
               </button>
             ))}
@@ -255,15 +256,16 @@ export default function RatingPage() {
           <input
             className={styles.searchInput}
             placeholder="Пошук за нікнеймом або іменем..."
+            aria-label="Пошук гравця за нікнеймом або іменем"
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
           />
 
           <div className={styles.row}>
-            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')}>
+            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')} aria-pressed={gender === 'M'}>
               Чоловіки
             </button>
-            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')}>
+            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')} aria-pressed={gender === 'F'}>
               Жінки
             </button>
           </div>
@@ -275,6 +277,7 @@ export default function RatingPage() {
                   key={s.id}
                   className={`${styles.chip} ${seasonId === s.id ? styles.chipOn : ''}`}
                   onClick={() => setSeasonId(s.id)}
+                  aria-pressed={seasonId === s.id}
                 >
                   {s.name}
                 </button>
@@ -322,12 +325,14 @@ export default function RatingPage() {
             <input
               className={styles.compareInput}
               placeholder="Логін гравця А"
+              aria-label="Логін гравця А для порівняння"
               value={loginA}
               onChange={(e) => setLoginA(e.target.value)}
             />
             <input
               className={styles.compareInput}
               placeholder="Логін гравця Б"
+              aria-label="Логін гравця Б для порівняння"
               value={loginB}
               onChange={(e) => setLoginB(e.target.value)}
             />

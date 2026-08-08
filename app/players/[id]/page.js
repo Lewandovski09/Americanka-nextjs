@@ -184,6 +184,7 @@ export default function PlayerProfilePage() {
               value={opponentElo}
               onChange={(ev) => setOpponentElo(Number(ev.target.value))}
               className={styles.slider}
+              aria-label="Ело суперника"
             />
             <div className={styles.calcGrid}>
               <div className={styles.calcBox}>

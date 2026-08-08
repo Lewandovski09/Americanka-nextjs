@@ -300,12 +300,14 @@ export default function AdminPage() {
         <input
           className={styles.notifInput}
           placeholder="Заголовок"
+          aria-label="Заголовок оголошення"
           value={notifTitle}
           onChange={(e) => setNotifTitle(e.target.value)}
         />
         <textarea
           className={styles.notifTextarea}
           placeholder="Текст повідомлення для всіх учасників..."
+          aria-label="Текст оголошення"
           value={notifBody}
           onChange={(e) => setNotifBody(e.target.value)}
           rows={3}
@@ -349,6 +351,7 @@ export default function AdminPage() {
                 key={cat}
                 className={`${styles.categoryChip} ${selectedCategory[p.id] === cat ? styles.categoryChipOn : ''}`}
                 onClick={() => setSelectedCategory((prev) => ({ ...prev, [p.id]: cat }))}
+                aria-pressed={selectedCategory[p.id] === cat}
               >
                 {cat}
               </button>

@@ -198,6 +198,7 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
                   key={p.key}
                   className={`${styles.periodTab} ${period === p.key ? styles.periodTabOn : ''}`}
                   onClick={() => setPeriod(p.key)}
+                  aria-pressed={period === p.key}
                 >
                   {p.label}
                 </button>
@@ -224,6 +225,7 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
                   <input
                     className={styles.compareInput}
                     placeholder="Логін гравця для порівняння..."
+                    aria-label="Логін гравця для порівняння"
                     value={compareLogin}
                     onChange={(e) => setCompareLogin(e.target.value)}
                     onKeyDown={(e) => e.key === 'Enter' && handleCompare()}

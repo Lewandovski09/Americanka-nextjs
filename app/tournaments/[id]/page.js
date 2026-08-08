@@ -563,6 +563,7 @@ export default function TournamentDetailPage({ params }) {
               key={c.id}
               className={`${styles.leagueTab} ${c.id === tournament.id ? styles.leagueTabOn : ''}`}
               onClick={() => c.id !== tournament.id && router.push(`/tournaments/${c.id}`)}
+              aria-pressed={c.id === tournament.id}
             >
               {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
               {c.category_label || 'Категорія'}
@@ -601,6 +602,7 @@ export default function TournamentDetailPage({ params }) {
                 key={key}
                 className={`${styles.subTab} ${playersViewResolved === key ? styles.subTabOn : ''}`}
                 onClick={() => setPlayersView(key)}
+                aria-pressed={playersViewResolved === key}
               >
                 {label}
               </button>
@@ -873,8 +875,9 @@ export default function TournamentDetailPage({ params }) {
               onChange={(e) => setChatText(e.target.value)}
               onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
               placeholder="Написати повідомлення..."
+              aria-label="Написати повідомлення"
             />
-            <button className={styles.chatSend} onClick={handleSendChat}>
+            <button className={styles.chatSend} onClick={handleSendChat} aria-label="Надіслати повідомлення">
               →
             </button>
           </div>
@@ -900,6 +903,7 @@ export default function TournamentDetailPage({ params }) {
                   type="time"
                   value={slotModal.time}
                   autoFocus
+                  aria-label="Час гри"
                   onChange={(e) => setSlotModal((prev) => ({ ...prev, time: e.target.value, error: null }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveTime()}
                 />
@@ -917,6 +921,7 @@ export default function TournamentDetailPage({ params }) {
                       key={c}
                       className={`${styles.subTab} ${slotModal.court === c ? styles.subTabOn : ''}`}
                       onClick={() => saveSlot({ court: c })}
+                      aria-pressed={slotModal.court === c}
                     >
                       Корт {c}
                     </button>
@@ -949,6 +954,7 @@ export default function TournamentDetailPage({ params }) {
                         judgeModal.current === j.player_id ? styles.subTabOn : ''
                       }`}
                       onClick={() => handleSaveJudge(j.player_id)}
+                      aria-pressed={judgeModal.current === j.player_id}
                     >
                       {surnameOf(j.players)}
                       {j.is_head ? ' ★' : ''}
@@ -995,6 +1001,7 @@ export default function TournamentDetailPage({ params }) {
                   className={styles.scoreInput}
                   type="number"
                   value={scoreModal.scoreA}
+                  aria-label={`Рахунок: ${scoreModal.nameA || 'команда А'}`}
                   onChange={(e) => {
                     const v = e.target.value;
                     // Americanka auto-fills the complement to the sum.
@@ -1010,6 +1017,7 @@ export default function TournamentDetailPage({ params }) {
                   className={styles.scoreInput}
                   type="number"
                   value={scoreModal.scoreB}
+                  aria-label={`Рахунок: ${scoreModal.nameB || 'команда Б'}`}
                   onChange={(e) => {
                     const v = e.target.value;
                     setScoreModal((prev) => ({
@@ -1034,6 +1042,7 @@ export default function TournamentDetailPage({ params }) {
                       className={styles.scoreInput}
                       type="number"
                       value={s.a}
+                      aria-label={`Рахунок: ${scoreModal.nameA || 'команда А'}, сет ${i + 1}`}
                       onChange={(e) =>
                         setScoreModal((prev) => ({
                           ...prev,
@@ -1046,6 +1055,7 @@ export default function TournamentDetailPage({ params }) {
                       className={styles.scoreInput}
                       type="number"
                       value={s.b}
+                      aria-label={`Рахунок: ${scoreModal.nameB || 'команда Б'}, сет ${i + 1}`}
                       onChange={(e) =>
                         setScoreModal((prev) => ({
                           ...prev,
@@ -1348,7 +1358,7 @@ function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused })
 
 function TabBtn({ active, onClick, children }) {
   return (
-    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick}>
+    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
       {children}
     </button>
   );

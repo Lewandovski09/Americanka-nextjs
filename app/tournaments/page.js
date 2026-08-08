@@ -142,7 +142,7 @@ export default function EventsPage() {
 
 function TabBtn({ active, onClick, children }) {
   return (
-    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick}>
+    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
       {children}
     </button>
   );

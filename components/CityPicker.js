@@ -8,7 +8,7 @@ import styles from './CityPicker.module.css';
 // filters the list (prefix matches first); a city can only be picked
 // from the list, so the stored value is always a canonical name.
 // `inputClassName` lets each page keep its own input styling.
-export default function CityPicker({ value, onChange, inputClassName, placeholder = 'Почніть вводити місто…' }) {
+export default function CityPicker({ value, onChange, inputClassName, placeholder = 'Почніть вводити місто…', ariaLabel = 'Місто' }) {
   const [query, setQuery] = useState(null); // null → input shows the picked value
   const [open, setOpen] = useState(false);
 
@@ -37,6 +37,7 @@ export default function CityPicker({ value, onChange, inputClassName, placeholde
         className={inputClassName}
         value={query ?? value ?? ''}
         placeholder={placeholder}
+        aria-label={ariaLabel}
         onChange={(e) => {
           setQuery(e.target.value);
           setOpen(true);
@@ -60,6 +61,15 @@ export default function CityPicker({ value, onChange, inputClassName, placeholde
               className={`${styles.row} ${city === value ? styles.rowOn : ''}`}
               onMouseDown={(e) => e.preventDefault()}
               onClick={() => pick(city)}
+              onKeyDown={(e) => {
+                if (e.key === 'Enter' || e.key === ' ') {
+                  e.preventDefault();
+                  pick(city);
+                }
+              }}
+              role="option"
+              aria-selected={city === value}
+              tabIndex={0}
             >
               {city}
             </div>

@@ -73,12 +73,14 @@ export default function TournamentSettingsPage({ params }) {
         <button
           className={`${styles.tabBtn} ${tab === TABS.MAIN ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.MAIN)}
+          aria-pressed={tab === TABS.MAIN}
         >
           Керування
         </button>
         <button
           className={`${styles.tabBtn} ${tab === TABS.JUDGES ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.JUDGES)}
+          aria-pressed={tab === TABS.JUDGES}
         >
           Судді
         </button>
@@ -165,6 +167,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
       <input
         className={styles.field}
         value={name}
+        aria-label="Назва турніру"
         onChange={(e) => {
           setName(e.target.value);
           setSaved(false);
@@ -176,6 +179,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
         className={styles.field}
         type="datetime-local"
         value={scheduledAt}
+        aria-label="Дата та час початку"
         onChange={(e) => {
           setScheduledAt(e.target.value);
           setSaved(false);
@@ -188,6 +192,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
           <button
             key={loc}
             className={`${styles.catTab} ${location === loc ? styles.catTabOn : ''}`}
+            aria-pressed={location === loc}
             onClick={() => {
               setLocation(loc);
               setSaved(false);

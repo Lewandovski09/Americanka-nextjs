@@ -144,6 +144,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       <input
         className={styles.input}
         value={name}
+        aria-label="Назва події"
         onChange={(e) => setName(e.target.value)}
         placeholder="Залишити порожнім — згенерується сама"
       />
@@ -153,6 +154,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
         className={styles.input}
         type="datetime-local"
         value={scheduledAt}
+        aria-label="Дата та час початку"
         onChange={(e) => setScheduledAt(e.target.value)}
       />
 
@@ -173,6 +175,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
             key={n}
             className={`${styles.chip} ${courts.includes(n) ? styles.chipOn : ''}`}
             onClick={() => toggleCourt(n)}
+            aria-pressed={courts.includes(n)}
           >
             Корт {n}
           </button>
@@ -185,7 +188,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
           <label className={styles.label}>Партії до</label>
           <div className={styles.chipsRow}>
             {FIRST_TO_OPTIONS.map((p) => (
-              <button key={p} className={`${styles.chip} ${pointsToWin === p ? styles.chipOn : ''}`} onClick={() => setPointsToWin(p)}>
+              <button key={p} className={`${styles.chip} ${pointsToWin === p ? styles.chipOn : ''}`} onClick={() => setPointsToWin(p)} aria-pressed={pointsToWin === p}>
                 {p}
               </button>
             ))}
@@ -201,6 +204,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                   key={p}
                   className={`${styles.chip} ${finalPointsToWin === p ? styles.chipOn : ''}`}
                   onClick={() => setFinalPointsToWin(p)}
+                  aria-pressed={finalPointsToWin === p}
                 >
                   {p}
                 </button>
@@ -232,6 +236,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                   className={`${styles.chip} ${cat ? styles.chipOn : ''}`}
                   onClick={() => toggleCategory(gender, label)}
                   title={cat?.hasMembers ? 'У категорії вже є учасники' : ''}
+                  aria-pressed={!!cat}
                 >
                   {label}
                   {cat?.hasMembers ? ' 🔒' : ''}
@@ -275,6 +280,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                           maxParticipants: defaultParticipantsFor(b.id),
                         })
                       }
+                      aria-pressed={c.bracketSystem === b.id}
                     >
                       {b.label}
                     </button>
@@ -314,6 +320,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                         key={n}
                         className={`${styles.chip} ${c.maxParticipants === n ? styles.chipOn : ''}`}
                         onClick={() => updateCategory(key, { maxParticipants: n })}
+                        aria-pressed={c.maxParticipants === n}
                       >
                         {n}
                       </button>
@@ -353,7 +360,7 @@ function fromRows(rows, isPair) {
 
 function OptionBtn({ active, onClick, children }) {
   return (
-    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick}>
+    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
       {children}
     </button>
   );

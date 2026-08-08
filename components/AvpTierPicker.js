@@ -24,6 +24,7 @@ export default function AvpTierPicker({ value, onChange, styles, disabled }) {
           className={`${styles.chip} ${!tier ? styles.chipOn : ''}`}
           disabled={disabled}
           onClick={() => onChange(null)}
+          aria-pressed={!tier}
         >
           Без рейтингу
         </button>
@@ -34,6 +35,7 @@ export default function AvpTierPicker({ value, onChange, styles, disabled }) {
             className={`${styles.chip} ${tier?.id === id ? styles.chipOn : ''}`}
             disabled={disabled}
             onClick={() => onChange(id)}
+            aria-pressed={tier?.id === id}
           >
             {id}
           </button>

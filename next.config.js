@@ -44,6 +44,54 @@ const nextConfig = {
     imageSizes: [26, 28, 32, 34, 36, 40, 44, 64, 88],
     deviceSizes: [640, 750, 1080, 1200],
   },
+  // Content-Security-Policy is deliberately NOT here yet — it's the one
+  // header that can silently break the app (blocked Supabase images,
+  // blocked Sentry reporting, blocked inline styles) if it's not tuned
+  // against this specific app's actual script/style/connect sources,
+  // and that tuning needs a real browser console open to watch for
+  // violations, not a blind guess. These four don't have that risk —
+  // none of them restrict what the page is allowed to load, only how
+  // it can be embedded/read, so they're safe to turn on without
+  // per-app tuning.
+  async headers() {
+    return [
+      {
+        source: '/:path*',
+        headers: [
+          {
+            // Stops the whole site from being embedded in someone
+            // else's <iframe> (clickjacking: overlaying invisible
+            // buttons over a game's real "approve"/"submit" controls).
+            key: 'X-Frame-Options',
+            value: 'DENY',
+          },
+          {
+            // Stops the browser from guessing a file's type from its
+            // content and running it as something more dangerous than
+            // what the server actually declared (e.g. treating an
+            // uploaded player photo as executable script).
+            key: 'X-Content-Type-Options',
+            value: 'nosniff',
+          },
+          {
+            // Sends the full referrer only to our own origin; other
+            // sites just see that a visit came from americanka, not
+            // which internal page (a player's profile, an admin
+            // screen) they were on when they clicked out.
+            key: 'Referrer-Policy',
+            value: 'strict-origin-when-cross-origin',
+          },
+          {
+            // This app never uses the camera/microphone/geolocation
+            // APIs — turning them off at the browser level means even
+            // a future XSS bug couldn't silently request them.
+            key: 'Permissions-Policy',
+            value: 'camera=(), microphone=(), geolocation=()',
+          },
+        ],
+      },
+    ];
+  },
 };
 
 // withSentryConfig is what actually wires sentry.client.config.js into

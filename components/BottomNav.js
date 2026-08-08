@@ -122,6 +122,7 @@ export default function BottomNav({ player, requireAuth, onBlocked }) {
               }
             }}
             className={`${styles.navBtn} ${active ? styles.navBtnOn : ''} ${shrunk ? styles.navBtnShrunk : ''}`}
+            aria-current={active ? 'page' : undefined}
           >
             <span className={styles.navTile}>
               {item.isProfile ? (

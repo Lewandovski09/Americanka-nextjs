@@ -83,6 +83,7 @@ export default function PlayerPicker({
         className={styles.input}
         value={query}
         placeholder={placeholder}
+        aria-label={placeholder || 'Пошук гравця'}
         disabled={disabled}
         onChange={(e) => setQuery(e.target.value)}
       />

@@ -229,6 +229,7 @@ export function CategoryTabs({ categories, activeId, onSelect }) {
           key={c.id}
           className={`${styles.catTab} ${c.id === activeId ? styles.catTabOn : ''}`}
           onClick={() => onSelect(c.id)}
+          aria-pressed={c.id === activeId}
         >
           {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
           {c.category_label}
@@ -465,6 +466,7 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
                     className={styles.scoreInput}
                     type="number"
                     value={s.a}
+                    aria-label={`Рахунок: ${teamName(m.team_a_players)}, сет ${i + 1}`}
                     onChange={(e) => setDraftAt(i, { a: e.target.value })}
                   />
                   :
@@ -472,6 +474,7 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
                     className={styles.scoreInput}
                     type="number"
                     value={s.b}
+                    aria-label={`Рахунок: ${teamName(m.team_b_players)}, сет ${i + 1}`}
                     onChange={(e) => setDraftAt(i, { b: e.target.value })}
                   />
                 </span>

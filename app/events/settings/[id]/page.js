@@ -116,24 +116,28 @@ export default function EventSettingsPage({ params }) {
         <button
           className={`${styles.tabBtn} ${tab === TABS.QUEUE ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.QUEUE)}
+          aria-pressed={tab === TABS.QUEUE}
         >
           Розподіл
         </button>
         <button
           className={`${styles.tabBtn} ${tab === TABS.SEEDING ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.SEEDING)}
+          aria-pressed={tab === TABS.SEEDING}
         >
           Посів
         </button>
         <button
           className={`${styles.tabBtn} ${tab === TABS.JUDGES ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.JUDGES)}
+          aria-pressed={tab === TABS.JUDGES}
         >
           Судді
         </button>
         <button
           className={`${styles.tabBtn} ${tab === TABS.CONFIG ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.CONFIG)}
+          aria-pressed={tab === TABS.CONFIG}
         >
           Налаштування
         </button>

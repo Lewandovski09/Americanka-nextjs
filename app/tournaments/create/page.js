@@ -154,6 +154,7 @@ export default function CreateEventPage() {
             key={f.kind}
             className={`${styles.formatCard} ${formatKind === f.kind ? styles.formatCardOn : ''}`}
             onClick={() => setFormatKind(f.kind)}
+            aria-pressed={formatKind === f.kind}
           >
             {f.displayName}
           </button>
@@ -165,6 +166,7 @@ export default function CreateEventPage() {
       <input
         className={styles.input}
         value={name}
+        aria-label="Назва турніру"
         onChange={(e) => setName(e.target.value)}
         placeholder="Залишити порожнім — згенерується сама"
       />
@@ -174,6 +176,7 @@ export default function CreateEventPage() {
         className={styles.input}
         type="datetime-local"
         value={scheduledAt}
+        aria-label="Дата та час початку"
         onChange={(e) => setScheduledAt(e.target.value)}
       />
 
@@ -194,6 +197,7 @@ export default function CreateEventPage() {
             key={n}
             className={`${styles.chip} ${courts.includes(n) ? styles.chipOn : ''}`}
             onClick={() => toggleCourt(n)}
+            aria-pressed={courts.includes(n)}
           >
             Корт {n}
           </button>
@@ -206,7 +210,7 @@ export default function CreateEventPage() {
           <label className={styles.label}>Партії до</label>
           <div className={styles.chipsRow}>
             {FIRST_TO_OPTIONS.map((p) => (
-              <button key={p} className={`${styles.chip} ${pointsToWin === p ? styles.chipOn : ''}`} onClick={() => setPointsToWin(p)}>
+              <button key={p} className={`${styles.chip} ${pointsToWin === p ? styles.chipOn : ''}`} onClick={() => setPointsToWin(p)} aria-pressed={pointsToWin === p}>
                 {p}
               </button>
             ))}
@@ -222,6 +226,7 @@ export default function CreateEventPage() {
                   key={p}
                   className={`${styles.chip} ${finalPointsToWin === p ? styles.chipOn : ''}`}
                   onClick={() => setFinalPointsToWin(p)}
+                  aria-pressed={finalPointsToWin === p}
                 >
                   {p}
                 </button>
@@ -255,6 +260,7 @@ export default function CreateEventPage() {
                 key={label}
                 className={`${styles.chip} ${isCatOn(gender, label) ? styles.chipOn : ''}`}
                 onClick={() => toggleCategory(gender, label)}
+                aria-pressed={isCatOn(gender, label)}
               >
                 {label}
               </button>
@@ -296,6 +302,7 @@ export default function CreateEventPage() {
                           maxParticipants: defaultParticipantsFor(b.id),
                         })
                       }
+                      aria-pressed={c.bracketSystem === b.id}
                     >
                       {b.label}
                     </button>
@@ -335,6 +342,7 @@ export default function CreateEventPage() {
                         key={n}
                         className={`${styles.chip} ${c.maxParticipants === n ? styles.chipOn : ''}`}
                         onClick={() => updateCategory(key, { maxParticipants: n })}
+                        aria-pressed={c.maxParticipants === n}
                       >
                         {n}
                       </button>
@@ -364,7 +372,7 @@ export default function CreateEventPage() {
 
 function OptionBtn({ active, onClick, children }) {
   return (
-    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick}>
+    <button className={`${styles.optionBtn} ${active ? styles.optionBtnOn : ''}`} onClick={onClick} aria-pressed={active}>
       {children}
     </button>
   );

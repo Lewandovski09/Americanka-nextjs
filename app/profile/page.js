@@ -301,7 +301,7 @@ export default function ProfilePage() {
               <PlayerAvatar player={me} size={64} />
               {photoBusy && <span className={styles.photoBusy}>…</span>}
             </button>
-            <label className={styles.photoEditBtn}>
+            <label className={styles.photoEditBtn} aria-label="Змінити фото профілю">
               <IconEdit size={13} color="#fff" />
               <input
                 type="file"
@@ -379,6 +379,7 @@ export default function ProfilePage() {
           value={opponentElo}
           onChange={(e) => setOpponentElo(Number(e.target.value))}
           className={styles.slider}
+          aria-label="Ело суперника"
         />
         <div className={styles.calcGrid}>
           <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="var(--navy)" />
@@ -397,6 +398,7 @@ export default function ProfilePage() {
           <input
             className={styles.searchInput}
             placeholder="Логін гравця..."
+            aria-label="Пошук гравця за логіном"
             value={searchLogin}
             onChange={(e) => {
               setSearchLogin(e.target.value);
@@ -542,12 +544,14 @@ export default function ProfilePage() {
             <label className={styles.fieldLabel}>Ім&apos;я</label>
             <input
               className={styles.fieldInput}
+              aria-label="Ім'я"
               value={editForm.firstName}
               onChange={(e) => setEditForm((f) => ({ ...f, firstName: e.target.value }))}
             />
             <label className={styles.fieldLabel}>Прізвище</label>
             <input
               className={styles.fieldInput}
+              aria-label="Прізвище"
               value={editForm.lastName}
               onChange={(e) => setEditForm((f) => ({ ...f, lastName: e.target.value }))}
             />
@@ -556,15 +560,17 @@ export default function ProfilePage() {
               value={editForm.city}
               onChange={(v) => setEditForm((f) => ({ ...f, city: v }))}
               inputClassName={styles.fieldInput}
+              ariaLabel="Місто"
             />
             {/* Both read-only, for different reasons: the login is what
                 the Auth account address is derived from, and the Telegram
                 username is refreshed from the bot on every interaction. */}
             <label className={styles.fieldLabel}>Логін (незмінний)</label>
-            <input className={styles.fieldInput} value={editForm.login} readOnly />
+            <input className={styles.fieldInput} aria-label="Логін (незмінний)" value={editForm.login} readOnly />
             <label className={styles.fieldLabel}>Telegram (з бота)</label>
             <input
               className={styles.fieldInput}
+              aria-label="Telegram нікнейм"
               value={editForm.telegramUsername ? `@${editForm.telegramUsername}` : 'не підключено'}
               readOnly
             />
@@ -622,6 +628,7 @@ export default function ProfilePage() {
                   setMatchupMode('together');
                   loadMatchup(openPartner.id, 'together');
                 }}
+                aria-pressed={matchupMode === 'together'}
               >
                 Разом
               </button>
@@ -631,6 +638,7 @@ export default function ProfilePage() {
                   setMatchupMode('against');
                   loadMatchup(openPartner.id, 'against');
                 }}
+                aria-pressed={matchupMode === 'against'}
               >
                 Проти
               </button>
