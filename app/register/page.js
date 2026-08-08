@@ -295,12 +295,14 @@ export default function AuthPage() {
             <button
               className={`${styles.tabBtn} ${tab === 'login' ? styles.tabBtnOn : ''}`}
               onClick={() => switchTab('login')}
+              aria-pressed={tab === 'login'}
             >
               Увійти
             </button>
             <button
               className={`${styles.tabBtn} ${tab === 'register' ? styles.tabBtnOn : ''}`}
               onClick={() => switchTab('register')}
+              aria-pressed={tab === 'register'}
             >
               Реєстрація
             </button>
@@ -398,13 +400,13 @@ function FormStep({
   return (
     <div>
       <div className={styles.photoRow}>
-        <label className={styles.photoUpload}>
+        <label className={styles.photoUpload} aria-label="Завантажити фото профілю">
           {photoBusy ? (
-            <span className={styles.photoIcon}>⏳</span>
+            <span className={styles.photoIcon} aria-hidden="true">⏳</span>
           ) : photoDataUrl ? (
-            <img src={photoDataUrl} alt="" className={styles.photoPreview} />
+            <img src={photoDataUrl} alt="Попередній перегляд фото профілю" className={styles.photoPreview} />
           ) : (
-            <span className={styles.photoIcon}>📷</span>
+            <span className={styles.photoIcon} aria-hidden="true">📷</span>
           )}
           <input type="file" accept="image/*" onChange={onPhotoChange} hidden />
         </label>
@@ -444,12 +446,14 @@ function FormStep({
         <button
           className={`${styles.genderBtn} ${form.gender === 'M' ? styles.genderBtnOn : ''}`}
           onClick={() => updateField('gender', 'M')}
+          aria-pressed={form.gender === 'M'}
         >
           Чоловіча
         </button>
         <button
           className={`${styles.genderBtn} ${form.gender === 'F' ? styles.genderBtnOn : ''}`}
           onClick={() => updateField('gender', 'F')}
+          aria-pressed={form.gender === 'F'}
         >
           Жіноча
         </button>
@@ -462,6 +466,7 @@ function FormStep({
             key={cat}
             className={`${styles.chip} ${form.category === cat ? styles.chipOn : ''}`}
             onClick={() => updateField('category', cat)}
+            aria-pressed={form.category === cat}
           >
             {cat}
           </button>

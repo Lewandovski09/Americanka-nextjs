@@ -27,7 +27,11 @@ export default function PlayerAvatar({ player, size = 34 }) {
   };
 
   if (!player) {
-    return <div style={{ ...style, background: '#eee', color: '#888' }}>?</div>;
+    return (
+      <div style={{ ...style, background: '#eee', color: '#888' }} role="img" aria-label="Гравець невідомий">
+        ?
+      </div>
+    );
   }
 
   if (player.photo_url && brokenUrl !== player.photo_url) {
@@ -35,7 +39,7 @@ export default function PlayerAvatar({ player, size = 34 }) {
       <div style={style}>
         <Image
           src={player.photo_url}
-          alt=""
+          alt={player.full_name || ''}
           width={size}
           height={size}
           // Avatars render at 26-44px all over the app; requesting the
@@ -56,5 +60,13 @@ export default function PlayerAvatar({ player, size = 34 }) {
     .slice(0, 2)
     .toUpperCase();
 
-  return <div style={style}>{initials}</div>;
+  // No photo yet: the visible initials are a fine stand-in for sighted
+  // users, but a screen reader would otherwise read out one or two bare
+  // letters with no context — role="img" + the full name fixes that
+  // without changing anything on screen.
+  return (
+    <div style={style} role="img" aria-label={player.full_name || 'Гравець без фото'}>
+      {initials}
+    </div>
+  );
 }
