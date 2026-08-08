@@ -1,0 +1,14 @@
+После распаковки этого патча ОБЯЗАТЕЛЬНО удалите старые .js-версии
+(иначе получится дубль модулей):
+
+lib/server/judges.js
+lib/server/registration.js
+lib/server/avpAward.js
+lib/server/eventConfig.js
+lib/server/finishCategory.js
+lib/server/startCategory.js
+lib/telegram.js
+
+В PowerShell, находясь в корне проекта (Americanka-clean):
+
+Remove-Item lib\server\judges.js, lib\server\registration.js, lib\server\avpAward.js, lib\server\eventConfig.js, lib\server\finishCategory.js, lib\server\startCategory.js, lib\telegram.js

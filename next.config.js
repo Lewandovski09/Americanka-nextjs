@@ -3,6 +3,22 @@ const { withSentryConfig } = require('@sentry/nextjs');
 
 const nextConfig = {
   reactStrictMode: true,
+  // `next build`'s own internal type-check + lint pass duplicates what
+  // `npm run typecheck` and `npm run lint` already do — and, on a
+  // project this size, does it slower and far more memory-hungry inside
+  // webpack's pipeline than the standalone tools do on their own (this
+  // was actually hanging/OOMing a real build on this project). Both
+  // checks still run for real: CI (.github/workflows/ci.yml) runs
+  // `npm run typecheck` and `npm run lint` as their own steps BEFORE
+  // `npm run build` — so a genuine type or lint error still fails CI
+  // before anything deploys. This only skips the redundant in-build
+  // copy of that same work.
+  typescript: {
+    ignoreBuildErrors: true,
+  },
+  eslint: {
+    ignoreDuringBuilds: true,
+  },
   // Required on Next.js 14 for instrumentation.js (Sentry server/edge
   // init) to actually run — it's the default in Next 15, but this repo
   // is pinned to 14.2.5. Safe to remove after an eventual Next 15 bump.
