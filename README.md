@@ -31,12 +31,14 @@
 
 1. У Supabase зайди в розділ **"SQL Editor"** (зліва в меню)
 2. Натисни **"New query"**
-3. Відкрий файл `supabase/migrations/001_initial_schema.sql` з цього проєкту,
-   скопіюй весь вміст, встав у редактор, натисни **"Run"**
-4. Повтори те саме для `002_row_level_security.sql`
-5. Повтори те саме для `003_telegram_pending_links.sql`
-6. Повтори те саме для `004_telegram_deep_link.sql`
-7. Повтори те саме для `005_drop_email_and_phone.sql`
+3. У папці `supabase/migrations/` цього проєкту файли пронумеровані —
+   виконай їх **усі, по черзі, від найменшого номера до найбільшого**
+   (наприклад: `001_initial_schema.sql`, потім `002_row_level_security.sql`,
+   і так до останнього файлу в папці). Для кожного: відкрий файл, скопіюй
+   весь вміст, встав у редактор, натисни **"Run"**, перейди до наступного.
+   Список тут навмисно не дублюється — файлів у проєкті з часом стає
+   більше, і список одразу застаріє; папка `supabase/migrations/` — єдине
+   місце, якому варто довіряти.
 
 Якщо все пройшло без помилок — у розділі **"Table Editor"** ти побачиш
 таблиці: `players`, `tournaments`, `matches`, `tournament_formats` і т.д.
@@ -51,13 +53,19 @@
 
 ## Крок 4. Візьми ключі API
 
-1. У Supabase зайди в **Settings → API**
+1. У Supabase зайди в **Settings → API Keys**
 2. Скопіюй:
-   - **Project URL** → це `NEXT_PUBLIC_SUPABASE_URL`
-   - **anon public** key → це `NEXT_PUBLIC_SUPABASE_ANON_KEY`
-   - **service_role** key (натисни "Reveal") → це `SUPABASE_SERVICE_ROLE_KEY`
+   - **Project URL** (вкладка Data API) → це `NEXT_PUBLIC_SUPABASE_URL`
+   - **Publishable key** (починається з `sb_publishable_`) → це
+     `NEXT_PUBLIC_SUPABASE_ANON_KEY`
+   - **Secret key** (починається з `sb_secret_`, натисни іконку ока, щоб
+     побачити) → це `SUPABASE_SERVICE_ROLE_KEY`
 
-⚠️ **service_role key — це найсекретніший ключ у всьому проєкті.** Він
+   Це новий формат ключів Supabase — повністю сумісний зі старими
+   `anon`/`service_role`, у коді нічого міняти не треба, просто інша
+   назва в інтерфейсі.
+
+⚠️ **Secret key — це найсекретніший ключ у всьому проєкті.** Він
 обходить усі захисти бази даних. Ніколи не вставляй його в код сайту,
 тільки в змінні середовища на сервері (Vercel).
 
@@ -128,10 +136,11 @@ app/
 
 lib/
   supabase/           — клієнти для браузера/сервера/адмін-операцій
-  elo.js              — математика рейтингу Ело
-  tournamentEngine.js — рушій турнірів (працює з БУДЬ-ЯКИМ форматом з бази)
-  telegram.js         — відправка повідомлень через Telegram Bot API
-  authIdentity.js     — логін → адреса акаунта в Supabase Auth (логін незмінний)
+  elo.ts              — математика рейтингу Ело
+  tournamentEngine.ts — рушій турнірів (працює з БУДЬ-ЯКИМ форматом з бази)
+  telegram.ts         — відправка повідомлень через Telegram Bot API
+  authIdentity.ts     — логін → адреса акаунта в Supabase Auth (логін незмінний)
+  server/             — серверна бізнес-логіка (реєстрація, старт/фініш категорії, AVP)
 
 supabase/migrations/   — SQL-схема бази даних
 ```

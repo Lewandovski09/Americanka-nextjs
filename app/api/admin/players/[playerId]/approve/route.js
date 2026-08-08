@@ -59,12 +59,24 @@ export async function POST(request, { params }) {
       rating_approved_notified: false, // so the player sees the popup on next login
     })
     .eq('id', playerId)
+    // Guards against a double-click or two admins racing on the same
+    // pending row: only a still-pending player can be approved by this
+    // update. If someone already got here first, `player` below comes
+    // back null and we skip the duplicate Telegram push and log entry
+    // instead of sending them twice.
+    .eq('approval_status', 'pending')
     .select()
-    .single();
+    .maybeSingle();
 
   if (error) {
     console.error('[approve-player] error:', error.message);
     return Response.json({ success: false, error: 'Не вдалося підтвердити гравця' }, { status: 500 });
+  }
+
+  if (!player) {
+    // Already approved (by this same request racing itself, or by
+    // another admin) — not an error from the caller's point of view.
+    return Response.json({ success: true, alreadyApproved: true });
   }
 
   await supabaseAdmin.from('admin_actions').insert({
