@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
@@ -16,10 +16,22 @@ export default function EventsPage() {
   const [tab, setTab] = useState(TABS.SCHEDULED);
   const [events, setEvents] = useState([]);
   const [loading, setLoading] = useState(true);
+  // Same reasoning as app/rating/page.js: switching straight back to a
+  // tab shown moments ago used to refetch it from scratch every time,
+  // which is what made the switch itself feel slow. Cache per tab,
+  // show it instantly, refresh quietly underneath.
+  const eventsCacheRef = useRef({}); // tab -> events[]
 
   useEffect(() => {
-    async function load() {
+    const cached = eventsCacheRef.current[tab];
+    if (cached) {
+      setEvents(cached);
+      setLoading(false);
+    } else {
       setLoading(true);
+    }
+
+    async function load() {
       const supabase = createClient();
       const { data } = await supabase
         .from('tournament_events')
@@ -29,6 +41,7 @@ export default function EventsPage() {
         )
         .eq('status', tab)
         .order('scheduled_at', { ascending: tab === 'done' ? false : true });
+      eventsCacheRef.current[tab] = data || [];
       setEvents(data || []);
       setLoading(false);
     }

@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
@@ -28,8 +28,23 @@ export default function RatingPage() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareResult, setCompareResult] = useState(null); // { playerA, playerB, statsA, statsB }
 
+  // Switching tabs used to refetch everything from scratch every single
+  // time, even flipping straight back to a tab shown seconds ago —
+  // that round-trip is what actually made tab switching feel slow, not
+  // rendering. These caches make a repeat visit instant (last-known
+  // data renders immediately) while a fresh fetch still runs quietly
+  // underneath to catch anything that changed — a manual approval, a
+  // new result — without the visible spinner/blank-state coming back
+  // every time.
+  const ratingCacheRef = useRef({}); // `${gender}:${category}` -> players[]
+  const avpCacheRef = useRef({}); // seasonId -> rows[]
+
   useEffect(() => {
     if (tab !== 'rating') return;
+    const cacheKey = `${gender}:${category}`;
+    const cached = ratingCacheRef.current[cacheKey];
+    if (cached) setPlayers(cached); // show the last-known list instantly
+
     async function load() {
       const supabase = createClient();
       let query = supabase
@@ -45,6 +60,7 @@ export default function RatingPage() {
       }
 
       const { data } = await query;
+      ratingCacheRef.current[cacheKey] = data || [];
       setPlayers(data || []);
     }
     load();
@@ -70,8 +86,14 @@ export default function RatingPage() {
   // profiles — the players are fetched alongside and joined here.
   useEffect(() => {
     if (tab !== 'avp' || !seasonId) return;
-    async function load() {
+    const cached = avpCacheRef.current[seasonId];
+    if (cached) {
+      setAvpRows(cached); // instant on a repeat visit — no spinner
+    } else {
       setAvpLoading(true);
+    }
+
+    async function load() {
       const supabase = createClient();
       const { data: standings } = await supabase
         .from('avp_standings')
@@ -88,11 +110,11 @@ export default function RatingPage() {
         : { data: [] };
 
       const byId = new Map((profiles || []).map((p) => [p.id, p]));
-      setAvpRows(
-        (standings || [])
-          .map((s) => ({ ...s, player: byId.get(s.player_id) }))
-          .filter((s) => s.player)
-      );
+      const rows = (standings || [])
+        .map((s) => ({ ...s, player: byId.get(s.player_id) }))
+        .filter((s) => s.player);
+      avpCacheRef.current[seasonId] = rows;
+      setAvpRows(rows);
       setAvpLoading(false);
     }
     load();

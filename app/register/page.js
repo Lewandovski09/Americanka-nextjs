@@ -395,6 +395,10 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
     <div>
       <label className={styles.label}>Логін або Telegram</label>
       <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login або @username" aria-label="Логін або Telegram" />
+      <div className={styles.fieldHint}>
+        Telegram-варіант працює, лише якщо в Telegram встановлено юзернейм (Settings →
+        Username). Немає юзернейма — увійдіть за логіном.
+      </div>
 
       <label className={styles.label}>Пароль</label>
       <div className={styles.passwordWrap}>
