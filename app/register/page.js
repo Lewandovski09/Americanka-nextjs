@@ -91,18 +91,32 @@ export default function AuthPage() {
     setError('');
     setLoading(true);
 
-    // The Auth address is derived from the login, so there's nothing to
-    // look up on the server any more. A wrong login and a wrong password
-    // now fail identically, which is also what we want.
+    // Accept either the login or a Telegram handle in any format
+    // (@name, t.me/name, bare name) — resolve it to the real login
+    // first, since Supabase Auth's synthetic email is only ever
+    // derived from that, never from a Telegram handle.
+    const resolveRes = await fetch('/api/auth/resolve-login', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ identifier: loginField }),
+    });
+    const resolveData = await resolveRes.json();
+
+    if (!resolveData.success) {
+      setError('Невірний логін, Telegram або пароль');
+      setLoading(false);
+      return;
+    }
+
     const { error: authError } = await supabase.auth.signInWithPassword({
-      email: emailForLogin(loginField),
+      email: emailForLogin(resolveData.login),
       password: loginPassword,
     });
 
     setLoading(false);
 
     if (authError) {
-      setError('Невірний логін або пароль');
+      setError('Невірний логін, Telegram або пароль');
       return;
     }
 
@@ -379,8 +393,8 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
   const [showPw, setShowPw] = useState(false);
   return (
     <div>
-      <label className={styles.label}>Логін</label>
-      <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login" aria-label="Логін" />
+      <label className={styles.label}>Логін або Telegram</label>
+      <input className={styles.input} value={loginField} onChange={(e) => setLoginField(e.target.value)} placeholder="Login або @username" aria-label="Логін або Telegram" />
 
       <label className={styles.label}>Пароль</label>
       <div className={styles.passwordWrap}>

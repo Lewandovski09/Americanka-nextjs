@@ -25,12 +25,14 @@ export default function ResetPasswordPage() {
   const [step, setStep] = useState(STEPS.START);
   const [nonce, setNonce] = useState(null);
   const [linkExpired, setLinkExpired] = useState(false);
+  const [noAccount, setNoAccount] = useState(false);
   const [loading, setLoading] = useState(false);
   const [error, setError] = useState('');
   const [password, setPassword] = useState('');
   const [password2, setPassword2] = useState('');
   const [resultLogin, setResultLogin] = useState('');
   const confirmedRef = useRef(false);
+  const autoStartedRef = useRef(false);
 
   async function handleStart() {
     setError('');
@@ -45,6 +47,7 @@ export default function ResetPasswordPage() {
       }
       setNonce(data.nonce);
       setLinkExpired(false);
+      setNoAccount(false);
       confirmedRef.current = false;
       setStep(STEPS.CONNECT_TELEGRAM);
     } catch {
@@ -53,6 +56,17 @@ export default function ResetPasswordPage() {
       setLoading(false);
     }
   }
+
+  // No reason to make someone click a button just to start what they
+  // already asked for by landing on this page — begin immediately.
+  // The guard ref (not just an empty dependency array) is what keeps
+  // this to exactly one attempt even under React Strict Mode's
+  // double-invoke in development.
+  useEffect(() => {
+    if (autoStartedRef.current) return;
+    autoStartedRef.current = true;
+    handleStart();
+  }, []);
 
   // Wait for the bot to confirm — same SSE approach as the registration
   // flow (see app/register/page.js), just watching a different nonce
@@ -80,6 +94,9 @@ export default function ResetPasswordPage() {
           confirmedRef.current = true;
           source.close();
           setStep(STEPS.SET_PASSWORD);
+        } else if (data.noAccount) {
+          source.close();
+          setNoAccount(true);
         } else if (data.expired) {
           source.close();
           setLinkExpired(true);
@@ -154,10 +171,16 @@ export default function ResetPasswordPage() {
                 побачити свій логін та встановити новий пароль.
               </div>
             </div>
-            {error && <div className={styles.errMsg}>{error}</div>}
-            <button className={styles.btnPrimary} disabled={loading} onClick={handleStart}>
-              {loading ? 'Створюємо посилання...' : 'Почати відновлення →'}
-            </button>
+            {error ? (
+              <>
+                <div className={styles.errMsg}>{error}</div>
+                <button className={styles.btnPrimary} disabled={loading} onClick={handleStart}>
+                  {loading ? 'Створюємо посилання...' : 'Спробувати ще раз →'}
+                </button>
+              </>
+            ) : (
+              <div className={styles.okMsg}>Готуємо посилання для Telegram…</div>
+            )}
             <button
               type="button"
               onClick={() => router.push('/register')}
@@ -192,7 +215,23 @@ export default function ResetPasswordPage() {
               </div>
             </div>
 
-            {linkExpired ? (
+            {noAccount ? (
+              <>
+                <div className={styles.warnMsg}>
+                  До цього Telegram не привʼязано жодного акаунта AMERICANKA.
+                </div>
+                <div className={styles.fieldHint}>
+                  Якщо ви реєструвались іншим Telegram-акаунтом — спробуйте ще раз через нього.
+                  Якщо ваш старий Telegram більше недоступний (загублений телефон, видалений
+                  акаунт) — самостійно прив&apos;язати новий не можна: це б дозволило будь-кому
+                  захопити чужий акаунт, знаючи лише логін. У такому разі напишіть адміну клубу —
+                  він підтвердить особу і прив&apos;яже Telegram наново.
+                </div>
+                <button className={styles.btnPrimary} disabled={loading} onClick={handleStart}>
+                  {loading ? 'Створюємо...' : 'Спробувати інший Telegram →'}
+                </button>
+              </>
+            ) : linkExpired ? (
               <>
                 <div className={styles.errMsg}>Посилання застаріло — запросіть нове.</div>
                 <button className={styles.btnPrimary} disabled={loading} onClick={handleStart}>

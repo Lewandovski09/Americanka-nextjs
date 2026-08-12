@@ -30,3 +30,17 @@ export function isValidLogin(login: string | null | undefined): boolean {
 export function emailForLogin(login: string | null | undefined): string {
   return `${normalizeLogin(login)}@${SYNTHETIC_EMAIL_DOMAIN}`;
 }
+
+// A person signing in may type their login OR their Telegram handle —
+// and the handle itself might come in as "@name", "t.me/name",
+// "https://t.me/name", or just "name". This strips all of that down to
+// the bare handle/login so a single lookup can check both columns
+// without the caller worrying about which format arrived.
+export function normalizeIdentifier(raw: string | null | undefined): string {
+  let s = String(raw || '').trim().toLowerCase();
+  s = s.replace(/^https?:\/\//, '');
+  s = s.replace(/^(t\.me|telegram\.me)\//, '');
+  s = s.replace(/^@/, '');
+  s = s.split('?')[0].replace(/\/+$/, '');
+  return s;
+}

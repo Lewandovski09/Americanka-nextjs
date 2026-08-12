@@ -177,7 +177,18 @@ async function confirmPasswordReset(supabaseAdmin, nonce, from) {
     .eq('telegram_user_id', from.id)
     .maybeSingle();
 
-  if (!owner) return { status: 'no_account' };
+  if (!owner) {
+    // Record this distinctly from "not confirmed yet" — otherwise the
+    // web page just sits waiting the full 10 minutes and then shows the
+    // same generic "expired" message it would for someone who never
+    // opened the bot at all, which is no help to someone whose actual
+    // problem is a Telegram account that no longer exists.
+    await supabaseAdmin
+      .from('password_resets')
+      .update({ no_account_at: new Date().toISOString() })
+      .eq('nonce', nonce);
+    return { status: 'no_account' };
+  }
 
   const { error: updateError } = await supabaseAdmin
     .from('password_resets')

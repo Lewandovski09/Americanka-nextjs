@@ -11,7 +11,7 @@ const MAX_LIFETIME_MS = 10 * 60 * 1000; // matches nonce expiry in start/route.j
 async function fetchStatus(supabaseAdmin, nonce) {
   const { data: reset, error } = await supabaseAdmin
     .from('password_resets')
-    .select('confirmed_at, expires_at')
+    .select('confirmed_at, expires_at, no_account_at')
     .eq('nonce', nonce)
     .maybeSingle();
 
@@ -21,7 +21,8 @@ async function fetchStatus(supabaseAdmin, nonce) {
   return {
     success: true,
     confirmed: !!reset.confirmed_at,
-    expired: !reset.confirmed_at && new Date(reset.expires_at) < new Date(),
+    noAccount: !!reset.no_account_at,
+    expired: !reset.confirmed_at && !reset.no_account_at && new Date(reset.expires_at) < new Date(),
   };
 }
 
@@ -56,7 +57,7 @@ export async function GET(request) {
       const tick = async () => {
         const status = await fetchStatus(supabaseAdmin, nonce);
         send(status);
-        if (!status.success || status.confirmed || status.expired) close();
+        if (!status.success || status.confirmed || status.expired || status.noAccount) close();
       };
 
       await tick();
