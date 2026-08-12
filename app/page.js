@@ -4,10 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
-import { categoryForElo } from '@/lib/elo';
+import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
+import { teamAWon } from '@/lib/formats/sets';
 import { VENUE } from '@/lib/venue';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket } from '@/components/Icons';
+import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -19,8 +20,12 @@ export default function HomePage() {
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
   const [installOpen, setInstallOpen] = useState(false);
+  const [avpExplainerOpen, setAvpExplainerOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
   const [recentJoiners, setRecentJoiners] = useState([]);
+  const [eloRank, setEloRank] = useState(null);
+  const [avpStanding, setAvpStanding] = useState(null); // { points, rank }
+  const [winStreak, setWinStreak] = useState(0);
 
   // Swipe left to jump to the next tab (Турніри) — installed-PWA
   // users expect horizontal swipes to move between sections, not
@@ -121,9 +126,69 @@ export default function HomePage() {
       setRecentJoiners(recent || []);
     }
 
+    async function loadRankAndStreak() {
+      if (!player?.id) return;
+
+      // Rank within the same gender+category — same pool the rating
+      // page's own list is built from, so the number matches what
+      // they'd see there.
+      if (player.elo != null && player.gender) {
+        const { count } = await supabase
+          .from('players')
+          .select('id', { count: 'exact', head: true })
+          .eq('gender', player.gender)
+          .eq('approval_status', 'approved')
+          .gt('elo', player.elo);
+        setEloRank((count ?? 0) + 1);
+      }
+
+      // AVP: current season = newest one, same "newest first" rule
+      // rating.js's AVP tab already opens on.
+      const { data: season } = await supabase
+        .from('avp_seasons')
+        .select('id')
+        .order('starts_on', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+
+      if (season) {
+        const { data: rows } = await supabase
+          .from('avp_standings')
+          .select('player_id, points')
+          .eq('season_id', season.id)
+          .order('points', { ascending: false });
+        const idx = (rows || []).findIndex((r) => r.player_id === player.id);
+        setAvpStanding(idx === -1 ? null : { points: rows[idx].points, rank: idx + 1 });
+      }
+
+      // Win streak: most recent played games this player was in,
+      // newest first by played_at (not created_at — a bracket's rows
+      // are all inserted together at tournament start, so created_at
+      // is the same for every game in it and says nothing about play
+      // order). Counts consecutive wins from the most recent game
+      // back, stopping at the first loss.
+      const { data: recent } = await supabase
+        .from('matches')
+        .select('team_a_players, team_b_players, set1, set2, set3, played_at')
+        .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
+        .eq('played', true)
+        .order('played_at', { ascending: false })
+        .limit(20);
+
+      let streak = 0;
+      for (const m of recent || []) {
+        const onTeamA = (m.team_a_players || []).includes(player.id);
+        const won = teamAWon(m) === onTeamA;
+        if (!won) break;
+        streak++;
+      }
+      setWinStreak(streak);
+    }
+
     loadNextTournament();
     loadAnnouncements();
     loadCommunity();
+    loadRankAndStreak();
   }, [loading, player]);
 
   async function dismissAnnouncement(notificationId) {
@@ -168,6 +233,16 @@ export default function HomePage() {
   const slotsTotal = 8; // current format size; will read from format data once multiple formats are live
   const slotsTaken = nextTournamentPlayers.length;
 
+  // Elo progress toward the next category, for the header stat card.
+  // Top category (A) has nowhere further to go, so nextCategory stays
+  // null and the meta line falls back to just the rank.
+  const playerCategory = player ? categoryForElo(player.elo) : null;
+  const categoryIndex = playerCategory ? SKILL_CATEGORIES.findIndex((c) => c.id === playerCategory.id) : -1;
+  const nextCategory = categoryIndex >= 0 && categoryIndex < SKILL_CATEGORIES.length - 1 ? SKILL_CATEGORIES[categoryIndex + 1] : null;
+  const eloProgressPct = playerCategory
+    ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
+    : 0;
+
   return (
     <div className={styles.page}>
       <div className={`${styles.header} riseIn`}>
@@ -184,6 +259,7 @@ export default function HomePage() {
           <span>{VENUE.fullLocation}</span>
         </div>
         {player ? (
+          <>
           <div className={styles.headerPlayerRow}>
             <PlayerAvatar player={player} size={44} />
             <div className={styles.headerPlayerInfo}>
@@ -192,11 +268,32 @@ export default function HomePage() {
                 {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
               </div>
             </div>
-            <div className={styles.headerElo}>
-              <div className={styles.headerEloValue}>{player.elo ?? '—'}</div>
-              <div className={styles.headerEloLabel}>ELO</div>
-            </div>
           </div>
+          {player.approval_status !== 'pending' && player.elo != null && (
+            <div className={styles.headerStatsRow}>
+              <div className={styles.headerStatCard}>
+                <div className={styles.headerStatLabel}>Ело</div>
+                <div className={styles.headerStatValue}>{player.elo}</div>
+                {playerCategory && (
+                  <div className={styles.headerStatBar}>
+                    <div className={styles.headerStatBarFill} style={{ width: `${eloProgressPct}%` }} />
+                  </div>
+                )}
+                <div className={styles.headerStatMeta}>
+                  {eloRank ? `№${eloRank}` : ''}
+                  {nextCategory ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}` : ''}
+                </div>
+              </div>
+              {avpStanding && (
+                <div className={`${styles.headerStatCard} ${styles.headerStatCardAvp}`}>
+                  <div className={styles.headerStatLabelAvp}>AVP сезон</div>
+                  <div className={styles.headerStatValueAvp}>{avpStanding.points}</div>
+                  <div className={styles.headerStatMetaAvp}>№{avpStanding.rank} сезону</div>
+                </div>
+              )}
+            </div>
+          )}
+          </>
         ) : (
           <div className={styles.guestRow}>
             <div className={styles.guestText}>
@@ -225,6 +322,15 @@ export default function HomePage() {
 
       {player?.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
+      )}
+
+      {winStreak >= 2 && (
+        <div className={`${styles.streakCard} riseIn`}>
+          <IconTrendUp size={18} color="var(--rust)" />
+          <div className={styles.streakText}>
+            {winStreak} {winPluralUk(winStreak)} поспіль
+          </div>
+        </div>
       )}
 
       {announcements.length > 0 && (
@@ -301,13 +407,54 @@ export default function HomePage() {
             Адміністратор готує перший турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
             його тут першими.
           </div>
+          {/* Folded into the card itself here — a separate full-width
+              button right under "there's nothing" read as a dead end
+              (go look at... the same nothing). When a real tournament
+              IS shown above, "see all" stays a standalone link instead,
+              since browsing the full list is still a genuinely
+              different, useful action from viewing the one next game. */}
+          <a href="/tournaments" className={styles.ctaBtnInline}>
+            Дивитись усі турніри →
+          </a>
         </div>
       )}
 
-      <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
-        Дивитись усі турніри →
+      {nextTournament && (
+        <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
+          Дивитись усі турніри →
+        </a>
+      )}
+
+
+      <div className={styles.sectionLabel}>Спільнота</div>
+      <a href="/rating" className={`${styles.communityCard} riseIn`} style={{ animationDelay: '0.05s' }}>
+        <div className={styles.communityCountRow}>
+          <div className={styles.communityCountValue}>{communityCount}</div>
+          <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
+        </div>
+        {recentJoiners.length > 0 && (
+          <div className={styles.communityAvatarRow}>
+            {recentJoiners.map((p, i) => (
+              <span key={p.id} className={styles.communityAvatarItem} style={{ zIndex: recentJoiners.length - i }}>
+                <PlayerAvatar player={p} size={32} />
+              </span>
+            ))}
+          </div>
+        )}
       </a>
 
+      <div className={styles.formatsCard}>
+        <div className={styles.formatsIconRow}>
+          <IconRocket size={17} color="var(--rust)" />
+          <div className={styles.formatsTitle}>Старт сезону — AMERICANKA</div>
+        </div>
+        <div className={styles.formatsText}>
+          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
+          <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
+        </div>
+      </div>
+
+      <div className={styles.sectionLabel}>Довідка</div>
       <button className={styles.eloExplainerToggle} onClick={() => setInstallOpen((o) => !o)}>
         <span>Як встановити застосунок на ваш телефон?</span>
         <span className={`${styles.eloExplainerArrow} ${installOpen ? styles.eloExplainerArrowOpen : ''}`}>
@@ -396,39 +543,46 @@ export default function HomePage() {
         </div>
       )}
 
-      <div className={styles.sectionLabel}>Спільнота</div>
-      <a href="/rating" className={`${styles.communityCard} riseIn`} style={{ animationDelay: '0.05s' }}>
-        <div className={styles.communityCountRow}>
-          <div className={styles.communityCountValue}>{communityCount}</div>
-          <div className={styles.communityCountLabel}>гравців вже в AMERICANKA</div>
-        </div>
-        {recentJoiners.length > 0 && (
-          <div className={styles.communityAvatarRow}>
-            {recentJoiners.map((p, i) => (
-              <span key={p.id} className={styles.communityAvatarItem} style={{ zIndex: recentJoiners.length - i }}>
-                <PlayerAvatar player={p} size={32} />
-              </span>
-            ))}
-          </div>
-        )}
-      </a>
+      <button className={styles.eloExplainerToggle} onClick={() => setAvpExplainerOpen((o) => !o)}>
+        <span>Що таке сезонний рейтинг AVP?</span>
+        <span className={`${styles.eloExplainerArrow} ${avpExplainerOpen ? styles.eloExplainerArrowOpen : ''}`}>
+          <IconChevronDown size={13} />
+        </span>
+      </button>
 
-      <div className={styles.formatsCard}>
-        <div className={styles.formatsIconRow}>
-          <IconRocket size={17} color="var(--rust)" />
-          <div className={styles.formatsTitle}>Старт сезону — AMERICANKA</div>
+      {avpExplainerOpen && (
+        <div className={styles.eloExplainerBody}>
+          <p>
+            Паралельно з Ело існує сезонний рейтинг <b>AVP</b> — за принципом, схожим на ATP в тенісі.
+          </p>
+          <p>
+            Кожен турнір має категорію — <b>250</b>, <b>500</b>, <b>1000</b> або <b>2000</b> — залежно від рівня. Чим
+            вища категорія, тим більше очок дає перемога в ньому.
+          </p>
+          <p>
+            Очки за весь сезон підсумовуються, і найкращі гравці сезону визначаються саме за сумою очок, а не за Ело —
+            це показує, наскільки успішним був конкретно цей сезон.
+          </p>
         </div>
-        <div className={styles.formatsText}>
-          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
-          <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
-        </div>
-      </div>
+      )}
       </div>
     </div>
   );
 }
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'AmericankaVerifyBot';
+
+// Ukrainian plural for "перемога" — 11-14 always take the "many" form
+// regardless of the last digit (the usual Slavic exception), otherwise
+// it follows the last digit: 1 → перемога, 2-4 → перемоги, else → перемог.
+function winPluralUk(n) {
+  const mod10 = n % 10;
+  const mod100 = n % 100;
+  if (mod100 >= 11 && mod100 <= 14) return 'перемог';
+  if (mod10 === 1) return 'перемога';
+  if (mod10 >= 2 && mod10 <= 4) return 'перемоги';
+  return 'перемог';
+}
 
 // Shown to a logged-in player with no Telegram attached: they closed the
 // tab mid-registration, or they blocked the bot and got unlinked. Without

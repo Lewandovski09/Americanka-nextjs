@@ -540,3 +540,111 @@
 .communityAvatarItem:first-child {
   margin-left: 0;
 }
+
+.headerStatsRow {
+  display: flex;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.headerStatCard {
+  flex: 1;
+  background: rgba(255, 255, 255, 0.08);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+}
+
+.headerStatCardAvp {
+  background: rgba(232, 93, 74, 0.14);
+}
+
+.headerStatLabel,
+.headerStatLabelAvp {
+  font-size: 10px;
+  font-weight: 800;
+  letter-spacing: 0.4px;
+  text-transform: uppercase;
+  color: rgba(255, 255, 255, 0.4);
+}
+
+.headerStatLabelAvp {
+  color: rgba(255, 255, 255, 0.55);
+}
+
+.headerStatValue {
+  font-size: 19px;
+  font-weight: 800;
+  color: #fff;
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.headerStatValueAvp {
+  font-size: 19px;
+  font-weight: 800;
+  color: var(--rust);
+  line-height: 1.2;
+  margin-top: 2px;
+}
+
+.headerStatBar {
+  height: 3px;
+  background: rgba(255, 255, 255, 0.15);
+  border-radius: 2px;
+  margin-top: 6px;
+  overflow: hidden;
+}
+
+.headerStatBarFill {
+  height: 100%;
+  background: var(--rust);
+  border-radius: 2px;
+}
+
+.headerStatMeta {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 4px;
+  min-height: 12px;
+}
+
+.headerStatMetaAvp {
+  font-size: 10px;
+  color: rgba(255, 255, 255, 0.5);
+  margin-top: 22px;
+}
+
+.streakCard {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  background: var(--rust-tint);
+  border-radius: var(--r-sm);
+  padding: 12px 14px;
+  margin-bottom: 12px;
+}
+
+.streakText {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--rust-dark);
+}
+
+.ctaBtnInline {
+  display: block;
+  text-align: center;
+  width: 100%;
+  padding: 12px;
+  background: var(--rust);
+  color: #fff;
+  border-radius: var(--r-sm);
+  font-size: 14px;
+  font-weight: 800;
+  text-decoration: none;
+  margin-top: 12px;
+  transition: background var(--dur-base) var(--ease);
+}
+
+.ctaBtnInline:hover {
+  background: var(--rust-dark);
+}
