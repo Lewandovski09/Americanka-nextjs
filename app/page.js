@@ -88,7 +88,21 @@ export default function HomePage() {
         .order('created_at', { ascending: false })
         .limit(10);
 
-      setAnnouncements(notifs || []);
+      // A player's own dismissals hide a notification just for them —
+      // the admin's delete (below) is the only thing that removes it
+      // for everyone. Skipped for a signed-out visitor: there's no
+      // player_id to look up dismissals by, and nothing to dismiss yet.
+      let dismissedIds = new Set();
+      if (player?.id && notifs?.length) {
+        const { data: dismissals } = await supabase
+          .from('notification_dismissals')
+          .select('notification_id')
+          .eq('player_id', player.id)
+          .in('notification_id', notifs.map((n) => n.id));
+        dismissedIds = new Set((dismissals || []).map((d) => d.notification_id));
+      }
+
+      setAnnouncements((notifs || []).filter((n) => !dismissedIds.has(n.id)));
     }
 
     async function loadCommunity() {
@@ -113,10 +127,24 @@ export default function HomePage() {
   }, [loading, player]);
 
   async function dismissAnnouncement(notificationId) {
-    if (!player?.is_admin) return;
     setAnnouncements((prev) => prev.filter((a) => a.id !== notificationId));
     const supabase = createClient();
-    await supabase.from('admin_notifications').delete().eq('id', notificationId);
+
+    if (player?.is_admin) {
+      // Admin's × removes it for the whole club, same as before.
+      await supabase.from('admin_notifications').delete().eq('id', notificationId);
+      return;
+    }
+
+    if (!player?.id) return;
+    // Everyone else's × is personal: record that this player has seen
+    // it, without touching the announcement itself. If this exact row
+    // already exists (a repeat click, a race), the insert just fails
+    // harmlessly — the dismissal it wanted is already there.
+    await supabase.from('notification_dismissals').insert({
+      notification_id: notificationId,
+      player_id: player.id,
+    });
   }
 
   if (loading) {
@@ -204,11 +232,9 @@ export default function HomePage() {
           <div className={styles.sectionLabel}>Оголошення</div>
           {announcements.map((a) => (
             <div key={a.id} className={`${styles.announcementCard} riseIn`} style={{ animationDelay: '0.05s' }}>
-              {player?.is_admin && (
-                <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
-                  <IconX size={11} />
-                </button>
-              )}
+              <button className={styles.announcementClose} onClick={() => dismissAnnouncement(a.id)} aria-label="Закрити">
+                <IconX size={11} />
+              </button>
               <div className={styles.announcementHeader}>
                 <IconMegaphone size={16} color="var(--rust)" />
                 <div className={styles.announcementTitle}>{a.title}</div>
@@ -283,7 +309,7 @@ export default function HomePage() {
       </a>
 
       <button className={styles.eloExplainerToggle} onClick={() => setInstallOpen((o) => !o)}>
-        <span>Як встановити застосунок на ваш телефон</span>
+        <span>Як встановити застосунок на ваш телефон?</span>
         <span className={`${styles.eloExplainerArrow} ${installOpen ? styles.eloExplainerArrowOpen : ''}`}>
           <IconChevronDown size={13} />
         </span>
