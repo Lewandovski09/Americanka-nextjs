@@ -5,7 +5,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // and why it's a service-role poll rather than Supabase Realtime.
 export const runtime = 'nodejs';
 
-const POLL_MS = 2000;
+const POLL_MS = 1000;
 const MAX_LIFETIME_MS = 10 * 60 * 1000; // matches nonce expiry in start/route.js
 
 async function fetchStatus(supabaseAdmin, nonce) {

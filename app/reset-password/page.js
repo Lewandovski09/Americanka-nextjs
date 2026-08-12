@@ -57,28 +57,46 @@ export default function ResetPasswordPage() {
   // Wait for the bot to confirm — same SSE approach as the registration
   // flow (see app/register/page.js), just watching a different nonce
   // table on the server (password_resets instead of pending_registrations).
+  // Reconnects on visibilitychange for the same reason as there: the
+  // connection can sit throttled the whole time the person is in the
+  // Telegram app, so a fresh check right when they switch back is what
+  // actually removes the "did this even work?" delay, not a shorter
+  // poll interval on its own.
   useEffect(() => {
     if (step !== STEPS.CONNECT_TELEGRAM || !nonce) return;
 
-    const source = new EventSource(`/api/auth/reset-password/watch?nonce=${encodeURIComponent(nonce)}`);
+    let source = null;
 
-    source.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (!data.success) return;
+    function connect() {
+      source?.close();
+      source = new EventSource(`/api/auth/reset-password/watch?nonce=${encodeURIComponent(nonce)}`);
 
-      if (data.confirmed) {
-        if (confirmedRef.current) return;
-        confirmedRef.current = true;
-        source.close();
-        setStep(STEPS.SET_PASSWORD);
-      } else if (data.expired) {
-        source.close();
-        setLinkExpired(true);
-      }
-    };
+      source.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (!data.success) return;
+
+        if (data.confirmed) {
+          if (confirmedRef.current) return;
+          confirmedRef.current = true;
+          source.close();
+          setStep(STEPS.SET_PASSWORD);
+        } else if (data.expired) {
+          source.close();
+          setLinkExpired(true);
+        }
+      };
+    }
+
+    connect();
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') connect();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-      source.close();
+      document.removeEventListener('visibilitychange', handleVisibility);
+      source?.close();
     };
   }, [step, nonce]);
 

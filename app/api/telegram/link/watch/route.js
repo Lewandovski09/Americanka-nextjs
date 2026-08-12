@@ -15,7 +15,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 // keeps that same boundary; it just moves the poll off the network.
 export const runtime = 'nodejs';
 
-const POLL_MS = 2000;
+const POLL_MS = 1000;
 const MAX_LIFETIME_MS = 10 * 60 * 1000; // matches nonce expiry elsewhere
 
 async function fetchStatus(supabaseAdmin, nonce) {

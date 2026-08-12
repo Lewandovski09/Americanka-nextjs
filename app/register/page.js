@@ -192,6 +192,16 @@ export default function AuthPage() {
   // same wait, a fraction of the requests. The browser reconnects
   // EventSource automatically on a dropped connection, so a transient
   // network blip is handled without extra code here.
+  //
+  // The real source of "feels stuck" isn't the poll interval — it's
+  // that switching to the Telegram app backgrounds this tab, and
+  // mobile browsers throttle or fully suspend background connections
+  // to save battery. The SSE connection can sit idle the whole time
+  // the person is in Telegram and only catch up once they switch back.
+  // Reconnecting fresh on visibilitychange (rather than waiting for a
+  // throttled connection to notice on its own) is what actually fixes
+  // the perceived delay — it forces an immediate check at exactly the
+  // moment it matters, right when they return.
   useEffect(() => {
     if (step !== STEPS.CONNECT_TELEGRAM || !nonce) return;
 
@@ -200,28 +210,41 @@ export default function AuthPage() {
     // would never fire.
     finalizingRef.current = false;
 
-    const source = new EventSource(`/api/telegram/link/watch?nonce=${encodeURIComponent(nonce)}`);
+    let source = null;
 
-    source.onmessage = (event) => {
-      const data = JSON.parse(event.data);
-      if (!data.success) return;
+    function connect() {
+      source?.close();
+      source = new EventSource(`/api/telegram/link/watch?nonce=${encodeURIComponent(nonce)}`);
 
-      if (data.linked) {
-        source.close();
-        // The event can arrive again before finalize resolves; creating
-        // the account twice would fail the second time with a
-        // confusing "login already registered".
-        if (finalizingRef.current) return;
-        finalizingRef.current = true;
-        finalizeRegistration(nonce);
-      } else if (data.expired) {
-        source.close();
-        setLinkExpired(true);
-      }
-    };
+      source.onmessage = (event) => {
+        const data = JSON.parse(event.data);
+        if (!data.success) return;
+
+        if (data.linked) {
+          source.close();
+          // The event can arrive again before finalize resolves; creating
+          // the account twice would fail the second time with a
+          // confusing "login already registered".
+          if (finalizingRef.current) return;
+          finalizingRef.current = true;
+          finalizeRegistration(nonce);
+        } else if (data.expired) {
+          source.close();
+          setLinkExpired(true);
+        }
+      };
+    }
+
+    connect();
+
+    function handleVisibility() {
+      if (document.visibilityState === 'visible') connect();
+    }
+    document.addEventListener('visibilitychange', handleVisibility);
 
     return () => {
-      source.close();
+      document.removeEventListener('visibilitychange', handleVisibility);
+      source?.close();
     };
   }, [step, nonce, router]);
 
