@@ -2,10 +2,12 @@
 
 import { useState, useEffect, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
 import { emailForLogin, isValidLogin } from '@/lib/authIdentity';
 import { toJpegDataUrl } from '@/lib/photo';
+import Field from '@/components/Field';
 import styles from './register.module.css';
 
 const STEPS = {
@@ -383,6 +385,19 @@ function LoginForm({ loginField, setLoginField, loginPassword, setLoginPassword,
       <button className={styles.btnPrimary} disabled={loading} onClick={onSubmit}>
         {loading ? 'Завантаження...' : 'Увійти →'}
       </button>
+
+      <Link
+        href="/reset-password"
+        style={{
+          display: 'block',
+          textAlign: 'center',
+          marginTop: 12,
+          fontSize: 13,
+          color: 'var(--text2)',
+        }}
+      >
+        Забули логін або пароль?
+      </Link>
     </div>
   );
 }
@@ -425,8 +440,8 @@ function FormStep({
         </div>
       </div>
 
-      <Field label="Ім'я *" value={form.firstName} onChange={(v) => updateField('firstName', v)} placeholder="Ім'я" />
-      <Field label="Прізвище *" value={form.lastName} onChange={(v) => updateField('lastName', v)} placeholder="Прізвище" />
+      <Field label="Ім'я *" value={form.firstName} onChange={(v) => updateField('firstName', v)} placeholder="Ім'я" styles={styles} />
+      <Field label="Прізвище *" value={form.lastName} onChange={(v) => updateField('lastName', v)} placeholder="Прізвище" styles={styles} />
 
       <label className={styles.label}>Місто *</label>
       <CityPicker
@@ -436,12 +451,12 @@ function FormStep({
         ariaLabel="Місто"
       />
 
-      <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" />
+      <Field label="Логін *" value={form.login} onChange={(v) => updateField('login', v)} placeholder="Login" styles={styles} />
       <div className={styles.fieldHint}>
         3–32 символи: латинські літери, цифри, точка, дефіс, підкреслення. Змінити логін пізніше
         не можна.
       </div>
-      <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" />
+      <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" styles={styles} />
 
       <label className={styles.label}>Стать *</label>
       <div className={styles.genderRow}>
@@ -524,46 +539,5 @@ function ConnectTelegramStep({ nonce, expired, error, loading, onNewLink }) {
 
       {error && <div className={styles.errMsg}>{error}</div>}
     </div>
-  );
-}
-
-function Field({ label, value, onChange, placeholder, type = 'text' }) {
-  const [show, setShow] = useState(false);
-  const isPassword = type === 'password';
-
-  return (
-    <>
-      <label className={styles.label}>{label}</label>
-      {isPassword ? (
-        <div className={styles.passwordWrap}>
-          <input
-            className={styles.input}
-            type={show ? 'text' : 'password'}
-            value={value}
-            onChange={(e) => onChange(e.target.value)}
-            placeholder={placeholder}
-            aria-label={label}
-            style={{ marginBottom: 0 }}
-          />
-          <button
-            type="button"
-            className={styles.eyeBtn}
-            onClick={() => setShow((s) => !s)}
-            aria-label={show ? 'Сховати пароль' : 'Показати пароль'}
-          >
-            {show ? '🙈' : '👁️'}
-          </button>
-        </div>
-      ) : (
-        <input
-          className={styles.input}
-          type={type}
-          value={value}
-          onChange={(e) => onChange(e.target.value)}
-          placeholder={placeholder}
-          aria-label={label}
-        />
-      )}
-    </>
   );
 }

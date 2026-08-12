@@ -145,6 +145,54 @@ async function confirmPendingRegistration(supabaseAdmin, nonce, from) {
 }
 
 /**
+ * Consume a one-time nonce and record that whoever is running this
+ * Telegram chat controls it — used to recover a forgotten login or
+ * password. Deliberately does NOT look up or touch a player row here;
+ * that happens once in complete/route.js, at the point the person is
+ * actually about to see their login or set a new password, not a
+ * moment earlier.
+ *
+ * Returns null when the nonce isn't a pending reset, so the caller can
+ * fall through the same way confirmPendingRegistration does.
+ */
+async function confirmPasswordReset(supabaseAdmin, nonce, from) {
+  const { data: reset, error } = await supabaseAdmin
+    .from('password_resets')
+    .select('nonce, expires_at, confirmed_at')
+    .eq('nonce', nonce)
+    .maybeSingle();
+
+  if (error) {
+    console.error('[Telegram webhook] Password reset lookup failed:', error.message);
+    return { status: 'error' };
+  }
+
+  if (!reset) return null;
+  if (reset.confirmed_at) return { status: 'already_pending' };
+  if (new Date(reset.expires_at) < new Date()) return { status: 'expired' };
+
+  const { data: owner } = await supabaseAdmin
+    .from('players')
+    .select('id')
+    .eq('telegram_user_id', from.id)
+    .maybeSingle();
+
+  if (!owner) return { status: 'no_account' };
+
+  const { error: updateError } = await supabaseAdmin
+    .from('password_resets')
+    .update({ telegram_user_id: from.id, confirmed_at: new Date().toISOString() })
+    .eq('nonce', nonce);
+
+  if (updateError) {
+    console.error('[Telegram webhook] Failed to confirm password reset:', updateError.message);
+    return { status: 'error' };
+  }
+
+  return { status: 'reset_confirmed' };
+}
+
+/**
  * Consume a one-time nonce and attach this Telegram account to a player
  * who ALREADY has an account (expired link, or they blocked the bot).
  */
@@ -260,10 +308,13 @@ export async function POST(request) {
     : null;
 
   if (startPayload) {
-    // A nonce is either a registration waiting to be confirmed, or a
-    // re-link for an account that already exists.
+    // A nonce is a registration waiting to be confirmed, a password
+    // reset, or a re-link for an account that already exists — tried
+    // in that order, each falling through to the next when it's not
+    // theirs.
     const pendingResult = await confirmPendingRegistration(supabaseAdmin, startPayload, from);
-    const { status } = pendingResult ?? (await linkByNonce(supabaseAdmin, startPayload, from));
+    const resetResult = pendingResult ?? (await confirmPasswordReset(supabaseAdmin, startPayload, from));
+    const { status } = resetResult ?? (await linkByNonce(supabaseAdmin, startPayload, from));
 
     const replies = {
       confirmed:
@@ -277,8 +328,15 @@ export async function POST(request) {
         'Ваш Telegram підключено. Заявку відправлено адміну — щойно він підтвердить ваш рейтинг, ' +
         'повідомлення прийде сюди.\n\nМожна повертатися у застосунок.',
       already: 'Цей Telegram уже підключено ✅ Можна повертатися у застосунок.',
+      reset_confirmed:
+        `★ <b>Підтверджено, ${firstName}!</b> ★\n\n` +
+        'Поверніться у застосунок, щоб побачити свій логін і встановити новий пароль.',
+      no_account:
+        'До цього Telegram не привʼязано жодного акаунта AMERICANKA 🤔\n\n' +
+        'Якщо ви реєструвались іншим Telegram-акаунтом — спробуйте відновлення ще раз через нього. ' +
+        'Якщо не реєструвались зовсім — почніть реєстрацію у застосунку.',
       expired:
-        'Посилання застаріло ⏳\n\nВідкрийте застосунок і почніть реєстрацію ще раз — ' +
+        'Посилання застаріло ⏳\n\nВідкрийте застосунок і почніть спочатку — ' +
         'зʼявиться нове посилання.',
       not_found:
         'Не вдалося розпізнати посилання 🤔\n\nВідкрийте застосунок і натисніть ' +

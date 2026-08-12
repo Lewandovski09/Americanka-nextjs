@@ -34,6 +34,7 @@ export default function ProfilePage() {
   const [editOpen, setEditOpen] = useState(false);
   const [calcInfoOpen, setCalcInfoOpen] = useState(false);
   const [photoLightbox, setPhotoLightbox] = useState(false);
+  const [logoutConfirmOpen, setLogoutConfirmOpen] = useState(false);
   // A just-uploaded avatar, shown immediately — the profile row behind
   // `player` is re-read right after, but the picture should not wait.
   const [photoUrl, setPhotoUrl] = useState(null);
@@ -242,7 +243,11 @@ export default function ProfilePage() {
     router.refresh();
   }
 
-  async function handleLogout() {
+  function handleLogout() {
+    setLogoutConfirmOpen(true);
+  }
+
+  async function confirmLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
     router.push('/');
@@ -656,6 +661,35 @@ export default function ProfilePage() {
             <button className={styles.modalCloseBtn} onClick={() => setOpenPartner(null)}>
               Закрити
             </button>
+          </div>
+        </div>
+      )}
+
+      {logoutConfirmOpen && (
+        <div className={styles.modalOverlay} onClick={() => setLogoutConfirmOpen(false)}>
+          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 320, gap: 14 }}>
+            <div className={styles.modalTitle} style={{ textAlign: 'center' }}>
+              Вийти з акаунту?
+            </div>
+            <p style={{ margin: 0, textAlign: 'center', color: 'var(--text2)', fontSize: 14 }}>
+              Вам доведеться увійти знову, щоб продовжити користуватись застосунком.
+            </p>
+            <div style={{ display: 'flex', gap: 10, marginTop: 4 }}>
+              <button
+                className={styles.logoutBtn}
+                style={{ flex: 1, borderColor: 'var(--border)', color: 'var(--text)' }}
+                onClick={() => setLogoutConfirmOpen(false)}
+              >
+                Скасувати
+              </button>
+              <button
+                className={styles.logoutBtn}
+                style={{ flex: 1, background: 'var(--rust)', borderColor: 'var(--rust)', color: '#fff' }}
+                onClick={confirmLogout}
+              >
+                Так, вийти
+              </button>
+            </div>
           </div>
         </div>
       )}
