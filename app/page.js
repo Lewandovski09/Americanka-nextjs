@@ -404,7 +404,7 @@ export default function HomePage() {
           </div>
           <div className={styles.emptyTournamentTitle}>Турнірів ще немає</div>
           <div className={styles.emptyTournamentText}>
-            Адміністратор готує перший турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
+            Адміністратор готує турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
             його тут першими.
           </div>
           {/* Folded into the card itself here — a separate full-width
