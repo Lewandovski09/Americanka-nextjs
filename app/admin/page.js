@@ -291,7 +291,22 @@ export default function AdminPage() {
     setRecalcResult(null);
     try {
       const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const data = await res.json();
+      const raw = await res.text();
+      let data;
+      try {
+        data = JSON.parse(raw);
+      } catch {
+        // The server sent something that isn't JSON at all (a generic
+        // 500 error page, a timeout page) — show the actual status and
+        // the start of the raw response instead of a cryptic parse
+        // error that hides what really happened.
+        setRecalcResult({
+          kind,
+          success: false,
+          error: `Сервер повернув не JSON (HTTP ${res.status}): ${raw.slice(0, 200) || '(порожня відповідь)'}`,
+        });
+        return;
+      }
       setRecalcResult({ kind, ...data });
     } catch (err) {
       setRecalcResult({ kind, success: false, error: err.message });
