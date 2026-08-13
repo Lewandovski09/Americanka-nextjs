@@ -413,6 +413,12 @@
   border-bottom: 1px solid var(--border-light);
 }
 
+.activityRowMeta {
+  font-size: 11px;
+  color: var(--text2);
+  margin-bottom: 2px;
+}
+
 .activityRow:last-child {
   border-bottom: none;
 }

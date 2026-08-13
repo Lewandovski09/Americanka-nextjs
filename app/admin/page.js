@@ -14,9 +14,19 @@ function matchesPlayerSearch(player, query) {
   const q = query.trim().toLowerCase();
   if (!q) return true;
   return (
+    (player.first_name || '').toLowerCase().includes(q) ||
+    (player.last_name || '').toLowerCase().includes(q) ||
     (player.full_name || '').toLowerCase().includes(q) ||
     (player.login || '').toLowerCase().includes(q)
   );
+}
+
+function formatActivityDate(isoString) {
+  if (!isoString) return '';
+  const d = new Date(isoString);
+  const datePart = d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
+  const timePart = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  return `${datePart}, ${timePart}`;
 }
 
 export default function AdminPage() {
@@ -114,15 +124,15 @@ export default function AdminPage() {
 
     // Recent activity: last few played games, newest first by played_at
     // (not created_at — see app/page.js's win-streak query for why).
-    // Names come from a single follow-up lookup rather than a join,
-    // since matches store player ids in plain arrays, not foreign keys
-    // PostgREST can embed.
+    // Names and tournament titles come from follow-up lookups rather
+    // than a join, since matches store player ids in plain arrays, not
+    // foreign keys PostgREST can embed.
     const { data: recentMatches } = await supabase
       .from('matches')
-      .select('id, team_a_players, team_b_players, set1, set2, set3, played_at')
+      .select('id, tournament_id, team_a_players, team_b_players, set1, set2, set3, played_at')
       .eq('played', true)
       .order('played_at', { ascending: false })
-      .limit(8);
+      .limit(6);
 
     const involvedIds = [...new Set((recentMatches || []).flatMap((mt) => [...(mt.team_a_players || []), ...(mt.team_b_players || [])]))];
     const { data: involvedPlayers } = involvedIds.length
@@ -131,10 +141,17 @@ export default function AdminPage() {
     const nameById = new Map((involvedPlayers || []).map((pl) => [pl.id, pl.full_name]));
     const teamNames = (ids) => (ids || []).map((id) => nameById.get(id) || '?').join(' / ');
 
+    const tournamentIds = [...new Set((recentMatches || []).map((mt) => mt.tournament_id).filter(Boolean))];
+    const { data: involvedTournaments } = tournamentIds.length
+      ? await supabase.from('tournaments').select('id, name').in('id', tournamentIds)
+      : { data: [] };
+    const tournamentNameById = new Map((involvedTournaments || []).map((t) => [t.id, t.name]));
+
     setRecentActivity(
       (recentMatches || []).map((mt) => ({
         id: mt.id,
         playedAt: mt.played_at,
+        tournamentName: tournamentNameById.get(mt.tournament_id) || null,
         teamA: teamNames(mt.team_a_players),
         teamB: teamNames(mt.team_b_players),
       }))
@@ -447,6 +464,10 @@ export default function AdminPage() {
           <div className={styles.quickList}>
             {recentActivity.map((a) => (
               <div key={a.id} className={styles.activityRow}>
+                <div className={styles.activityRowMeta}>
+                  {formatActivityDate(a.playedAt)}
+                  {a.tournamentName ? ` · ${a.tournamentName}` : ''}
+                </div>
                 <span className={styles.activityRowTeams}>
                   {a.teamA} <span className={styles.activityRowVs}>—</span> {a.teamB}
                 </span>
