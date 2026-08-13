@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import { categoryForElo, expectedScore } from '@/lib/elo';
+import { categoryForElo, expectedScore, SKILL_CATEGORIES } from '@/lib/elo';
 import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -13,6 +13,8 @@ import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconT
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
+import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
+import { winPluralUk } from '@/lib/pluralize';
 import styles from './profile.module.css';
 
 export default function ProfilePage() {
@@ -50,6 +52,10 @@ export default function ProfilePage() {
   const [suggestions, setSuggestions] = useState([]);
   const [showSuggestions, setShowSuggestions] = useState(false);
 
+  const [eloRank, setEloRank] = useState(null);
+  const [avpStanding, setAvpStanding] = useState(null);
+  const [winStreak, setWinStreak] = useState(0);
+
   useEffect(() => {
     if (!player) return;
     async function load() {
@@ -67,6 +73,11 @@ export default function ProfilePage() {
         .eq('player_id', player.id)
         .order('games_together', { ascending: false });
       setPartners(p || []);
+
+      const { eloRank: rank, avpStanding: avp, winStreak: streak } = await loadPlayerHeaderStats(supabase, player);
+      setEloRank(rank);
+      setAvpStanding(avp);
+      setWinStreak(streak);
     }
     load();
   }, [player]);
@@ -312,6 +323,17 @@ export default function ProfilePage() {
   const totalGames = formatStats.reduce((s, r) => s + (r.games_played || 0), 0);
   const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
+
+  // Elo progress toward the next category — same computation as the
+  // home page header (lib/playerHeaderStats.js covers the rank/AVP/
+  // streak part; this bit stays local since it only needs categoryForElo,
+  // already imported here for the header label above).
+  const playerCategory = player ? categoryForElo(player.elo) : null;
+  const categoryIndex = playerCategory ? SKILL_CATEGORIES.findIndex((c) => c.id === playerCategory.id) : -1;
+  const nextCategory = categoryIndex >= 0 && categoryIndex < SKILL_CATEGORIES.length - 1 ? SKILL_CATEGORIES[categoryIndex + 1] : null;
+  const eloProgressPct = playerCategory
+    ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
+    : 0;
   const eloLog = tournamentHistory
     .filter((h) => h.elo_delta !== null && h.elo_delta !== undefined)
     .slice()
@@ -357,15 +379,34 @@ export default function ProfilePage() {
 
         {photoError && <div className={styles.photoError}>{photoError}</div>}
 
-        <div className={styles.heroEloRow}>
-          <div className={styles.heroEloBlock}>
-            <div className={styles.heroEloValue}>{player.elo ?? '—'}</div>
-            <div className={styles.heroEloLabel}>РЕЙТИНГ ЕЛО</div>
+        {player.approval_status !== 'pending' && player.elo != null && (
+          <div className={styles.headerStatsRow}>
+            <div className={styles.headerStatCard}>
+              <div className={styles.headerStatLabel}>Ело</div>
+              <div className={styles.headerStatValue}>{player.elo}</div>
+              {playerCategory && (
+                <div className={styles.headerStatBar}>
+                  <div className={styles.headerStatBarFill} style={{ width: `${eloProgressPct}%` }} />
+                </div>
+              )}
+              <div className={styles.headerStatMeta}>
+                {eloRank ? `№${eloRank}` : ''}
+                {nextCategory ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}` : ''}
+              </div>
+            </div>
+            {avpStanding && (
+              <div className={`${styles.headerStatCard} ${styles.headerStatCardAvp}`}>
+                <div className={styles.headerStatLabelAvp}>AVP сезон</div>
+                <div className={styles.headerStatValueAvp}>{avpStanding.points}</div>
+                <div className={styles.headerStatMetaAvp}>№{avpStanding.rank} сезону</div>
+              </div>
+            )}
           </div>
-          <button className={styles.editProfileBtn} onClick={openEdit}>
-            Редагувати профіль
-          </button>
-        </div>
+        )}
+
+        <button className={styles.editProfileBtn} onClick={openEdit} style={{ marginTop: 10 }}>
+          Редагувати профіль
+        </button>
 
         <div className={styles.headerWave} aria-hidden="true">
           <svg viewBox="0 0 600 22" preserveAspectRatio="none">
@@ -373,6 +414,15 @@ export default function ProfilePage() {
           </svg>
         </div>
       </div>
+
+      {winStreak >= 2 && (
+        <div className={`${styles.streakCard} riseIn`}>
+          <IconTrendUp size={18} color="var(--rust)" />
+          <div className={styles.streakText}>
+            {winStreak} {winPluralUk(winStreak)} поспіль
+          </div>
+        </div>
+      )}
 
       <div className={`${styles.statSquares} riseIn`} style={{ animationDelay: '0.06s' }}>
         <div className={styles.statSquare}>

@@ -5,7 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
-import { teamAWon } from '@/lib/formats/sets';
+import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
+import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp } from '@/components/Icons';
@@ -128,60 +129,9 @@ export default function HomePage() {
 
     async function loadRankAndStreak() {
       if (!player?.id) return;
-
-      // Rank within the same gender+category — same pool the rating
-      // page's own list is built from, so the number matches what
-      // they'd see there.
-      if (player.elo != null && player.gender) {
-        const { count } = await supabase
-          .from('players')
-          .select('id', { count: 'exact', head: true })
-          .eq('gender', player.gender)
-          .eq('approval_status', 'approved')
-          .gt('elo', player.elo);
-        setEloRank((count ?? 0) + 1);
-      }
-
-      // AVP: current season = newest one, same "newest first" rule
-      // rating.js's AVP tab already opens on.
-      const { data: season } = await supabase
-        .from('avp_seasons')
-        .select('id')
-        .order('starts_on', { ascending: false })
-        .limit(1)
-        .maybeSingle();
-
-      if (season) {
-        const { data: rows } = await supabase
-          .from('avp_standings')
-          .select('player_id, points')
-          .eq('season_id', season.id)
-          .order('points', { ascending: false });
-        const idx = (rows || []).findIndex((r) => r.player_id === player.id);
-        setAvpStanding(idx === -1 ? null : { points: rows[idx].points, rank: idx + 1 });
-      }
-
-      // Win streak: most recent played games this player was in,
-      // newest first by played_at (not created_at — a bracket's rows
-      // are all inserted together at tournament start, so created_at
-      // is the same for every game in it and says nothing about play
-      // order). Counts consecutive wins from the most recent game
-      // back, stopping at the first loss.
-      const { data: recent } = await supabase
-        .from('matches')
-        .select('team_a_players, team_b_players, set1, set2, set3, played_at')
-        .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
-        .eq('played', true)
-        .order('played_at', { ascending: false })
-        .limit(20);
-
-      let streak = 0;
-      for (const m of recent || []) {
-        const onTeamA = (m.team_a_players || []).includes(player.id);
-        const won = teamAWon(m) === onTeamA;
-        if (!won) break;
-        streak++;
-      }
+      const { eloRank: rank, avpStanding: avp, winStreak: streak } = await loadPlayerHeaderStats(supabase, player);
+      setEloRank(rank);
+      setAvpStanding(avp);
       setWinStreak(streak);
     }
 
@@ -571,18 +521,6 @@ export default function HomePage() {
 }
 
 const BOT_USERNAME = process.env.NEXT_PUBLIC_TELEGRAM_BOT_USERNAME || 'AmericankaVerifyBot';
-
-// Ukrainian plural for "перемога" — 11-14 always take the "many" form
-// regardless of the last digit (the usual Slavic exception), otherwise
-// it follows the last digit: 1 → перемога, 2-4 → перемоги, else → перемог.
-function winPluralUk(n) {
-  const mod10 = n % 10;
-  const mod100 = n % 100;
-  if (mod100 >= 11 && mod100 <= 14) return 'перемог';
-  if (mod10 === 1) return 'перемога';
-  if (mod10 >= 2 && mod10 <= 4) return 'перемоги';
-  return 'перемог';
-}
 
 // Shown to a logged-in player with no Telegram attached: they closed the
 // tab mid-registration, or they blocked the bot and got unlinked. Without
