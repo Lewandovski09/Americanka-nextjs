@@ -10,6 +10,15 @@ import styles from './admin.module.css';
 
 const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
 
+function matchesPlayerSearch(player, query) {
+  const q = query.trim().toLowerCase();
+  if (!q) return true;
+  return (
+    (player.full_name || '').toLowerCase().includes(q) ||
+    (player.login || '').toLowerCase().includes(q)
+  );
+}
+
 export default function AdminPage() {
   const router = useRouter();
   // Per-player action errors. Approving and rejecting used to ignore the
@@ -30,6 +39,9 @@ export default function AdminPage() {
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
   const [notifSent, setNotifSent] = useState(false);
+  const [playerSearch, setPlayerSearch] = useState('');
+  const [existingAnnouncements, setExistingAnnouncements] = useState([]);
+  const [recentActivity, setRecentActivity] = useState([]);
 
   async function load() {
     const supabase = createClient();
@@ -62,6 +74,17 @@ export default function AdminPage() {
       .select('id', { count: 'exact', head: true })
       .eq('played', true);
 
+    // How many approved players can't actually receive a Telegram
+    // broadcast — either never linked, or linked and later blocked the
+    // bot (we still count telegram_user_id as "linked" even if the bot
+    // is blocked, since we can't tell the difference until we try to
+    // send; this is "never linked" specifically).
+    const { count: noTelegramCount } = await supabase
+      .from('players')
+      .select('id', { count: 'exact', head: true })
+      .neq('approval_status', 'pending')
+      .is('telegram_user_id', null);
+
     const categoryCountsMale = { D: 0, C: 0, B: 0, A: 0 };
     (m || []).forEach((pl) => {
       if (pl.category && categoryCountsMale[pl.category] !== undefined) categoryCountsMale[pl.category]++;
@@ -77,9 +100,45 @@ export default function AdminPage() {
       pendingCount: (p || []).length,
       doneCount: doneCount || 0,
       matchesPlayed: matchesPlayed || 0,
+      noTelegramCount: noTelegramCount || 0,
       categoryCountsMale,
       categoryCountsFemale,
     });
+
+    const { data: notifs } = await supabase
+      .from('admin_notifications')
+      .select('*')
+      .order('created_at', { ascending: false })
+      .limit(10);
+    setExistingAnnouncements(notifs || []);
+
+    // Recent activity: last few played games, newest first by played_at
+    // (not created_at — see app/page.js's win-streak query for why).
+    // Names come from a single follow-up lookup rather than a join,
+    // since matches store player ids in plain arrays, not foreign keys
+    // PostgREST can embed.
+    const { data: recentMatches } = await supabase
+      .from('matches')
+      .select('id, team_a_players, team_b_players, set1, set2, set3, played_at')
+      .eq('played', true)
+      .order('played_at', { ascending: false })
+      .limit(8);
+
+    const involvedIds = [...new Set((recentMatches || []).flatMap((mt) => [...(mt.team_a_players || []), ...(mt.team_b_players || [])]))];
+    const { data: involvedPlayers } = involvedIds.length
+      ? await supabase.from('players').select('id, full_name').in('id', involvedIds)
+      : { data: [] };
+    const nameById = new Map((involvedPlayers || []).map((pl) => [pl.id, pl.full_name]));
+    const teamNames = (ids) => (ids || []).map((id) => nameById.get(id) || '?').join(' / ');
+
+    setRecentActivity(
+      (recentMatches || []).map((mt) => ({
+        id: mt.id,
+        playedAt: mt.played_at,
+        teamA: teamNames(mt.team_a_players),
+        teamB: teamNames(mt.team_b_players),
+      }))
+    );
   }
 
   async function loadFormatBreakdown() {
@@ -184,9 +243,24 @@ export default function AdminPage() {
       setNotifBody('');
       setNotifSent(true);
       setTimeout(() => setNotifSent(false), 3000);
+      // Refresh so the new one shows up in the "already sent" list
+      // right away, instead of only after a full page reload.
+      const supabase = createClient();
+      const { data: notifs } = await supabase
+        .from('admin_notifications')
+        .select('*')
+        .order('created_at', { ascending: false })
+        .limit(10);
+      setExistingAnnouncements(notifs || []);
     } else {
       alert(data.error || 'Не вдалося надіслати повідомлення');
     }
+  }
+
+  async function deleteAnnouncement(id) {
+    setExistingAnnouncements((prev) => prev.filter((a) => a.id !== id));
+    const supabase = createClient();
+    await supabase.from('admin_notifications').delete().eq('id', id);
   }
 
   return (
@@ -243,6 +317,13 @@ export default function AdminPage() {
         </div>
       )}
 
+      {stats && stats.noTelegramCount > 0 && (
+        <div className={styles.telegramWarning}>
+          {stats.noTelegramCount} {stats.noTelegramCount === 1 ? 'гравець' : 'гравців'} без підключеного
+          Telegram — не отримають жодного сповіщення.
+        </div>
+      )}
+
       {showFormatBreakdown && (
         <div className={styles.quickList}>
           {formatBreakdown.length === 0 && <div className={styles.empty}>Ще немає завершених турнірів</div>}
@@ -255,43 +336,63 @@ export default function AdminPage() {
         </div>
       )}
 
+      {(showMaleList || showFemaleList) && (
+        <input
+          className={styles.playerSearchInput}
+          placeholder="Пошук за іменем або логіном..."
+          aria-label="Пошук гравця"
+          value={playerSearch}
+          onChange={(e) => setPlayerSearch(e.target.value)}
+        />
+      )}
+
       {showMaleList && (
         <div className={styles.quickList}>
-          {males.map((p) => (
-            <div
-              key={p.id}
-              className={styles.quickListRow}
-              style={{ cursor: 'pointer' }}
-              role="link"
-              tabIndex={0}
-              onClick={() => openPlayer(p.id)}
-              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
-            >
-              <PlayerAvatar player={p} size={26} />
-              <span>{p.full_name}</span>
-              <span className={styles.quickListElo}>{p.elo}</span>
-            </div>
-          ))}
+          {males
+            .filter((p) => matchesPlayerSearch(p, playerSearch))
+            .map((p) => (
+              <div
+                key={p.id}
+                className={styles.quickListRow}
+                style={{ cursor: 'pointer' }}
+                role="link"
+                tabIndex={0}
+                onClick={() => openPlayer(p.id)}
+                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+              >
+                <PlayerAvatar player={p} size={26} />
+                <span>{p.full_name}</span>
+                <span className={styles.quickListElo}>{p.elo}</span>
+              </div>
+            ))}
+          {males.filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
+            <div className={styles.empty}>Нікого не знайдено</div>
+          )}
         </div>
       )}
 
       {showFemaleList && (
         <div className={styles.quickList}>
-          {females.map((p) => (
-            <div
-              key={p.id}
-              className={styles.quickListRow}
-              style={{ cursor: 'pointer' }}
-              role="link"
-              tabIndex={0}
-              onClick={() => openPlayer(p.id)}
-              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
-            >
-              <PlayerAvatar player={p} size={26} />
-              <span>{p.full_name}</span>
-              <span className={styles.quickListElo}>{p.elo}</span>
-            </div>
-          ))}
+          {females
+            .filter((p) => matchesPlayerSearch(p, playerSearch))
+            .map((p) => (
+              <div
+                key={p.id}
+                className={styles.quickListRow}
+                style={{ cursor: 'pointer' }}
+                role="link"
+                tabIndex={0}
+                onClick={() => openPlayer(p.id)}
+                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+              >
+                <PlayerAvatar player={p} size={26} />
+                <span>{p.full_name}</span>
+                <span className={styles.quickListElo}>{p.elo}</span>
+              </div>
+            ))}
+          {females.filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
+            <div className={styles.empty}>Нікого не знайдено</div>
+          )}
         </div>
       )}
 
@@ -316,6 +417,44 @@ export default function AdminPage() {
           {notifSending ? 'Надсилання...' : notifSent ? '✓ Надіслано!' : 'Надіслати всім'}
         </button>
       </div>
+
+      {existingAnnouncements.length > 0 && (
+        <>
+          <div className={styles.sectionLabel}>Активні оголошення</div>
+          <div className={styles.quickList}>
+          {existingAnnouncements.map((a) => (
+            <div key={a.id} className={styles.announcementRow}>
+              <div className={styles.announcementRowText}>
+                <div className={styles.announcementRowTitle}>{a.title}</div>
+                <div className={styles.announcementRowBody}>{a.body}</div>
+              </div>
+              <button
+                className={styles.announcementRowDelete}
+                onClick={() => deleteAnnouncement(a.id)}
+                aria-label="Видалити оголошення"
+              >
+                ✕
+              </button>
+            </div>
+          ))}
+          </div>
+        </>
+      )}
+
+      {recentActivity.length > 0 && (
+        <>
+          <div className={styles.sectionLabel}>Остання активність</div>
+          <div className={styles.quickList}>
+            {recentActivity.map((a) => (
+              <div key={a.id} className={styles.activityRow}>
+                <span className={styles.activityRowTeams}>
+                  {a.teamA} <span className={styles.activityRowVs}>—</span> {a.teamB}
+                </span>
+              </div>
+            ))}
+          </div>
+        </>
+      )}
 
       <div className={styles.sectionLabel}>
         Нові реєстрації {pending.length > 0 && <span className={styles.countBadge}>{pending.length}</span>}

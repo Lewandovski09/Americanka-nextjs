@@ -337,3 +337,94 @@
   font-size: 12.5px;
   line-height: 1.4;
 }
+
+.telegramWarning {
+  background: #fff7ed;
+  border: 1px solid rgba(217, 119, 6, 0.3);
+  color: #b45309;
+  font-size: 12.5px;
+  line-height: 1.4;
+  padding: 10px 13px;
+  border-radius: var(--r-sm);
+  margin-bottom: 14px;
+}
+
+.playerSearchInput {
+  width: 100%;
+  padding: 10px 13px;
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface-alt);
+  color: var(--text);
+  font-size: 14px;
+  margin-bottom: 8px;
+}
+
+.announcementRow {
+  display: flex;
+  align-items: flex-start;
+  gap: 8px;
+  padding: 8px 4px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.announcementRow:last-child {
+  border-bottom: none;
+}
+
+.announcementRowText {
+  flex: 1;
+  min-width: 0;
+}
+
+.announcementRowTitle {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.announcementRowBody {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.announcementRowDelete {
+  flex-shrink: 0;
+  width: 22px;
+  height: 22px;
+  border-radius: 50%;
+  border: none;
+  background: var(--surface-alt);
+  color: var(--text2);
+  font-size: 11px;
+  cursor: pointer;
+}
+
+.activityRow {
+  padding: 7px 4px;
+  font-size: 13px;
+  color: var(--text);
+  border-bottom: 1px solid var(--border-light);
+}
+
+.activityRow:last-child {
+  border-bottom: none;
+}
+
+.activityRowTeams {
+  display: flex;
+  align-items: center;
+  gap: 6px;
+  flex-wrap: wrap;
+}
+
+.activityRowVs {
+  color: var(--text2);
+  font-weight: 600;
+}
