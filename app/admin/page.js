@@ -284,6 +284,39 @@ export default function AdminPage() {
     <div className={styles.page}>
       <h2 className={styles.title}>Адмін-панель</h2>
 
+      <input
+        className={styles.playerSearchInput}
+        placeholder="Пошук гравця за іменем, прізвищем або логіном..."
+        aria-label="Пошук гравця"
+        value={playerSearch}
+        onChange={(e) => setPlayerSearch(e.target.value)}
+      />
+
+      {playerSearch.trim() && (
+        <div className={styles.quickList}>
+          {[...males, ...females]
+            .filter((p) => matchesPlayerSearch(p, playerSearch))
+            .map((p) => (
+              <div
+                key={p.id}
+                className={styles.quickListRow}
+                style={{ cursor: 'pointer' }}
+                role="link"
+                tabIndex={0}
+                onClick={() => openPlayer(p.id)}
+                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+              >
+                <PlayerAvatar player={p} size={26} />
+                <span>{p.full_name}</span>
+                <span className={styles.quickListElo}>{p.elo}</span>
+              </div>
+            ))}
+          {[...males, ...females].filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
+            <div className={styles.empty}>Нікого не знайдено</div>
+          )}
+        </div>
+      )}
+
       {stats && (
         <div className={styles.statsGrid}>
           <button className={styles.statBox} onClick={() => setShowMaleList((s) => !s)}>
@@ -353,63 +386,43 @@ export default function AdminPage() {
         </div>
       )}
 
-      {(showMaleList || showFemaleList) && (
-        <input
-          className={styles.playerSearchInput}
-          placeholder="Пошук за іменем або логіном..."
-          aria-label="Пошук гравця"
-          value={playerSearch}
-          onChange={(e) => setPlayerSearch(e.target.value)}
-        />
-      )}
-
       {showMaleList && (
         <div className={styles.quickList}>
-          {males
-            .filter((p) => matchesPlayerSearch(p, playerSearch))
-            .map((p) => (
-              <div
-                key={p.id}
-                className={styles.quickListRow}
-                style={{ cursor: 'pointer' }}
-                role="link"
-                tabIndex={0}
-                onClick={() => openPlayer(p.id)}
-                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
-              >
-                <PlayerAvatar player={p} size={26} />
-                <span>{p.full_name}</span>
-                <span className={styles.quickListElo}>{p.elo}</span>
-              </div>
-            ))}
-          {males.filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
-            <div className={styles.empty}>Нікого не знайдено</div>
-          )}
+          {males.map((p) => (
+            <div
+              key={p.id}
+              className={styles.quickListRow}
+              style={{ cursor: 'pointer' }}
+              role="link"
+              tabIndex={0}
+              onClick={() => openPlayer(p.id)}
+              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+            >
+              <PlayerAvatar player={p} size={26} />
+              <span>{p.full_name}</span>
+              <span className={styles.quickListElo}>{p.elo}</span>
+            </div>
+          ))}
         </div>
       )}
 
       {showFemaleList && (
         <div className={styles.quickList}>
-          {females
-            .filter((p) => matchesPlayerSearch(p, playerSearch))
-            .map((p) => (
-              <div
-                key={p.id}
-                className={styles.quickListRow}
-                style={{ cursor: 'pointer' }}
-                role="link"
-                tabIndex={0}
-                onClick={() => openPlayer(p.id)}
-                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
-              >
-                <PlayerAvatar player={p} size={26} />
-                <span>{p.full_name}</span>
-                <span className={styles.quickListElo}>{p.elo}</span>
-              </div>
-            ))}
-          {females.filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
-            <div className={styles.empty}>Нікого не знайдено</div>
-          )}
+          {females.map((p) => (
+            <div
+              key={p.id}
+              className={styles.quickListRow}
+              style={{ cursor: 'pointer' }}
+              role="link"
+              tabIndex={0}
+              onClick={() => openPlayer(p.id)}
+              onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+            >
+              <PlayerAvatar player={p} size={26} />
+              <span>{p.full_name}</span>
+              <span className={styles.quickListElo}>{p.elo}</span>
+            </div>
+          ))}
         </div>
       )}
 
