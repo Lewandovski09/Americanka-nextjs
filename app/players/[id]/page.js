@@ -229,6 +229,10 @@ export default function PlayerProfilePage() {
         <div key={h.tournament_id} className={styles.historyCard}>
           <div>
             <div className={styles.historyName}>{h.tournament_name}</div>
+            <div className={styles.historyMeta}>
+              {(h.finished_at || h.scheduled_at) &&
+                new Date(h.finished_at || h.scheduled_at).toLocaleDateString('uk', { day: 'numeric', month: 'short', year: 'numeric' })}
+            </div>
             <div
               className={styles.historyPlace}
               style={h.placement && h.placement <= 3 ? { color: 'var(--rust)', fontWeight: 700 } : undefined}

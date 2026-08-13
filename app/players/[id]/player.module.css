@@ -235,6 +235,12 @@
   color: var(--text);
 }
 
+.historyMeta {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
 .historyPlace {
   font-size: 11px;
   color: var(--text2);
