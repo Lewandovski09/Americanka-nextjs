@@ -201,11 +201,19 @@ export interface RecalcPartnerStatsResult {
  * partner_stats is an accumulating counter (each finishCategory call
  * adds to whatever was already there), which means any past bug in how
  * it was incremented — or in what fed it — leaves permanently wrong
- * numbers behind that normal operation can never self-correct. This
- * wipes the table and replays every finished category's real matches
- * back through the same updatePartnerStats logic, so the count always
- * ends up matching what's actually in `matches` today, however it got
- * corrupted before.
+ * numbers behind that normal operation can never self-correct.
+ *
+ * Deliberately NOT built on updatePartnerStats/recordPartnerPair: those
+ * do one read-then-write round trip PER PAIR PER MATCH, which is fine
+ * for a single just-finished tournament (a handful of games) but does
+ * not scale to every tournament the club has ever played — with 76
+ * games that's on the order of 300 sequential database round trips,
+ * comfortably past a serverless function's execution limit (this is
+ * exactly what made the button hang). This version fetches every
+ * finished tournament's matches in one query, tallies everything in
+ * memory, and writes the totals back in a small number of batched
+ * inserts — a handful of round trips total, regardless of how many
+ * games the club has played.
  */
 export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promise<RecalcPartnerStatsResult> {
   const { error: clearError } = await supabaseAdmin.from('partner_stats').delete().neq('player_id', '00000000-0000-0000-0000-000000000000');
@@ -215,20 +223,62 @@ export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promi
   }
 
   const { data: doneCategories } = await supabaseAdmin.from('tournaments').select('id').eq('status', 'done');
+  const categoryIds = (doneCategories || []).map((c) => c.id);
+  if (categoryIds.length === 0) return { ok: true, tournaments: 0 };
 
-  for (const category of doneCategories || []) {
-    try {
-      const { data: matches } = await supabaseAdmin.from('matches').select('*').eq('tournament_id', category.id);
-      await updatePartnerStats(supabaseAdmin, (matches as Match[]) || []);
-    } catch (err) {
-      // One tournament with unexpected data must not abort the whole
-      // rebuild — log it and keep going, same as the placements
-      // backfill route does per-category.
-      console.error(`[recalcAllPartnerStats] category ${category.id} failed:`, (err as Error).message);
+  const { data: allMatches, error: matchesError } = await supabaseAdmin
+    .from('matches')
+    .select('team_a_players, team_b_players, set1, set2, set3, played, played_at')
+    .in('tournament_id', categoryIds)
+    .eq('played', true);
+  if (matchesError) {
+    console.error('[recalcAllPartnerStats] matches fetch:', matchesError.message);
+    return { ok: false, error: 'Не вдалося завантажити матчі' };
+  }
+
+  interface PartnerRow {
+    player_id: string;
+    partner_id: string;
+    games_together: number;
+    wins_together: number;
+    last_played_at: string;
+  }
+  const totals = new Map<string, PartnerRow>();
+
+  function addPair(teamPlayerIds: string[] | null | undefined, won: boolean, playedAt: string) {
+    if (!teamPlayerIds || teamPlayerIds.length < 2) return;
+    const [p1, p2] = teamPlayerIds;
+    for (const [a, b] of [
+      [p1, p2],
+      [p2, p1],
+    ]) {
+      const key = `${a}::${b}`;
+      const row = totals.get(key) || { player_id: a, partner_id: b, games_together: 0, wins_together: 0, last_played_at: playedAt };
+      row.games_together += 1;
+      if (won) row.wins_together += 1;
+      if (playedAt > row.last_played_at) row.last_played_at = playedAt;
+      totals.set(key, row);
     }
   }
 
-  return { ok: true, tournaments: (doneCategories || []).length };
+  for (const match of (allMatches as Match[]) || []) {
+    const playedAt = (match as unknown as { played_at?: string }).played_at || new Date().toISOString();
+    const aWon = teamAWon(match);
+    addPair(match.team_a_players, aWon, playedAt);
+    addPair(match.team_b_players, !aWon, playedAt);
+  }
+
+  const rows = [...totals.values()];
+  const CHUNK = 500; // defensive batching, not expected to matter at this club's size
+  for (let i = 0; i < rows.length; i += CHUNK) {
+    const { error } = await supabaseAdmin.from('partner_stats').insert(rows.slice(i, i + CHUNK));
+    if (error) {
+      console.error('[recalcAllPartnerStats] insert:', error.message);
+      return { ok: false, error: 'Не вдалося записати partner_stats' };
+    }
+  }
+
+  return { ok: true, tournaments: categoryIds.length };
 }
 
 // One row per (tournament, player) with their actual finishing place —

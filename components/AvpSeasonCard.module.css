@@ -1,9 +1,30 @@
 .card {
+  display: block;
+  width: 100%;
+  text-align: left;
+  border: none;
+  cursor: pointer;
+  font: inherit;
   background: var(--surface);
   border-radius: var(--r-lg);
   padding: 14px 16px;
   box-shadow: var(--shadow-sm);
   margin-bottom: 8px;
+}
+
+.card:disabled {
+  cursor: default;
+}
+
+.arrow {
+  display: flex;
+  color: var(--text2);
+  transition: transform var(--dur-base) var(--ease);
+  margin-left: auto;
+}
+
+.arrowOpen {
+  transform: rotate(180deg);
 }
 
 .seasonName {

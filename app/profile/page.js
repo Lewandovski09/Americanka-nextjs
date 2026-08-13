@@ -119,25 +119,50 @@ export default function ProfilePage() {
     setOpenTournamentId(tournamentId);
     const supabase = createClient();
 
-    const { data: matches } = await supabase
+    const { data: allMatches } = await supabase
       .from('matches')
       .select('*')
       .eq('tournament_id', tournamentId)
       .eq('played', true)
       .order('round_number');
 
+    // Only the games THIS player was actually in — a tournament's full
+    // bracket is full of other people's matches too, which isn't
+    // "their history", just noise they'd have to scroll past.
+    const matches = (allMatches || []).filter(
+      (m) => (m.team_a_players || []).includes(player.id) || (m.team_b_players || []).includes(player.id)
+    );
+
+    // Names for whoever they played with/against. Solo-format
+    // registrations live in tournament_players; pair formats (mix,
+    // single-gender) register through tournament_teams instead — a mix
+    // tournament's names would be entirely blank without this second
+    // lookup, same root cause as the tournament-history bug this
+    // session already fixed at the database function level.
     const { data: tps } = await supabase
       .from('tournament_players')
       .select('player_id, players(full_name)')
       .eq('tournament_id', tournamentId);
+    const { data: teams } = await supabase
+      .from('tournament_teams')
+      .select('player1_id, player2_id')
+      .eq('tournament_id', tournamentId);
 
     const map = {};
     (tps || []).forEach((tp) => {
-      map[tp.player_id] = tp.players.full_name.split(' ')[0];
+      if (tp.players?.full_name) map[tp.player_id] = tp.players.full_name.split(' ')[0];
     });
 
+    const teamPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
+    if (teamPlayerIds.length > 0) {
+      const { data: teamPlayers } = await supabase.from('players').select('id, full_name').in('id', teamPlayerIds);
+      (teamPlayers || []).forEach((p) => {
+        map[p.id] = p.full_name.split(' ')[0];
+      });
+    }
+
     setTournamentPlayersMap(map);
-    setTournamentMatches(matches || []);
+    setTournamentMatches(matches);
   }
 
   async function openPartnerHistory(partner, mode = 'together') {
@@ -358,7 +383,7 @@ export default function ProfilePage() {
         <div className={styles.statSquare}>
           <IconMedal size={20} color="var(--navy)" />
           <div className={styles.statSquareValue}>{winRate}%</div>
-          <div className={styles.statSquareLabel}>Перемог</div>
+          <div className={styles.statSquareLabel}>Перемог ({totalWins} з {totalGames})</div>
         </div>
       </div>
 
@@ -593,7 +618,7 @@ export default function ProfilePage() {
       {openTournamentId && (
         <div className={styles.modalOverlay} onClick={() => setOpenTournamentId(null)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
-            <div className={styles.modalTitle}>Матчі турніру</div>
+            <div className={styles.modalTitle}>Ваші матчі в турнірі</div>
             <div className={styles.modalScroll}>
               {tournamentMatches.length === 0 && <div className={styles.empty}>Ще немає зіграних матчів</div>}
               {tournamentMatches.map((m) => {

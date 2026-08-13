@@ -11,6 +11,7 @@
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
+import { IconChevronDown } from '@/components/Icons';
 import styles from './AvpSeasonCard.module.css';
 
 export default function AvpSeasonCard({ playerId, gender }) {
@@ -19,6 +20,7 @@ export default function AvpSeasonCard({ playerId, gender }) {
   const [rank, setRank] = useState(null);
   const [rows, setRows] = useState([]);
   const [loading, setLoading] = useState(true);
+  const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
     if (!playerId) return;
@@ -105,7 +107,7 @@ export default function AvpSeasonCard({ playerId, gender }) {
 
   return (
     <>
-      <div className={styles.card}>
+      <button className={styles.card} onClick={() => setExpanded((e) => !e)} disabled={rows.length === 0}>
         <div className={styles.seasonName}>{season.name}</div>
         <div className={styles.totalRow}>
           <div className={styles.total}>{total?.points ?? 0}</div>
@@ -113,34 +115,40 @@ export default function AvpSeasonCard({ playerId, gender }) {
             очок AVP
             {rank ? ` · ${rank}-е місце` : ''}
           </div>
+          {rows.length > 0 && (
+            <span className={`${styles.arrow} ${expanded ? styles.arrowOpen : ''}`}>
+              <IconChevronDown size={13} />
+            </span>
+          )}
         </div>
         <div className={styles.sub}>
           {total?.tournaments_counted
             ? `Турнірів у заліку: ${total.tournaments_counted}`
             : 'Ще немає зарахованих турнірів у цьому сезоні'}
         </div>
-      </div>
+      </button>
 
-      {rows.map((r) => (
-        <Link key={r.id} href={`/tournaments/${r.tournament_id}`} className={styles.row}>
-          <div className={styles.rowMain}>
-            <div className={styles.rowName}>
-              {r.tournament_events?.name || 'Турнір'}
-              {r.tournaments?.category_label ? ` · ${r.tournaments.category_label}` : ''}
+      {expanded &&
+        rows.map((r) => (
+          <Link key={r.id} href={`/tournaments/${r.tournament_id}`} className={styles.row}>
+            <div className={styles.rowMain}>
+              <div className={styles.rowName}>
+                {r.tournament_events?.name || 'Турнір'}
+                {r.tournaments?.category_label ? ` · ${r.tournaments.category_label}` : ''}
+              </div>
+              <div className={styles.rowMeta}>
+                {r.tournament_events?.scheduled_at
+                  ? new Date(r.tournament_events.scheduled_at).toLocaleDateString('uk', {
+                      day: 'numeric',
+                      month: 'short',
+                    })
+                  : '—'}{' '}
+                · AVP {r.tier} · {r.place}-є місце
+              </div>
             </div>
-            <div className={styles.rowMeta}>
-              {r.tournament_events?.scheduled_at
-                ? new Date(r.tournament_events.scheduled_at).toLocaleDateString('uk', {
-                    day: 'numeric',
-                    month: 'short',
-                  })
-                : '—'}{' '}
-              · AVP {r.tier} · {r.place}-є місце
-            </div>
-          </div>
-          <div className={r.points > 0 ? styles.points : styles.pointsZero}>+{r.points}</div>
-        </Link>
-      ))}
+            <div className={r.points > 0 ? styles.points : styles.pointsZero}>+{r.points}</div>
+          </Link>
+        ))}
     </>
   );
 }

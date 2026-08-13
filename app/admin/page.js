@@ -49,8 +49,6 @@ export default function AdminPage() {
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
   const [notifSent, setNotifSent] = useState(false);
-  const [recalcBusy, setRecalcBusy] = useState(null);
-  const [recalcResult, setRecalcResult] = useState(null);
   const [playerSearch, setPlayerSearch] = useState('');
   const [existingAnnouncements, setExistingAnnouncements] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -282,39 +280,6 @@ export default function AdminPage() {
     await supabase.from('admin_notifications').delete().eq('id', id);
   }
 
-  // One-off (but safe to press more than once) data-fix buttons — see
-  // patch-23: places and partner stats needed a one-time backfill/
-  // rebuild once the underlying bugs were fixed, since neither table
-  // corrects itself on its own.
-  async function runRecalc(kind, url) {
-    setRecalcBusy(kind);
-    setRecalcResult(null);
-    try {
-      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
-      const raw = await res.text();
-      let data;
-      try {
-        data = JSON.parse(raw);
-      } catch {
-        // The server sent something that isn't JSON at all (a generic
-        // 500 error page, a timeout page) — show the actual status and
-        // the start of the raw response instead of a cryptic parse
-        // error that hides what really happened.
-        setRecalcResult({
-          kind,
-          success: false,
-          error: `Сервер повернув не JSON (HTTP ${res.status}): ${raw.slice(0, 200) || '(порожня відповідь)'}`,
-        });
-        return;
-      }
-      setRecalcResult({ kind, ...data });
-    } catch (err) {
-      setRecalcResult({ kind, success: false, error: err.message });
-    } finally {
-      setRecalcBusy(null);
-    }
-  }
-
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Адмін-панель</h2>
@@ -472,38 +437,6 @@ export default function AdminPage() {
           </div>
         </>
       )}
-
-      <div className={styles.sectionLabel}>Одноразові виправлення даних</div>
-      <div className={styles.notifCard}>
-        <div className={styles.fixDescription}>
-          Одноразово перераховує місця та статистику партнерів для вже завершених турнірів — потрібно
-          натиснути один раз після оновлення, повторний запуск нічого не зіпсує.
-        </div>
-        <button
-          className={styles.notifSendBtn}
-          disabled={recalcBusy === 'placements'}
-          onClick={() => runRecalc('placements', '/api/admin/placements/recalc')}
-        >
-          {recalcBusy === 'placements' ? 'Рахуємо...' : 'Перерахувати місця в турнірах'}
-        </button>
-        <button
-          className={styles.notifSendBtn}
-          style={{ marginTop: 8 }}
-          disabled={recalcBusy === 'partners'}
-          onClick={() => runRecalc('partners', '/api/admin/partner-stats/recalc')}
-        >
-          {recalcBusy === 'partners' ? 'Рахуємо...' : 'Перерахувати статистику партнерів'}
-        </button>
-        {recalcResult && (
-          <div className={recalcResult.success ? styles.fixResultOk : styles.fixResultError}>
-            {recalcResult.success
-              ? recalcResult.kind === 'placements'
-                ? `Готово: ${recalcResult.categories} турнірів, ${recalcResult.placements} місць записано.`
-                : `Готово: перераховано по ${recalcResult.tournaments} турнірах.`
-              : `Помилка: ${recalcResult.error || 'невідома'}`}
-          </div>
-        )}
-      </div>
 
       {recentActivity.length > 0 && (
         <>
