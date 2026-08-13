@@ -49,6 +49,8 @@ export default function AdminPage() {
   const [notifBody, setNotifBody] = useState('');
   const [notifSending, setNotifSending] = useState(false);
   const [notifSent, setNotifSent] = useState(false);
+  const [recalcBusy, setRecalcBusy] = useState(null);
+  const [recalcResult, setRecalcResult] = useState(null);
   const [playerSearch, setPlayerSearch] = useState('');
   const [existingAnnouncements, setExistingAnnouncements] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
@@ -280,42 +282,27 @@ export default function AdminPage() {
     await supabase.from('admin_notifications').delete().eq('id', id);
   }
 
+  // One-off (but safe to press more than once) data-fix buttons — see
+  // patch-23: places and partner stats needed a one-time backfill/
+  // rebuild once the underlying bugs were fixed, since neither table
+  // corrects itself on its own.
+  async function runRecalc(kind, url) {
+    setRecalcBusy(kind);
+    setRecalcResult(null);
+    try {
+      const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: '{}' });
+      const data = await res.json();
+      setRecalcResult({ kind, ...data });
+    } catch (err) {
+      setRecalcResult({ kind, success: false, error: err.message });
+    } finally {
+      setRecalcBusy(null);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Адмін-панель</h2>
-
-      <input
-        className={styles.playerSearchInput}
-        placeholder="Пошук гравця за іменем, прізвищем або логіном..."
-        aria-label="Пошук гравця"
-        value={playerSearch}
-        onChange={(e) => setPlayerSearch(e.target.value)}
-      />
-
-      {playerSearch.trim() && (
-        <div className={styles.quickList}>
-          {[...males, ...females]
-            .filter((p) => matchesPlayerSearch(p, playerSearch))
-            .map((p) => (
-              <div
-                key={p.id}
-                className={styles.quickListRow}
-                style={{ cursor: 'pointer' }}
-                role="link"
-                tabIndex={0}
-                onClick={() => openPlayer(p.id)}
-                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
-              >
-                <PlayerAvatar player={p} size={26} />
-                <span>{p.full_name}</span>
-                <span className={styles.quickListElo}>{p.elo}</span>
-              </div>
-            ))}
-          {[...males, ...females].filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
-            <div className={styles.empty}>Нікого не знайдено</div>
-          )}
-        </div>
-      )}
 
       {stats && (
         <div className={styles.statsGrid}>
@@ -471,6 +458,38 @@ export default function AdminPage() {
         </>
       )}
 
+      <div className={styles.sectionLabel}>Одноразові виправлення даних</div>
+      <div className={styles.notifCard}>
+        <div className={styles.fixDescription}>
+          Одноразово перераховує місця та статистику партнерів для вже завершених турнірів — потрібно
+          натиснути один раз після оновлення, повторний запуск нічого не зіпсує.
+        </div>
+        <button
+          className={styles.notifSendBtn}
+          disabled={recalcBusy === 'placements'}
+          onClick={() => runRecalc('placements', '/api/admin/placements/recalc')}
+        >
+          {recalcBusy === 'placements' ? 'Рахуємо...' : 'Перерахувати місця в турнірах'}
+        </button>
+        <button
+          className={styles.notifSendBtn}
+          style={{ marginTop: 8 }}
+          disabled={recalcBusy === 'partners'}
+          onClick={() => runRecalc('partners', '/api/admin/partner-stats/recalc')}
+        >
+          {recalcBusy === 'partners' ? 'Рахуємо...' : 'Перерахувати статистику партнерів'}
+        </button>
+        {recalcResult && (
+          <div className={recalcResult.success ? styles.fixResultOk : styles.fixResultError}>
+            {recalcResult.success
+              ? recalcResult.kind === 'placements'
+                ? `Готово: ${recalcResult.categories} турнірів, ${recalcResult.placements} місць записано.`
+                : `Готово: перераховано по ${recalcResult.tournaments} турнірах.`
+              : `Помилка: ${recalcResult.error || 'невідома'}`}
+          </div>
+        )}
+      </div>
+
       {recentActivity.length > 0 && (
         <>
           <div className={styles.sectionLabel}>Остання активність</div>
@@ -550,6 +569,39 @@ export default function AdminPage() {
           {actionError[p.id] && <div className={styles.actionError}>{actionError[p.id]}</div>}
         </div>
       ))}
+
+      <input
+        className={styles.playerSearchInput}
+        placeholder="Пошук гравця за іменем, прізвищем або логіном..."
+        aria-label="Пошук гравця"
+        value={playerSearch}
+        onChange={(e) => setPlayerSearch(e.target.value)}
+      />
+
+      {playerSearch.trim() && (
+        <div className={styles.quickList}>
+          {[...males, ...females]
+            .filter((p) => matchesPlayerSearch(p, playerSearch))
+            .map((p) => (
+              <div
+                key={p.id}
+                className={styles.quickListRow}
+                style={{ cursor: 'pointer' }}
+                role="link"
+                tabIndex={0}
+                onClick={() => openPlayer(p.id)}
+                onKeyDown={(e) => e.key === 'Enter' && openPlayer(p.id)}
+              >
+                <PlayerAvatar player={p} size={26} />
+                <span>{p.full_name}</span>
+                <span className={styles.quickListElo}>{p.elo}</span>
+              </div>
+            ))}
+          {[...males, ...females].filter((p) => matchesPlayerSearch(p, playerSearch)).length === 0 && (
+            <div className={styles.empty}>Нікого не знайдено</div>
+          )}
+        </div>
+      )}
 
       <div className={styles.sectionLabel}>Гравці · Чоловіки</div>
       {males.map((p) => (
