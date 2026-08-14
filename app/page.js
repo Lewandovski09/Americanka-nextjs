@@ -5,6 +5,8 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
+import { getFormat } from '@/lib/formats';
+import { effectiveTier } from '@/lib/avp/tiers';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
@@ -17,6 +19,7 @@ export default function HomePage() {
   const { player, loading } = useCurrentPlayer();
   const [nextTournament, setNextTournament] = useState(null);
   const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
+  const [nextTournamentPairs, setNextTournamentPairs] = useState(null); // null = solo format, doesn't apply
   const [announcements, setAnnouncements] = useState([]);
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -71,7 +74,11 @@ export default function HomePage() {
     async function loadNextTournament() {
       const { data } = await supabase
         .from('tournaments')
-        .select('id, event_id, status, name, scheduled_at, location, category, gender')
+        .select(
+          `id, event_id, status, name, scheduled_at, location, category, category_label, gender,
+           max_participants, avp_tier,
+           tournament_events(format_kind, avp_tier)`
+        )
         .in('status', ['scheduled', 'live'])
         .order('scheduled_at', { ascending: true })
         .limit(1)
@@ -79,11 +86,33 @@ export default function HomePage() {
       setNextTournament(data || null);
 
       if (data) {
-        const { data: tps } = await supabase
-          .from('tournament_players')
-          .select('players(id, full_name, photo_url)')
-          .eq('tournament_id', data.id);
-        setNextTournamentPlayers((tps || []).map((tp) => tp.players));
+        const format = getFormat(data.tournament_events?.format_kind);
+        if (format?.registrationType === 'solo') {
+          const { data: tps } = await supabase
+            .from('tournament_players')
+            .select('players(id, full_name, photo_url)')
+            .eq('tournament_id', data.id);
+          setNextTournamentPlayers((tps || []).map((tp) => tp.players));
+        } else {
+          // Pair and mixed-pair formats register through tournament_teams,
+          // not tournament_players — the same distinction the tournament
+          // history RPC and profile's match filtering already had to
+          // account for. Separate id-then-lookup queries rather than an
+          // embedded join with a guessed foreign-key constraint name —
+          // same reasoning as the rating page's club-stats fix earlier
+          // this session: safer than syntax that isn't proven elsewhere
+          // in this codebase.
+          const { data: teams } = await supabase
+            .from('tournament_teams')
+            .select('player1_id, player2_id')
+            .eq('tournament_id', data.id);
+          const teamPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
+          const { data: teamPlayers } = teamPlayerIds.length
+            ? await supabase.from('players').select('id, full_name, photo_url').in('id', teamPlayerIds)
+            : { data: [] };
+          setNextTournamentPlayers(teamPlayers || []);
+          setNextTournamentPairs((teams || []).length);
+        }
       }
     }
 
@@ -180,8 +209,15 @@ export default function HomePage() {
     );
   }
 
-  const slotsTotal = 8; // current format size; will read from format data once multiple formats are live
-  const slotsTaken = nextTournamentPlayers.length;
+  const nextFormat = nextTournament ? getFormat(nextTournament.tournament_events?.format_kind) : null;
+  const nextIsPairFormat = nextFormat?.registrationType && nextFormat.registrationType !== 'solo';
+  const slotsTotal = nextIsPairFormat
+    ? nextTournament?.max_participants ?? 0 // stored as a pair count for pair formats
+    : nextTournament?.max_participants ?? nextFormat?.fixedParticipants ?? 8;
+  const slotsTaken = nextIsPairFormat ? nextTournamentPairs ?? 0 : nextTournamentPlayers.length;
+  const slotsLabel = nextIsPairFormat ? 'пар' : 'гравців';
+  const spotsLeft = Math.max(0, slotsTotal - slotsTaken);
+  const nextAvpTier = nextTournament ? effectiveTier(nextTournament, nextTournament.tournament_events) : null;
 
   // Elo progress toward the next category, for the header stat card.
   // Top category (A) has nowhere further to go, so nextCategory stays
@@ -231,7 +267,11 @@ export default function HomePage() {
                 )}
                 <div className={styles.headerStatMeta}>
                   {eloRank ? `№${eloRank}` : ''}
-                  {nextCategory ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}` : ''}
+                  {nextCategory
+                    ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}`
+                    : playerCategory
+                    ? ' · Найвища категорія'
+                    : ''}
                 </div>
               </div>
               {avpStanding && (
@@ -327,8 +367,16 @@ export default function HomePage() {
             {new Date(nextTournament.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
           </div>
           <div className={styles.nextTournamentMeta}>
-            {nextTournament.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · Кат. {nextTournament.category} ·{' '}
-            {nextTournament.gender === 'M' ? 'Чоловіки' : 'Жінки'}
+            {nextTournament.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · {nextFormat?.displayName || 'Американка'} ·{' '}
+            {nextTournament.category_label || nextTournament.category}
+            {nextIsPairFormat
+              ? nextTournament.gender === 'M'
+                ? ' · Чоловіки'
+                : nextTournament.gender === 'F'
+                ? ' · Жінки'
+                : ' · Мікс'
+              : ` · ${nextTournament.gender === 'M' ? 'Чоловіки' : 'Жінки'}`}
+            {nextAvpTier ? ` · AVP ${nextAvpTier}` : ''}
           </div>
 
           <div className={styles.slotsRow}>
@@ -340,11 +388,14 @@ export default function HomePage() {
               ))}
             </div>
             <div className={styles.slotsCount}>
-              {slotsTaken}/{slotsTotal} гравців
+              {slotsTaken}/{slotsTotal} {slotsLabel} · {spotsLeft} вільно
             </div>
           </div>
           <div className={styles.progressBar}>
-            <div className={styles.progressFill} style={{ width: `${Math.min(100, (slotsTaken / slotsTotal) * 100)}%` }} />
+            <div
+              className={styles.progressFill}
+              style={{ width: `${slotsTotal > 0 ? Math.min(100, (slotsTaken / slotsTotal) * 100) : 0}%` }}
+            />
           </div>
         </a>
       ) : (
