@@ -5,8 +5,9 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
-import { getFormat, BRACKET_SYSTEMS } from '@/lib/formats';
-import { effectiveTier } from '@/lib/avp/tiers';
+import { getFormat } from '@/lib/formats';
+import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
+import CategoryRow from '@/components/CategoryRow';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
@@ -104,60 +105,7 @@ export default function HomePage() {
 
       const format = getFormat(event?.format_kind);
       const isPairFormat = format?.registrationType && format.registrationType !== 'solo';
-      const catIds = (cats || []).map((c) => c.id);
-
-      // Who's registered, per category — one batched query for the
-      // whole event rather than one query per category, then grouped
-      // client-side. Same tournament_players-vs-tournament_teams split
-      // as before, and the same "separate id-then-lookup queries rather
-      // than a guessed foreign-key embed" caution for tournament_teams.
-      const playersByTournament = new Map();
-      const pairsByTournament = new Map();
-
-      if (catIds.length && isPairFormat) {
-        const { data: teams } = await supabase
-          .from('tournament_teams')
-          .select('tournament_id, player1_id, player2_id')
-          .in('tournament_id', catIds);
-        (teams || []).forEach((t) => {
-          pairsByTournament.set(t.tournament_id, (pairsByTournament.get(t.tournament_id) || 0) + 1);
-        });
-        const allPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
-        const { data: teamPlayers } = allPlayerIds.length
-          ? await supabase.from('players').select('id, full_name, photo_url').in('id', allPlayerIds)
-          : { data: [] };
-        const playerById = new Map((teamPlayers || []).map((p) => [p.id, p]));
-        (teams || []).forEach((t) => {
-          const list = playersByTournament.get(t.tournament_id) || [];
-          if (playerById.get(t.player1_id)) list.push(playerById.get(t.player1_id));
-          if (playerById.get(t.player2_id)) list.push(playerById.get(t.player2_id));
-          playersByTournament.set(t.tournament_id, list);
-        });
-      } else if (catIds.length) {
-        const { data: tps } = await supabase
-          .from('tournament_players')
-          .select('tournament_id, players(id, full_name, photo_url)')
-          .in('tournament_id', catIds);
-        (tps || []).forEach((tp) => {
-          const list = playersByTournament.get(tp.tournament_id) || [];
-          if (tp.players) list.push(tp.players);
-          playersByTournament.set(tp.tournament_id, list);
-        });
-      }
-
-      const enrichedCategories = (cats || []).map((c) => {
-        const taken = isPairFormat ? pairsByTournament.get(c.id) || 0 : (playersByTournament.get(c.id) || []).length;
-        const total = isPairFormat ? c.max_participants ?? 0 : c.max_participants ?? format?.fixedParticipants ?? 8;
-        return {
-          ...c,
-          slotsTaken: taken,
-          slotsTotal: total,
-          spotsLeft: Math.max(0, total - taken),
-          players: playersByTournament.get(c.id) || [],
-          avpTier: effectiveTier(c, event),
-          bracketLabel: BRACKET_SYSTEMS.find((b) => b.id === c.bracket_system)?.shortLabel || null,
-        };
-      });
+      const enrichedCategories = await enrichCategoriesWithSlots(supabase, cats || [], format, event?.avp_tier);
 
       setNextEvent({
         id: event?.id,
@@ -263,8 +211,6 @@ export default function HomePage() {
       </div>
     );
   }
-
-  const nextSlotsLabel = nextEvent?.isPairFormat ? 'пар' : 'гравців';
 
   // Elo progress toward the next category, for the header stat card.
   // Top category (A) has nowhere further to go, so nextCategory stays
@@ -407,43 +353,14 @@ export default function HomePage() {
           </div>
 
           {nextCategories.map((c) => (
-            <a
+            <CategoryRow
               key={c.id}
+              category={c}
+              showGender={nextEvent.isPairFormat}
               // Scheduled → the event registration page (this specific
               // category); live → its play view.
-              href={c.status === 'scheduled' && nextEvent.id ? `/events/register/${nextEvent.id}` : `/tournaments/${c.id}`}
-              className={styles.categoryRow}
-            >
-              <div className={styles.categoryRowTop}>
-                <span className={styles.categoryRowLabel}>{c.category_label || c.category}</span>
-                {nextEvent.isPairFormat && (
-                  <span className={styles.categoryRowGender}>
-                    {c.gender === 'M' ? 'Чоловіки' : c.gender === 'F' ? 'Жінки' : 'Мікс'}
-                  </span>
-                )}
-                {c.bracketLabel && <span className={styles.categoryRowSystem}>{c.bracketLabel}</span>}
-                {c.avpTier ? <span className={styles.categoryRowSystem}>AVP {c.avpTier}</span> : null}
-              </div>
-
-              <div className={styles.slotsRow}>
-                <div className={styles.avatarStack}>
-                  {c.players.slice(0, 6).map((p, i) => (
-                    <span key={p.id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
-                      <PlayerAvatar player={p} size={26} />
-                    </span>
-                  ))}
-                </div>
-                <div className={styles.slotsCount}>
-                  {c.slotsTaken}/{c.slotsTotal} {nextSlotsLabel} · {c.spotsLeft} вільно
-                </div>
-              </div>
-              <div className={styles.progressBar}>
-                <div
-                  className={styles.progressFill}
-                  style={{ width: `${c.slotsTotal > 0 ? Math.min(100, (c.slotsTaken / c.slotsTotal) * 100) : 0}%` }}
-                />
-              </div>
-            </a>
+              href={c.status === 'scheduled' && nextEvent.id ? `/events/register/${nextEvent.id}?category=${c.id}` : `/tournaments/${c.id}`}
+            />
           ))}
         </div>
       ) : (

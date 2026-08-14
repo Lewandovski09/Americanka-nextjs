@@ -14,8 +14,13 @@ import PlayerPicker from '@/components/PlayerPicker';
 import { LOCATION_LABEL, useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
 import styles from '../../event.module.css';
 
-export default function EventRegisterPage({ params }) {
+export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
+  // Which category the person actually clicked on the home page's
+  // per-category cards — without this, both the info tabs and the
+  // apply form silently default to categories[0] regardless of which
+  // one was clicked.
+  const preselectedCategoryId = searchParams?.category || null;
   const { player } = useCurrentPlayer();
   const { event, categories, applications, loading, load } = useEventData(id);
   const { post, busy, error } = useEventPost(load);
@@ -51,7 +56,7 @@ export default function EventRegisterPage({ params }) {
     );
   }
 
-  const activeCat = categories.find((c) => c.id === activeCatId) || categories[0];
+  const activeCat = categories.find((c) => c.id === activeCatId) || categories.find((c) => c.id === preselectedCategoryId) || categories[0];
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const regClosed = event.registration_open === false;
 
@@ -108,6 +113,7 @@ export default function EventRegisterPage({ params }) {
           me={player}
           takenIds={takenIds}
           categories={categories}
+          initialCategoryId={preselectedCategoryId}
           myApp={myApp}
           regClosed={regClosed}
           busy={busy}
@@ -128,10 +134,12 @@ export default function EventRegisterPage({ params }) {
   );
 }
 
-function MyRegistration({ isPair, me, takenIds = [], categories, myApp, regClosed, busy, onApply, onWithdraw }) {
+function MyRegistration({ isPair, me, takenIds = [], categories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
   const [partner, setPartner] = useState(null);
   const [seeking, setSeeking] = useState(false);
-  const [catId, setCatId] = useState(categories[0]?.id || '');
+  const [catId, setCatId] = useState(
+    (initialCategoryId && categories.some((c) => c.id === initialCategoryId) ? initialCategoryId : categories[0]?.id) || ''
+  );
 
   if (myApp) {
     const inTeam = myApp.status === 'assigned';

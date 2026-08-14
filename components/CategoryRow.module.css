@@ -1,0 +1,70 @@
+.row {
+  display: block;
+  text-decoration: none;
+  border-top: 1px solid var(--border-light);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.top {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.label {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.badge {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text2);
+  background: var(--surface-alt);
+  padding: 2px 8px;
+  border-radius: var(--r-lg);
+}
+
+.slotsRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-top: 10px;
+  margin-bottom: 8px;
+}
+
+.avatarStack {
+  display: flex;
+}
+
+.avatarStackItem {
+  margin-left: -8px;
+  border-radius: 50%;
+  border: 2px solid var(--surface);
+}
+
+.avatarStackItem:first-child {
+  margin-left: 0;
+}
+
+.slotsCount {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.progressBar {
+  height: 6px;
+  background: var(--border-light);
+  border-radius: 4px;
+  overflow: hidden;
+}
+
+.progressFill {
+  height: 100%;
+  background: var(--rust);
+  border-radius: 4px;
+}

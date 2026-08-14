@@ -5,6 +5,8 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
+import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
+import CategoryRow from '@/components/CategoryRow';
 import styles from './tournaments.module.css';
 import TabBtn from '@/components/TabBtn';
 
@@ -36,13 +38,27 @@ export default function EventsPage() {
       const { data } = await supabase
         .from('tournament_events')
         .select(
-          `id, name, format_kind, status, location, scheduled_at,
-           tournaments(id, category_label, gender, status)`
+          `id, name, format_kind, status, location, scheduled_at, avp_tier,
+           tournaments(id, category, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
         .order('scheduled_at', { ascending: tab === 'done' ? false : true });
-      eventsCacheRef.current[tab] = data || [];
-      setEvents(data || []);
+
+      // One enrichment pass per event (not per category) — different
+      // events can be different formats, which decides whether slots
+      // are counted from tournament_players or tournament_teams, so
+      // this can't all be batched into one call the way one event's own
+      // categories can (see enrichCategoriesWithSlots).
+      const enrichedEvents = await Promise.all(
+        (data || []).map(async (ev) => {
+          const format = getFormat(ev.format_kind);
+          const cats = await enrichCategoriesWithSlots(supabase, ev.tournaments || [], format, ev.avp_tier);
+          return { ...ev, tournaments: cats, format };
+        })
+      );
+
+      eventsCacheRef.current[tab] = enrichedEvents;
+      setEvents(enrichedEvents);
       setLoading(false);
     }
     load();
@@ -73,7 +89,6 @@ export default function EventsPage() {
 
       {!loading &&
         events.map((ev) => {
-          const format = getFormat(ev.format_kind);
           const cats = ev.tournaments || [];
           const meta = (
             <div className={styles.cardMeta}>
@@ -83,70 +98,49 @@ export default function EventsPage() {
           );
           const badge = (
             <span className={styles.badge} style={{ background: 'var(--bg-light)', color: 'var(--text2)' }}>
-              {format?.displayName || ev.format_kind}
+              {ev.format?.displayName || ev.format_kind}
             </span>
           );
+          const isPairFormat = ev.format?.registrationType && ev.format.registrationType !== 'solo';
 
-          // Scheduled: the card opens the registration page; admins get a
-          // gear to the pre-start settings (queue / reserve / distribution).
-          if (ev.status === TABS.SCHEDULED) {
-            return (
-              <div key={ev.id} className={`${styles.card} ${styles.cardWrap}`}>
-                <Link href={`/events/register/${ev.id}`} className={styles.cardLink} aria-label={ev.name} />
-                <div className={styles.cardHeader}>
-                  <div className={styles.cardName}>{ev.name}</div>
-                  <div className={styles.headerRight}>
-                    {badge}
-                    {player?.is_admin && (
-                      <Link href={`/events/settings/${ev.id}`} className={styles.gearBtn} title="Налаштування">
-                        ⚙
-                      </Link>
-                    )}
-                  </div>
-                </div>
-                {meta}
-                <div className={styles.chipsRow}>
-                  {cats.map((c) => (
-                    <span key={c.id} className={styles.catChip}>
-                      {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
-                      {c.category_label}
-                    </span>
-                  ))}
-                  {cats.length === 0 && <span className={styles.slotsCount}>Без категорій</span>}
-                </div>
-              </div>
-            );
-          }
-
-          // Live / done: the card opens the first category's play view
-          // (таблиця / ігри / чат), the chips pick a specific league.
-          // Admins get a gear to the live tournament settings.
+          // Scheduled: each category links to the registration page
+          // pre-selecting itself (same ?category= param the home page's
+          // card uses — the registration form used to always default to
+          // the first category no matter which one was actually
+          // clicked). Live/done: each category links straight to its own
+          // play view. Either way, the card itself is no longer one big
+          // link to just the first category — every category is its own
+          // real link now that there can be more than one.
           return (
-            <div key={ev.id} className={`${styles.card} ${styles.cardWrap}`}>
-              {cats.length > 0 && (
-                <Link href={`/tournaments/${cats[0].id}`} className={styles.cardLink} aria-label={ev.name} />
-              )}
+            <div key={ev.id} className={styles.card}>
               <div className={styles.cardHeader}>
                 <div className={styles.cardName}>{ev.name}</div>
                 <div className={styles.headerRight}>
                   {badge}
                   {player?.is_admin && (
-                    <Link href={`/tournaments/settings/${ev.id}`} className={styles.gearBtn} title="Керування">
+                    <Link
+                      href={ev.status === TABS.SCHEDULED ? `/events/settings/${ev.id}` : `/tournaments/settings/${ev.id}`}
+                      className={styles.gearBtn}
+                      title="Налаштування"
+                    >
                       ⚙
                     </Link>
                   )}
                 </div>
               </div>
               {meta}
-              <div className={styles.chipsRow}>
-                {cats.map((c) => (
-                  <Link key={c.id} href={`/tournaments/${c.id}`} className={styles.catChipLink}>
-                    {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
-                    {c.category_label}
-                  </Link>
-                ))}
-                {cats.length === 0 && <span className={styles.slotsCount}>Без категорій</span>}
-              </div>
+
+              {cats.length === 0 && <div className={styles.slotsCount}>Без категорій</div>}
+              {cats.map((c) => (
+                <CategoryRow
+                  key={c.id}
+                  category={c}
+                  showGender={isPairFormat}
+                  href={
+                    ev.status === TABS.SCHEDULED ? `/events/register/${ev.id}?category=${c.id}` : `/tournaments/${c.id}`
+                  }
+                />
+              ))}
             </div>
           );
         })}
