@@ -49,7 +49,7 @@ export default function RatingPage() {
       const supabase = createClient();
       let query = supabase
         .from('players')
-        .select('id, full_name, login, elo, photo_url, tournaments_played')
+        .select('id, full_name, login, elo, photo_url')
         .eq('gender', gender)
         .eq('approval_status', 'approved')
         .order('elo', { ascending: false });
@@ -60,8 +60,28 @@ export default function RatingPage() {
       }
 
       const { data } = await query;
-      ratingCacheRef.current[cacheKey] = data || [];
-      setPlayers(data || []);
+
+      // Real tournament count, not the players.tournaments_played
+      // counter — that column accumulates by +1 per finishCategory
+      // call with no protection against being bumped twice for the
+      // same tournament (the same class of drift partner_stats had).
+      // tournament_placements is written idempotently (cleared and
+      // rewritten each time a category finishes) and is exactly the
+      // "did this player actually place in this tournament" source of
+      // truth already fixed and backfilled earlier — counting rows in
+      // it directly can't drift the way an accumulating counter can.
+      const ids = (data || []).map((p) => p.id);
+      const { data: placements } = ids.length
+        ? await supabase.from('tournament_placements').select('player_id').in('player_id', ids)
+        : { data: [] };
+      const countByPlayer = new Map();
+      (placements || []).forEach((tp) => {
+        countByPlayer.set(tp.player_id, (countByPlayer.get(tp.player_id) || 0) + 1);
+      });
+      const withCounts = (data || []).map((p) => ({ ...p, tournaments_played: countByPlayer.get(p.id) || 0 }));
+
+      ratingCacheRef.current[cacheKey] = withCounts;
+      setPlayers(withCounts);
     }
     load();
   }, [gender, category, tab]);
