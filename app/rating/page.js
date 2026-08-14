@@ -70,12 +70,31 @@ export default function RatingPage() {
       // "did this player actually place in this tournament" source of
       // truth already fixed and backfilled earlier — counting rows in
       // it directly can't drift the way an accumulating counter can.
+      //
+      // Scoped to Americanka specifically here: Ело itself is now only
+      // ever driven by Americanka results (see the score route's
+      // auto-Ело), so "tournaments played" on THIS tab means
+      // Americanka tournaments, not every format combined — AVP's own
+      // tab already shows the all-formats count via tournaments_counted.
       const ids = (data || []).map((p) => p.id);
       const { data: placements } = ids.length
-        ? await supabase.from('tournament_placements').select('player_id').in('player_id', ids)
+        ? await supabase.from('tournament_placements').select('player_id, tournament_id').in('player_id', ids)
         : { data: [] };
+
+      const tIds = [...new Set((placements || []).map((tp) => tp.tournament_id))];
+      const { data: tours } = tIds.length
+        ? await supabase.from('tournaments').select('id, event_id').in('id', tIds)
+        : { data: [] };
+      const eventIds = [...new Set((tours || []).map((t) => t.event_id).filter(Boolean))];
+      const { data: events } = eventIds.length
+        ? await supabase.from('tournament_events').select('id, format_kind').in('id', eventIds)
+        : { data: [] };
+      const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
+      const formatByTournament = new Map((tours || []).map((t) => [t.id, formatByEvent.get(t.event_id)]));
+
       const countByPlayer = new Map();
       (placements || []).forEach((tp) => {
+        if (formatByTournament.get(tp.tournament_id) !== 'americanka') return;
         countByPlayer.set(tp.player_id, (countByPlayer.get(tp.player_id) || 0) + 1);
       });
       const withCounts = (data || []).map((p) => ({ ...p, tournaments_played: countByPlayer.get(p.id) || 0 }));
