@@ -265,7 +265,7 @@ export default function RatingPage() {
         if (streak >= 2) streakByPlayer.push({ playerId, streak });
       }
       streakByPlayer.sort((a, b) => b.streak - a.streak);
-      const topStreaks = streakByPlayer.slice(0, 5);
+      const topStreaks = streakByPlayer; // full list — filtered+sliced by gender at render time
 
       // ── Most GAMES won, every format EXCEPT Americanka ──
       // Not "won the whole tournament" (that's placement=1 in
@@ -302,8 +302,7 @@ export default function RatingPage() {
       });
       const topWins = [...winsByPlayer.entries()]
         .map(([playerId, wins]) => ({ playerId, wins }))
-        .sort((a, b) => b.wins - a.wins)
-        .slice(0, 5);
+        .sort((a, b) => b.wins - a.wins); // full list — filtered+sliced by gender at render time
 
       // ── Biggest Ело gain, last 3 months ──
       // reason='tournament_result' only — elo_history also holds
@@ -324,15 +323,14 @@ export default function RatingPage() {
       const topGains = [...gainByPlayer.entries()]
         .map(([playerId, gain]) => ({ playerId, gain }))
         .filter((r) => r.gain > 0)
-        .sort((a, b) => b.gain - a.gain)
-        .slice(0, 5);
+        .sort((a, b) => b.gain - a.gain); // full list — filtered+sliced by gender at render time
 
       // One shared name/avatar lookup for everyone appearing in any list.
       const allIds = [
         ...new Set([...topStreaks.map((r) => r.playerId), ...topWins.map((r) => r.playerId), ...topGains.map((r) => r.playerId)]),
       ];
       const { data: profiles } = allIds.length
-        ? await supabase.from('players').select('id, full_name, login, photo_url').in('id', allIds)
+        ? await supabase.from('players').select('id, full_name, login, photo_url, gender').in('id', allIds)
         : { data: [] };
       const profileById = new Map((profiles || []).map((p) => [p.id, p]));
 
@@ -359,6 +357,14 @@ export default function RatingPage() {
           p.full_name.toLowerCase().includes(searchTerm.trim().toLowerCase())
       )
     : players;
+
+  // Club leaderboards, same gender toggle as the Ело/AVP tabs — filtered
+  // then capped to 5, in that order, so a gender with fewer than 5
+  // qualifying players just shows however many it actually has instead
+  // of borrowing spots from an overall top-5 computed before the split.
+  const genderClubStreaks = clubStreaks.filter((r) => r.player?.gender === gender).slice(0, 5);
+  const genderClubTournamentWins = clubTournamentWins.filter((r) => r.player?.gender === gender).slice(0, 5);
+  const genderClubEloGains = clubEloGains.filter((r) => r.player?.gender === gender).slice(0, 5);
 
   async function handleCompare() {
     setCompareError('');
@@ -555,12 +561,21 @@ export default function RatingPage() {
 
       {tab === 'stats' && (
         <>
+          <div className={styles.row}>
+            <button className={`${styles.genderBtn} ${gender === 'M' ? styles.genderBtnOn : ''}`} onClick={() => setGender('M')} aria-pressed={gender === 'M'}>
+              Чоловіки
+            </button>
+            <button className={`${styles.genderBtn} ${gender === 'F' ? styles.genderBtnOn : ''}`} onClick={() => setGender('F')} aria-pressed={gender === 'F'}>
+              Жінки
+            </button>
+          </div>
+
           <div className={styles.sectionLabel}>Клубна статистика</div>
 
           <div className={styles.clubStatCard}>
             <div className={styles.clubStatTitle}>Найдовші серії перемог</div>
-            {clubStreaks.length === 0 && <div className={styles.empty}>Ще немає активних серій</div>}
-            {clubStreaks.map((r, i) => (
+            {genderClubStreaks.length === 0 && <div className={styles.empty}>Ще немає активних серій</div>}
+            {genderClubStreaks.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
                 <PlayerAvatar player={r.player} size={24} />
@@ -572,8 +587,8 @@ export default function RatingPage() {
 
           <div className={styles.clubStatCard}>
             <div className={styles.clubStatTitle}>Найбільше перемог у турнірах (крім Американки)</div>
-            {clubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
-            {clubTournamentWins.map((r, i) => (
+            {genderClubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            {genderClubTournamentWins.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
                 <PlayerAvatar player={r.player} size={24} />
@@ -585,8 +600,8 @@ export default function RatingPage() {
 
           <div className={styles.clubStatCard}>
             <div className={styles.clubStatTitle}>Найбільший приріст Ело за 3 місяці</div>
-            {clubEloGains.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
-            {clubEloGains.map((r, i) => (
+            {genderClubEloGains.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            {genderClubEloGains.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
                 <PlayerAvatar player={r.player} size={24} />
