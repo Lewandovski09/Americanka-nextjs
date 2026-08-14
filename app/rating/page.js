@@ -267,27 +267,38 @@ export default function RatingPage() {
       streakByPlayer.sort((a, b) => b.streak - a.streak);
       const topStreaks = streakByPlayer.slice(0, 5);
 
-      // ── Most tournament wins, every format EXCEPT Americanka ──
-      const { data: winPlacements } = await supabase
-        .from('tournament_placements')
-        .select('player_id, tournament_id')
-        .eq('place', 1);
-      const tIds = [...new Set((winPlacements || []).map((p) => p.tournament_id))];
-      const { data: tours } = tIds.length
-        ? await supabase.from('tournaments').select('id, event_id').in('id', tIds)
+      // ── Most GAMES won, every format EXCEPT Americanka ──
+      // Not "won the whole tournament" (that's placement=1 in
+      // tournament_placements) — individual match wins, the same way
+      // get_player_format_stats counts games_won for one player, just
+      // summed across the whole club and every non-Americanka format
+      // at once. Separate queries + a JS-side join, same proven
+      // pattern as the rating tab's own tournament count above —
+      // safer than relying on nested-filter syntax (`!inner` +
+      // dotted-path `.neq()`) that isn't used anywhere else in this
+      // codebase and hasn't been verified to work as expected here.
+      const { data: allTournaments } = await supabase.from('tournaments').select('id, event_id');
+      const { data: allEvents } = await supabase.from('tournament_events').select('id, format_kind');
+      const formatByEvent = new Map((allEvents || []).map((ev) => [ev.id, ev.format_kind]));
+      const nonAmerIds = (allTournaments || [])
+        .filter((t) => formatByEvent.get(t.event_id) && formatByEvent.get(t.event_id) !== 'americanka')
+        .map((t) => t.id);
+
+      const { data: nonAmerMatches } = nonAmerIds.length
+        ? await supabase
+            .from('matches')
+            .select('team_a_players, team_b_players, set1, set2, set3')
+            .in('tournament_id', nonAmerIds)
+            .eq('played', true)
         : { data: [] };
-      const eventIds = [...new Set((tours || []).map((t) => t.event_id).filter(Boolean))];
-      const { data: events } = eventIds.length
-        ? await supabase.from('tournament_events').select('id, format_kind').in('id', eventIds)
-        : { data: [] };
-      const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
-      const formatByTournament = new Map((tours || []).map((t) => [t.id, formatByEvent.get(t.event_id)]));
 
       const winsByPlayer = new Map();
-      (winPlacements || []).forEach((p) => {
-        const format = formatByTournament.get(p.tournament_id);
-        if (!format || format === 'americanka') return;
-        winsByPlayer.set(p.player_id, (winsByPlayer.get(p.player_id) || 0) + 1);
+      (nonAmerMatches || []).forEach((m) => {
+        const aWon = teamAWon(m);
+        const winners = aWon ? m.team_a_players : m.team_b_players;
+        (winners || []).forEach((id) => {
+          winsByPlayer.set(id, (winsByPlayer.get(id) || 0) + 1);
+        });
       });
       const topWins = [...winsByPlayer.entries()]
         .map(([playerId, wins]) => ({ playerId, wins }))
@@ -295,7 +306,17 @@ export default function RatingPage() {
         .slice(0, 5);
 
       // ── Biggest Ело gain, last 3 months ──
-      const { data: eloRows } = await supabase.from('elo_history').select('player_id, delta').gte('created_at', since3mo);
+      // reason='tournament_result' only — elo_history also holds
+      // 'initial_approval' (a standard starting value logged when a
+      // player is approved, the same round number for everyone,
+      // nothing to do with playing) and 'admin_adjustment' (manual
+      // corrections). Neither reflects "gained from playing", which is
+      // the whole point of this leaderboard.
+      const { data: eloRows } = await supabase
+        .from('elo_history')
+        .select('player_id, delta')
+        .eq('reason', 'tournament_result')
+        .gte('created_at', since3mo);
       const gainByPlayer = new Map();
       (eloRows || []).forEach((r) => {
         gainByPlayer.set(r.player_id, (gainByPlayer.get(r.player_id) || 0) + r.delta);
