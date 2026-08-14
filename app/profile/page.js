@@ -13,6 +13,7 @@ import { IconEdit, IconMail, IconChat, IconTrendUp, IconTrendDown, IconX, IconIn
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
+import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
 import styles from './profile.module.css';
@@ -21,6 +22,7 @@ export default function ProfilePage() {
   const router = useRouter();
   const { player, loading, refresh: refreshPlayer } = useCurrentPlayer();
   const [tournamentHistory, setTournamentHistory] = useState([]);
+  const [eloGameLog, setEloGameLog] = useState([]);
   const [formatStats, setFormatStats] = useState([]);
   const [partners, setPartners] = useState([]);
   const [opponentElo, setOpponentElo] = useState(1200);
@@ -57,6 +59,9 @@ export default function ProfilePage() {
 
       const { data: th } = await supabase.rpc('get_player_tournament_history', { p_player_id: player.id });
       setTournamentHistory(th || []);
+
+      const { data: elog } = await supabase.rpc('get_player_elo_log', { p_player_id: player.id });
+      setEloGameLog(elog || []);
 
       const { data: fs } = await supabase.rpc('get_player_format_stats', { p_player_id: player.id });
       setFormatStats(fs || []);
@@ -263,10 +268,6 @@ export default function ProfilePage() {
   const eloProgressPct = playerCategory
     ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
     : 0;
-  const eloLog = tournamentHistory
-    .filter((h) => h.elo_delta !== null && h.elo_delta !== undefined)
-    .slice()
-    .sort((a, b) => new Date(b.finished_at || 0) - new Date(a.finished_at || 0));
 
   return (
     <div className={styles.page}>
@@ -361,6 +362,9 @@ export default function ProfilePage() {
         <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} totalGames={totalGames} winRate={winRate} />
       </div>
 
+      <div className={styles.sectionLabel}>Рейтинг AVP</div>
+      <AvpSeasonCard playerId={player.id} gender={player.gender} />
+
       <div className={styles.sectionLabelRow}>
         <div className={styles.sectionLabel}>Калькулятор Ело</div>
         <button className={styles.infoBtn} onClick={() => setCalcInfoOpen(true)} aria-label="Як користуватись">
@@ -392,63 +396,13 @@ export default function ProfilePage() {
         <EloChart history={tournamentHistory} currentElo={player.elo} />
       </div>
 
-      <div className={styles.sectionLabel}>Статистика з партнерами та суперниками</div>
-      <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.14s' }}>
-        {partners.length === 0 && <div className={styles.empty}>Дані після турнірів</div>}
-        {partners.map((p) => (
-          <div key={p.partner_id} className={styles.partnerRow} onClick={() => openPartnerHistory(p.partner)}>
-            <PlayerAvatar player={p.partner} size={28} />
-            <div className={styles.partnerName}>{p.partner.full_name}</div>
-            <div className={styles.partnerMeta}>
-              {p.wins_together}/{p.games_together} перемог
-            </div>
-          </div>
-        ))}
-      </div>
-
-      <div className={styles.sectionLabel}>Рейтинг AVP</div>
-      <AvpSeasonCard playerId={player.id} gender={player.gender} />
-
-      <div className={styles.sectionLabel}>Історія турнірів</div>
-      {tournamentHistory.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}
-      {tournamentHistory.map((h) => (
-        <div key={h.tournament_id} className={styles.historyCard} onClick={() => openTournamentDetails(h.tournament_id)}>
-          <div>
-            <div className={styles.historyName}>{h.tournament_name}</div>
-            <div className={styles.historyMeta}>
-              {(h.finished_at || h.scheduled_at) &&
-                new Date(h.finished_at || h.scheduled_at).toLocaleDateString('uk', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </div>
-            <div className={styles.historyPlace} style={h.placement && h.placement <= 3 ? { color: 'var(--rust)', fontWeight: 700 } : undefined}>
-              {h.placement ? `${h.placement}-є місце` : 'В процесі'}
-            </div>
-          </div>
-          {h.elo_delta !== null && (
-            <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
-              {h.elo_delta >= 0 ? '+' : ''}
-              {h.elo_delta} Ело
-            </div>
-          )}
-        </div>
-      ))}
-
-      {eloLog.length > 0 && (
-        <>
-          <div className={styles.sectionLabel}>Журнал змін Ело</div>
-          {eloLog.map((h) => (
-            <div key={h.tournament_id} className={styles.eloLogRow}>
-              <div className={styles.eloLogDate}>
-                {h.finished_at ? new Date(h.finished_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' }) : '—'}
-              </div>
-              <div className={styles.eloLogName}>{h.tournament_name}</div>
-              <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
-                {h.elo_delta >= 0 ? '+' : ''}
-                {h.elo_delta}
-              </div>
-            </div>
-          ))}
-        </>
-      )}
+      <PlayerHistoryAccordion
+        partners={partners}
+        tournamentHistory={tournamentHistory}
+        eloGameLog={eloGameLog}
+        onOpenPartner={openPartnerHistory}
+        onOpenTournament={openTournamentDetails}
+      />
 
       <div className={styles.sectionLabel}>Підтримка</div>
       <div className={styles.supportCard}>

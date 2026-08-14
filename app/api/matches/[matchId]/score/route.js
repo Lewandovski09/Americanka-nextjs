@@ -410,6 +410,7 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
       const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
         player_id: playerId,
         tournament_id: match.tournament_id,
+        match_id: match.id,
         delta,
         elo_before: before,
         elo_after: after,

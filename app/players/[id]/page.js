@@ -10,6 +10,7 @@ import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } 
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
+import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
 import styles from './player.module.css';
@@ -23,6 +24,8 @@ export default function PlayerProfilePage() {
   const [notFound, setNotFound] = useState(false);
   const [tournamentHistory, setTournamentHistory] = useState([]);
   const [formatStats, setFormatStats] = useState([]);
+  const [eloGameLog, setEloGameLog] = useState([]);
+  const [partners, setPartners] = useState([]);
   const [opponentElo, setOpponentElo] = useState(1200);
   const [photoLightbox, setPhotoLightbox] = useState(false);
   const [calcInfoOpen, setCalcInfoOpen] = useState(false);
@@ -44,14 +47,22 @@ export default function PlayerProfilePage() {
       setPlayer(data);
       setOpponentElo(data.elo || 1200);
 
-      const [{ data: th }, { data: fs }, headerStats] = await Promise.all([
+      const [{ data: th }, { data: fs }, { data: elog }, { data: p }, headerStats] = await Promise.all([
         supabase.rpc('get_player_tournament_history', { p_player_id: data.id }),
         supabase.rpc('get_player_format_stats', { p_player_id: data.id }),
+        supabase.rpc('get_player_elo_log', { p_player_id: data.id }),
+        supabase
+          .from('partner_stats')
+          .select('*, partner:players!partner_stats_partner_id_fkey(id, full_name, photo_url)')
+          .eq('player_id', data.id)
+          .order('games_together', { ascending: false }),
         loadPlayerHeaderStats(supabase, data),
       ]);
       if (!active) return;
       setTournamentHistory(th || []);
       setFormatStats(fs || []);
+      setEloGameLog(elog || []);
+      setPartners(p || []);
       setEloRank(headerStats.eloRank);
       setAvpStanding(headerStats.avpStanding);
       setWinStreak(headerStats.winStreak);
@@ -94,10 +105,6 @@ export default function PlayerProfilePage() {
   const totalGames = formatStats.reduce((s, r) => s + (r.games_played || 0), 0);
   const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
-  const eloLog = tournamentHistory
-    .filter((h) => h.elo_delta !== null && h.elo_delta !== undefined)
-    .slice()
-    .sort((a, b) => new Date(b.finished_at || 0) - new Date(a.finished_at || 0));
 
   const showCalculator = viewer && viewer.id !== player.id;
   const myElo = viewer?.elo || 1200;
@@ -111,6 +118,9 @@ export default function PlayerProfilePage() {
   const eloProgressPct = playerCategory
     ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
     : 0;
+
+  const goToPartner = (p) => router.push(`/players/${p.id}`);
+  const goToTournament = (tournamentId) => router.push(`/tournaments/${tournamentId}`);
 
   return (
     <div className={styles.page}>
@@ -200,6 +210,9 @@ export default function PlayerProfilePage() {
         </a>
       )}
 
+      <div className={styles.sectionLabel}>Рейтинг AVP</div>
+      <AvpSeasonCard playerId={player.id} gender={player.gender} />
+
       {showCalculator && (
         <>
           <div className={styles.sectionLabelRow}>
@@ -256,49 +269,13 @@ export default function PlayerProfilePage() {
         <EloChart history={tournamentHistory} currentElo={player.elo} playerName={player.full_name} />
       </div>
 
-      <div className={styles.sectionLabel}>Рейтинг AVP</div>
-      <AvpSeasonCard playerId={player.id} gender={player.gender} />
-
-      <div className={styles.sectionLabel}>Історія турнірів</div>
-      {tournamentHistory.length === 0 && <div className={styles.empty}>Ще немає турнірів</div>}
-      {tournamentHistory.map((h) => (
-        <div key={h.tournament_id} className={styles.historyCard}>
-          <div>
-            <div className={styles.historyName}>{h.tournament_name}</div>
-            <div className={styles.historyMeta}>
-              {(h.finished_at || h.scheduled_at) &&
-                new Date(h.finished_at || h.scheduled_at).toLocaleDateString('uk', { day: 'numeric', month: 'short', year: 'numeric' })}
-            </div>
-            <div
-              className={styles.historyPlace}
-              style={h.placement && h.placement <= 3 ? { color: 'var(--rust)', fontWeight: 700 } : undefined}
-            >
-              {h.placement ? `${h.placement}-є місце` : 'В процесі'}
-            </div>
-          </div>
-          {h.elo_delta !== null && (
-            <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
-              {h.elo_delta >= 0 ? '+' : ''}
-              {h.elo_delta} Ело
-            </div>
-          )}
-        </div>
-      ))}
-
-      <div className={styles.sectionLabel}>Журнал змін Ело</div>
-      {eloLog.length === 0 && <div className={styles.empty}>Ще немає змін рейтингу</div>}
-      {eloLog.map((h) => (
-        <div key={h.tournament_id} className={styles.eloLogRow}>
-          <div className={styles.eloLogDate}>
-            {h.finished_at ? new Date(h.finished_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' }) : '—'}
-          </div>
-          <div className={styles.eloLogName}>{h.tournament_name}</div>
-          <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
-            {h.elo_delta >= 0 ? '+' : ''}
-            {h.elo_delta}
-          </div>
-        </div>
-      ))}
+      <PlayerHistoryAccordion
+        partners={partners}
+        tournamentHistory={tournamentHistory}
+        eloGameLog={eloGameLog}
+        onOpenPartner={goToPartner}
+        onOpenTournament={goToTournament}
+      />
 
       {photoLightbox && player.photo_url && (
         <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>

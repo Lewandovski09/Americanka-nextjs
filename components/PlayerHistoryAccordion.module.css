@@ -1,0 +1,173 @@
+.wrap {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  margin-bottom: 4px;
+  overflow: hidden;
+}
+
+.statRow {
+  border-bottom: 1px solid var(--border-light);
+}
+
+.statRowLast {
+  border-bottom: none;
+}
+
+.statHeader {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 14px 16px;
+  cursor: pointer;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.statRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.statLabel {
+  font-weight: 700;
+}
+
+.statCount {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.arrow {
+  display: flex;
+  color: var(--text2);
+  transition: transform var(--dur-base) var(--ease);
+}
+
+.arrowOpen {
+  transform: rotate(180deg);
+}
+
+.statBody {
+  padding: 0 16px 14px;
+}
+
+.empty {
+  font-size: 12.5px;
+  color: var(--text2);
+}
+
+.partnerRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 10px 0;
+  border-bottom: 1px solid var(--border-light);
+  cursor: pointer;
+}
+
+.partnerRow:last-child {
+  border-bottom: none;
+}
+
+.partnerName {
+  flex: 1;
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.partnerMeta {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.historyCard {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  background: var(--bg-light);
+  border-radius: var(--r-sm);
+  padding: 12px;
+  margin-bottom: 8px;
+  cursor: pointer;
+}
+
+.historyCard:last-child {
+  margin-bottom: 0;
+}
+
+.historyName {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.historyMeta {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.historyPlace {
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.positive {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--accent-green);
+}
+
+.negative {
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--danger);
+}
+
+.eloLogRow {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 10px;
+  background: var(--bg-light);
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  margin-bottom: 6px;
+}
+
+.eloLogRow:last-child {
+  margin-bottom: 0;
+}
+
+.eloLogInfo {
+  flex: 1;
+  min-width: 0;
+}
+
+.eloLogDate {
+  font-size: 10.5px;
+  color: var(--text2);
+}
+
+.eloLogName {
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.eloLogRow .positive,
+.eloLogRow .negative {
+  font-size: 13px;
+  flex-shrink: 0;
+}
