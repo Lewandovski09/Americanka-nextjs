@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
-import { getFormat } from '@/lib/formats';
+import { getFormat, BRACKET_SYSTEMS } from '@/lib/formats';
 import { effectiveTier } from '@/lib/avp/tiers';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
@@ -17,9 +17,8 @@ import styles from './page.module.css';
 export default function HomePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
-  const [nextTournament, setNextTournament] = useState(null);
-  const [nextTournamentPlayers, setNextTournamentPlayers] = useState([]);
-  const [nextTournamentPairs, setNextTournamentPairs] = useState(null); // null = solo format, doesn't apply
+  const [nextEvent, setNextEvent] = useState(null);
+  const [nextCategories, setNextCategories] = useState([]); // one row per category (Light/Medium/Pro), each with its own slots
   const [announcements, setAnnouncements] = useState([]);
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
   const [featuresOpen, setFeaturesOpen] = useState(false);
@@ -72,48 +71,104 @@ export default function HomePage() {
     const supabase = createClient();
 
     async function loadNextTournament() {
-      const { data } = await supabase
+      // A "next tournament" is really a whole EVENT, which can have
+      // several categories at once (Light, Medium, Pro — up to
+      // CATEGORY_LABELS.length, currently 3). The old version fetched
+      // a single tournaments row and showed only that one category,
+      // silently hiding any siblings under the same event — this finds
+      // the nearest upcoming one, then pulls every category alongside
+      // it under the same event_id.
+      const { data: nearest } = await supabase
         .from('tournaments')
-        .select(
-          `id, event_id, status, name, scheduled_at, location, category, category_label, gender,
-           max_participants, avp_tier,
-           tournament_events(format_kind, avp_tier)`
-        )
+        .select('event_id, scheduled_at')
         .in('status', ['scheduled', 'live'])
         .order('scheduled_at', { ascending: true })
         .limit(1)
         .maybeSingle();
-      setNextTournament(data || null);
 
-      if (data) {
-        const format = getFormat(data.tournament_events?.format_kind);
-        if (format?.registrationType === 'solo') {
-          const { data: tps } = await supabase
-            .from('tournament_players')
-            .select('players(id, full_name, photo_url)')
-            .eq('tournament_id', data.id);
-          setNextTournamentPlayers((tps || []).map((tp) => tp.players));
-        } else {
-          // Pair and mixed-pair formats register through tournament_teams,
-          // not tournament_players — the same distinction the tournament
-          // history RPC and profile's match filtering already had to
-          // account for. Separate id-then-lookup queries rather than an
-          // embedded join with a guessed foreign-key constraint name —
-          // same reasoning as the rating page's club-stats fix earlier
-          // this session: safer than syntax that isn't proven elsewhere
-          // in this codebase.
-          const { data: teams } = await supabase
-            .from('tournament_teams')
-            .select('player1_id, player2_id')
-            .eq('tournament_id', data.id);
-          const teamPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
-          const { data: teamPlayers } = teamPlayerIds.length
-            ? await supabase.from('players').select('id, full_name, photo_url').in('id', teamPlayerIds)
-            : { data: [] };
-          setNextTournamentPlayers(teamPlayers || []);
-          setNextTournamentPairs((teams || []).length);
-        }
+      if (!nearest?.event_id) {
+        setNextEvent(null);
+        setNextCategories([]);
+        return;
       }
+
+      const [{ data: event }, { data: cats }] = await Promise.all([
+        supabase.from('tournament_events').select('id, format_kind, avp_tier').eq('id', nearest.event_id).maybeSingle(),
+        supabase
+          .from('tournaments')
+          .select('id, status, name, scheduled_at, location, category, category_label, gender, max_participants, avp_tier, bracket_system')
+          .eq('event_id', nearest.event_id)
+          .in('status', ['scheduled', 'live'])
+          .order('category_label', { ascending: true }),
+      ]);
+
+      const format = getFormat(event?.format_kind);
+      const isPairFormat = format?.registrationType && format.registrationType !== 'solo';
+      const catIds = (cats || []).map((c) => c.id);
+
+      // Who's registered, per category — one batched query for the
+      // whole event rather than one query per category, then grouped
+      // client-side. Same tournament_players-vs-tournament_teams split
+      // as before, and the same "separate id-then-lookup queries rather
+      // than a guessed foreign-key embed" caution for tournament_teams.
+      const playersByTournament = new Map();
+      const pairsByTournament = new Map();
+
+      if (catIds.length && isPairFormat) {
+        const { data: teams } = await supabase
+          .from('tournament_teams')
+          .select('tournament_id, player1_id, player2_id')
+          .in('tournament_id', catIds);
+        (teams || []).forEach((t) => {
+          pairsByTournament.set(t.tournament_id, (pairsByTournament.get(t.tournament_id) || 0) + 1);
+        });
+        const allPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
+        const { data: teamPlayers } = allPlayerIds.length
+          ? await supabase.from('players').select('id, full_name, photo_url').in('id', allPlayerIds)
+          : { data: [] };
+        const playerById = new Map((teamPlayers || []).map((p) => [p.id, p]));
+        (teams || []).forEach((t) => {
+          const list = playersByTournament.get(t.tournament_id) || [];
+          if (playerById.get(t.player1_id)) list.push(playerById.get(t.player1_id));
+          if (playerById.get(t.player2_id)) list.push(playerById.get(t.player2_id));
+          playersByTournament.set(t.tournament_id, list);
+        });
+      } else if (catIds.length) {
+        const { data: tps } = await supabase
+          .from('tournament_players')
+          .select('tournament_id, players(id, full_name, photo_url)')
+          .in('tournament_id', catIds);
+        (tps || []).forEach((tp) => {
+          const list = playersByTournament.get(tp.tournament_id) || [];
+          if (tp.players) list.push(tp.players);
+          playersByTournament.set(tp.tournament_id, list);
+        });
+      }
+
+      const enrichedCategories = (cats || []).map((c) => {
+        const taken = isPairFormat ? pairsByTournament.get(c.id) || 0 : (playersByTournament.get(c.id) || []).length;
+        const total = isPairFormat ? c.max_participants ?? 0 : c.max_participants ?? format?.fixedParticipants ?? 8;
+        return {
+          ...c,
+          slotsTaken: taken,
+          slotsTotal: total,
+          spotsLeft: Math.max(0, total - taken),
+          players: playersByTournament.get(c.id) || [],
+          avpTier: effectiveTier(c, event),
+          bracketLabel: BRACKET_SYSTEMS.find((b) => b.id === c.bracket_system)?.shortLabel || null,
+        };
+      });
+
+      setNextEvent({
+        id: event?.id,
+        format,
+        isPairFormat,
+        avpTier: event?.avp_tier ?? null,
+        location: cats?.[0]?.location,
+        scheduled_at: nearest.scheduled_at,
+        status: cats?.[0]?.status,
+      });
+      setNextCategories(enrichedCategories);
     }
 
     async function loadAnnouncements() {
@@ -209,15 +264,7 @@ export default function HomePage() {
     );
   }
 
-  const nextFormat = nextTournament ? getFormat(nextTournament.tournament_events?.format_kind) : null;
-  const nextIsPairFormat = nextFormat?.registrationType && nextFormat.registrationType !== 'solo';
-  const slotsTotal = nextIsPairFormat
-    ? nextTournament?.max_participants ?? 0 // stored as a pair count for pair formats
-    : nextTournament?.max_participants ?? nextFormat?.fixedParticipants ?? 8;
-  const slotsTaken = nextIsPairFormat ? nextTournamentPairs ?? 0 : nextTournamentPlayers.length;
-  const slotsLabel = nextIsPairFormat ? 'пар' : 'гравців';
-  const spotsLeft = Math.max(0, slotsTotal - slotsTaken);
-  const nextAvpTier = nextTournament ? effectiveTier(nextTournament, nextTournament.tournament_events) : null;
+  const nextSlotsLabel = nextEvent?.isPairFormat ? 'пар' : 'гравців';
 
   // Elo progress toward the next category, for the header stat card.
   // Top category (A) has nowhere further to go, so nextCategory stays
@@ -345,59 +392,60 @@ export default function HomePage() {
       )}
 
       <div className={styles.sectionLabel}>Найближчий турнір</div>
-      {nextTournament ? (
-        <a
-          // Scheduled category → the event registration page; a live one →
-          // its play view (таблиця / ігри / чат).
-          href={
-            nextTournament.status === 'scheduled' && nextTournament.event_id
-              ? `/events/register/${nextTournament.event_id}`
-              : `/tournaments/${nextTournament.id}`
-          }
-          className={`${styles.nextTournamentCard} riseIn`}
-          style={{ animationDelay: '0.1s' }}
-        >
+      {nextEvent ? (
+        <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
           <div className={styles.nextTournamentTop}>
-            <div className={styles.nextTournamentName}>{nextTournament.name}</div>
-            <span className={styles.statusBadge}>
-              {nextTournament.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}
-            </span>
+            <div className={styles.nextTournamentName}>{nextEvent.format?.displayName || 'Турнір'}</div>
+            <span className={styles.statusBadge}>{nextEvent.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}</span>
           </div>
           <div className={styles.nextTournamentMeta}>
-            {new Date(nextTournament.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
+            {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
           </div>
           <div className={styles.nextTournamentMeta}>
-            {nextTournament.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'} · {nextFormat?.displayName || 'Американка'} ·{' '}
-            {nextTournament.category_label || nextTournament.category}
-            {nextIsPairFormat
-              ? nextTournament.gender === 'M'
-                ? ' · Чоловіки'
-                : nextTournament.gender === 'F'
-                ? ' · Жінки'
-                : ' · Мікс'
-              : ` · ${nextTournament.gender === 'M' ? 'Чоловіки' : 'Жінки'}`}
-            {nextAvpTier ? ` · AVP ${nextAvpTier}` : ''}
+            {nextEvent.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'}
+            {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
           </div>
 
-          <div className={styles.slotsRow}>
-            <div className={styles.avatarStack}>
-              {nextTournamentPlayers.slice(0, 6).map((p, i) => (
-                <span key={p.id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
-                  <PlayerAvatar player={p} size={28} />
-                </span>
-              ))}
-            </div>
-            <div className={styles.slotsCount}>
-              {slotsTaken}/{slotsTotal} {slotsLabel} · {spotsLeft} вільно
-            </div>
-          </div>
-          <div className={styles.progressBar}>
-            <div
-              className={styles.progressFill}
-              style={{ width: `${slotsTotal > 0 ? Math.min(100, (slotsTaken / slotsTotal) * 100) : 0}%` }}
-            />
-          </div>
-        </a>
+          {nextCategories.map((c) => (
+            <a
+              key={c.id}
+              // Scheduled → the event registration page (this specific
+              // category); live → its play view.
+              href={c.status === 'scheduled' && nextEvent.id ? `/events/register/${nextEvent.id}` : `/tournaments/${c.id}`}
+              className={styles.categoryRow}
+            >
+              <div className={styles.categoryRowTop}>
+                <span className={styles.categoryRowLabel}>{c.category_label || c.category}</span>
+                {nextEvent.isPairFormat && (
+                  <span className={styles.categoryRowGender}>
+                    {c.gender === 'M' ? 'Чоловіки' : c.gender === 'F' ? 'Жінки' : 'Мікс'}
+                  </span>
+                )}
+                {c.bracketLabel && <span className={styles.categoryRowSystem}>{c.bracketLabel}</span>}
+                {c.avpTier ? <span className={styles.categoryRowSystem}>AVP {c.avpTier}</span> : null}
+              </div>
+
+              <div className={styles.slotsRow}>
+                <div className={styles.avatarStack}>
+                  {c.players.slice(0, 6).map((p, i) => (
+                    <span key={p.id} className={styles.avatarStackItem} style={{ zIndex: 6 - i }}>
+                      <PlayerAvatar player={p} size={26} />
+                    </span>
+                  ))}
+                </div>
+                <div className={styles.slotsCount}>
+                  {c.slotsTaken}/{c.slotsTotal} {nextSlotsLabel} · {c.spotsLeft} вільно
+                </div>
+              </div>
+              <div className={styles.progressBar}>
+                <div
+                  className={styles.progressFill}
+                  style={{ width: `${c.slotsTotal > 0 ? Math.min(100, (c.slotsTaken / c.slotsTotal) * 100) : 0}%` }}
+                />
+              </div>
+            </a>
+          ))}
+        </div>
       ) : (
         <div className={`${styles.emptyTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
           <div className={styles.emptyTournamentIcon}>
@@ -420,7 +468,7 @@ export default function HomePage() {
         </div>
       )}
 
-      {nextTournament && (
+      {nextEvent && (
         <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
           Дивитись усі турніри →
         </a>

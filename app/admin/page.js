@@ -52,6 +52,14 @@ export default function AdminPage() {
   const [playerSearch, setPlayerSearch] = useState('');
   const [existingAnnouncements, setExistingAnnouncements] = useState([]);
   const [recentActivity, setRecentActivity] = useState([]);
+  const [testEventsOpen, setTestEventsOpen] = useState(false);
+  const [testEvents, setTestEvents] = useState([]);
+  const [testEventId, setTestEventId] = useState('');
+  const [testCategories, setTestCategories] = useState([]);
+  const [testCategoryId, setTestCategoryId] = useState('');
+  const [testCount, setTestCount] = useState(4);
+  const [testBusy, setTestBusy] = useState(false);
+  const [testResult, setTestResult] = useState(null);
 
   async function load() {
     const supabase = createClient();
@@ -280,6 +288,70 @@ export default function AdminPage() {
     await supabase.from('admin_notifications').delete().eq('id', id);
   }
 
+  // Testing tool: simulate applications from fake players so the whole
+  // registration → distribution flow can be exercised without needing
+  // real people to sign up. See fill-test-applications/route.js for
+  // why this goes through real applications rather than writing
+  // straight into a category.
+  async function openTestTools() {
+    setTestEventsOpen((o) => !o);
+    if (testEvents.length > 0) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('tournament_events')
+      .select('id, name, format_kind')
+      .in('status', ['scheduled', 'live'])
+      .order('created_at', { ascending: false });
+    setTestEvents(data || []);
+  }
+
+  async function loadTestCategories(eventId) {
+    setTestEventId(eventId);
+    setTestCategoryId('');
+    setTestCategories([]);
+    if (!eventId) return;
+    const supabase = createClient();
+    const { data } = await supabase
+      .from('tournaments')
+      .select('id, category_label, gender')
+      .eq('event_id', eventId)
+      .in('status', ['scheduled', 'live']);
+    setTestCategories(data || []);
+  }
+
+  async function runFillBots() {
+    if (!testEventId || !testCategoryId) return;
+    setTestBusy(true);
+    setTestResult(null);
+    try {
+      const res = await fetch(`/api/admin/events/${testEventId}/fill-test-applications`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ categoryId: testCategoryId, count: testCount }),
+      });
+      const data = await res.json();
+      setTestResult(data);
+    } catch (err) {
+      setTestResult({ success: false, errors: [err.message] });
+    } finally {
+      setTestBusy(false);
+    }
+  }
+
+  async function runCleanupBots() {
+    setTestBusy(true);
+    setTestResult(null);
+    try {
+      const res = await fetch('/api/admin/test-players/cleanup', { method: 'POST' });
+      const data = await res.json();
+      setTestResult({ ...data, cleanup: true });
+    } catch (err) {
+      setTestResult({ success: false, errors: [err.message] });
+    } finally {
+      setTestBusy(false);
+    }
+  }
+
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Адмін-панель</h2>
@@ -436,6 +508,82 @@ export default function AdminPage() {
           ))}
           </div>
         </>
+      )}
+
+      <button className={styles.sectionToggle} onClick={openTestTools} aria-pressed={testEventsOpen}>
+        <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>
+          Тестові гравці (для перевірки реєстрації)
+        </span>
+        <span>{testEventsOpen ? '▲' : '▼'}</span>
+      </button>
+
+      {testEventsOpen && (
+        <div className={styles.notifCard}>
+          <div className={styles.fixDescription}>
+            Створює тестових гравців і подає за них справжні заявки на обрану категорію — щоб перевірити весь
+            процес реєстрації та розподілу, не чекаючи на реальних людей. Логіни завжди починаються з{' '}
+            <code>testbot_</code>, тож їх легко знайти й видалити.
+          </div>
+
+          <select
+            className={styles.playerSearchInput}
+            style={{ marginBottom: 8 }}
+            value={testEventId}
+            onChange={(e) => loadTestCategories(e.target.value)}
+            aria-label="Подія"
+          >
+            <option value="">Оберіть подію...</option>
+            {testEvents.map((ev) => (
+              <option key={ev.id} value={ev.id}>
+                {ev.name} ({getFormat(ev.format_kind)?.displayName || ev.format_kind})
+              </option>
+            ))}
+          </select>
+
+          {testCategories.length > 0 && (
+            <select
+              className={styles.playerSearchInput}
+              style={{ marginBottom: 8 }}
+              value={testCategoryId}
+              onChange={(e) => setTestCategoryId(e.target.value)}
+              aria-label="Категорія"
+            >
+              <option value="">Оберіть категорію...</option>
+              {testCategories.map((c) => (
+                <option key={c.id} value={c.id}>
+                  {c.category_label} {c.gender ? `· ${c.gender === 'M' ? 'Чоловіки' : 'Жінки'}` : ''}
+                </option>
+              ))}
+            </select>
+          )}
+
+          <input
+            type="number"
+            min={1}
+            max={32}
+            className={styles.playerSearchInput}
+            style={{ marginBottom: 8 }}
+            value={testCount}
+            onChange={(e) => setTestCount(e.target.value)}
+            aria-label="Кількість тестових гравців"
+          />
+
+          <button className={styles.notifSendBtn} disabled={testBusy || !testCategoryId} onClick={runFillBots}>
+            {testBusy ? 'Створюємо...' : 'Заповнити тестовими заявками'}
+          </button>
+          <button className={styles.notifSendBtn} style={{ marginTop: 8, background: '#71717a' }} disabled={testBusy} onClick={runCleanupBots}>
+            {testBusy ? 'Видаляємо...' : 'Видалити всіх тестових ботів'}
+          </button>
+
+          {testResult && (
+            <div className={testResult.success ? styles.fixResultOk : styles.fixResultError}>
+              {testResult.cleanup
+                ? `Видалено: ${testResult.removed}.`
+                : `Створено заявок: ${testResult.created}.`}
+              {testResult.errors?.length > 0 && ` Помилки: ${testResult.errors.join('; ')}`}
+            </div>
+          )}
+        </div>
       )}
 
       {recentActivity.length > 0 && (

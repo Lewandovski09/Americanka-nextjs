@@ -368,6 +368,37 @@
   border-radius: 4px;
 }
 
+.categoryRow {
+  display: block;
+  text-decoration: none;
+  border-top: 1px solid var(--border-light);
+  padding-top: 12px;
+  margin-top: 12px;
+}
+
+.categoryRowTop {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+}
+
+.categoryRowLabel {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.categoryRowGender,
+.categoryRowSystem {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text2);
+  background: var(--surface-alt);
+  padding: 2px 8px;
+  border-radius: var(--r-lg);
+}
+
 .ctaBtn {
   display: block;
   text-align: center;
@@ -549,6 +580,8 @@
 
 .headerStatCard {
   flex: 1;
+  display: flex;
+  flex-direction: column;
   background: rgba(255, 255, 255, 0.08);
   border-radius: var(--r-sm);
   padding: 10px 12px;
@@ -604,14 +637,16 @@
 .headerStatMeta {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 4px;
+  margin-top: auto;
+  padding-top: 4px;
   min-height: 12px;
 }
 
 .headerStatMetaAvp {
   font-size: 10px;
   color: rgba(255, 255, 255, 0.5);
-  margin-top: 22px;
+  margin-top: auto;
+  padding-top: 4px;
 }
 
 .streakCard {
