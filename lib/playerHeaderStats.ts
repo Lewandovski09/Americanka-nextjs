@@ -54,8 +54,23 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
       .select('player_id, points')
       .eq('season_id', season.id)
       .order('points', { ascending: false });
-    const idx = (rows || []).findIndex((r) => r.player_id === player.id);
-    avpStanding = idx === -1 ? null : { points: rows[idx].points, rank: idx + 1 };
+
+    // Same-gender only — AVP standings, like Elo, are ranked separately
+    // by gender everywhere else in the app (AvpSeasonCard.js already
+    // does this, with a comment noting exactly why: two different ranks
+    // shown for the same season on the same page is worse than either
+    // alone). Ranking against everyone combined here is what produced
+    // that mismatch — "№5 сезону" in the header against "3-е місце" in
+    // the AVP card below, for the same player, same season.
+    const ids = (rows || []).map((r) => r.player_id);
+    const { data: profiles } = player.gender && ids.length
+      ? await supabase.from('players').select('id, gender').in('id', ids)
+      : { data: [] };
+    const sameGenderIds = new Set((profiles || []).filter((p) => p.gender === player.gender).map((p) => p.id));
+    const scopedRows = player.gender ? (rows || []).filter((r) => sameGenderIds.has(r.player_id)) : rows || [];
+
+    const idx = scopedRows.findIndex((r) => r.player_id === player.id);
+    avpStanding = idx === -1 ? null : { points: scopedRows[idx].points, rank: idx + 1 };
   }
 
   // Win streak: most recent played games this player was in, newest
