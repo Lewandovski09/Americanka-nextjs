@@ -229,7 +229,6 @@ export function CategoryTabs({ categories, activeId, onSelect }) {
           key={c.id}
           className={`${styles.catTab} ${c.id === activeId ? styles.catTabOn : ''}`}
           onClick={() => onSelect(c.id)}
-          aria-pressed={c.id === activeId}
         >
           {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
           {c.category_label}
@@ -255,6 +254,12 @@ export function StartEventButton({ event, categories, format, busy, post }) {
 
   const empty = pending.filter((c) => rowsOf(c).length === 0);
   const unseeded = pending.filter((c) => rowsOf(c).some((r) => r.slot_index == null));
+  // Americanka's schedule is built for exactly 8 players — the server
+  // refuses anything else, so the button is held back the same way an
+  // empty category holds it back, instead of letting the admin hit a
+  // failed start.
+  const shortHanded =
+    format?.kind === 'americanka' ? pending.filter((c) => rowsOf(c).length !== 8) : [];
   const label = (c) =>
     `${c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}${c.category_label || 'Категорія'}`;
 
@@ -265,7 +270,13 @@ export function StartEventButton({ event, categories, format, busy, post }) {
           Порожні категорії: {empty.map(label).join(', ')} — додайте учасників або видаліть їх.
         </div>
       )}
-      {empty.length === 0 && unseeded.length > 0 && (
+      {empty.length === 0 && shortHanded.length > 0 && (
+        <div className={styles.hint}>
+          Для американки потрібно рівно 8 гравців:{' '}
+          {shortHanded.map((c) => `${label(c)} (${rowsOf(c).length}/8)`).join(', ')}.
+        </div>
+      )}
+      {empty.length === 0 && shortHanded.length === 0 && unseeded.length > 0 && (
         <div className={styles.hint}>
           Посів розставлено не всюди ({unseeded.map(label).join(', ')}) — там порядок візьметься з
           черги заявок.
@@ -273,7 +284,7 @@ export function StartEventButton({ event, categories, format, busy, post }) {
       )}
       <button
         className={styles.btnPrimary}
-        disabled={busy || empty.length > 0}
+        disabled={busy || empty.length > 0 || shortHanded.length > 0}
         onClick={() => post(`/api/events/${event.id}/start`)}
       >
         {busy ? 'Запуск…' : `Запустити${pending.length > 1 ? ` (${pending.length} категорії)` : ''}`}
@@ -466,7 +477,6 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
                     className={styles.scoreInput}
                     type="number"
                     value={s.a}
-                    aria-label={`Рахунок: ${teamName(m.team_a_players)}, сет ${i + 1}`}
                     onChange={(e) => setDraftAt(i, { a: e.target.value })}
                   />
                   :
@@ -474,7 +484,6 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
                     className={styles.scoreInput}
                     type="number"
                     value={s.b}
-                    aria-label={`Рахунок: ${teamName(m.team_b_players)}, сет ${i + 1}`}
                     onChange={(e) => setDraftAt(i, { b: e.target.value })}
                   />
                 </span>

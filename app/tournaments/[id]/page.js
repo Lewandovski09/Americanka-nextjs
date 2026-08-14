@@ -4,7 +4,7 @@ import { useEffect, useState, useCallback } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import { computeStandings } from '@/lib/tournamentEngine';
+import { computeStandings, placeStandings } from '@/lib/tournamentEngine';
 import { getFormat } from '@/lib/formats';
 import { pointsTargetForStage, targetForSet } from '@/lib/formats/scoring';
 import { aggregateScore, pointsDiffA, teamAWon } from '@/lib/formats/sets';
@@ -17,9 +17,8 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
 import styles from './detail.module.css';
-import TabBtn from '@/components/TabBtn';
 
-const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket', CHAT: 'chat' };
+const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket' };
 
 // How a person is named on the schedule, in the bracket and in the
 // «Суддя» column — by surname, the way a game is called out on court.
@@ -39,7 +38,6 @@ export default function TournamentDetailPage({ params }) {
   const [tournamentPlayers, setTournamentPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState([]);
-  const [messages, setMessages] = useState([]);
   const [judges, setJudges] = useState([]); // the event's judging crew
   const [judgeInfo, setJudgeInfo] = useState({}); // player id → profile, for the «Суддя» column
   const [tab, setTab] = useState(TABS.PLAYERS);
@@ -51,7 +49,6 @@ export default function TournamentDetailPage({ params }) {
   // Time and court are moved one at a time: { field: 'time'|'court', matchId, … }
   const [slotModal, setSlotModal] = useState(null);
   const [judgeModal, setJudgeModal] = useState(null); // admin / head judge: { matchId, title, current }
-  const [chatText, setChatText] = useState('');
 
   const load = useCallback(async () => {
     const supabase = createClient();
@@ -132,13 +129,6 @@ export default function TournamentDetailPage({ params }) {
       });
     }
     setJudgeInfo(info);
-
-    const { data: msgs } = await supabase
-      .from('tournament_messages')
-      .select('*, players(full_name)')
-      .eq('tournament_id', id)
-      .order('created_at');
-    setMessages(msgs || []);
   }, [id]);
 
   useEffect(() => {
@@ -152,11 +142,6 @@ export default function TournamentDetailPage({ params }) {
     const channel = supabase
       .channel(`tournament-${id}`)
       .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${id}` }, load)
-      .on(
-        'postgres_changes',
-        { event: 'INSERT', schema: 'public', table: 'tournament_messages', filter: `tournament_id=eq.${id}` },
-        load
-      )
       .subscribe();
 
     return () => {
@@ -543,14 +528,6 @@ export default function TournamentDetailPage({ params }) {
   // computed from — see lib/formats/placements.js.
   const resultRows = () => placementsFor({ matches, teams, players: playersForEngine });
 
-  async function handleSendChat() {
-    if (!chatText.trim() || !player) return;
-    const supabase = createClient();
-    await supabase.from('tournament_messages').insert({ tournament_id: id, player_id: player.id, text: chatText.trim() });
-    setChatText('');
-    load();
-  }
-
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>{tournament.name}</h2>
@@ -564,7 +541,6 @@ export default function TournamentDetailPage({ params }) {
               key={c.id}
               className={`${styles.leagueTab} ${c.id === tournament.id ? styles.leagueTabOn : ''}`}
               onClick={() => c.id !== tournament.id && router.push(`/tournaments/${c.id}`)}
-              aria-pressed={c.id === tournament.id}
             >
               {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
               {c.category_label || 'Категорія'}
@@ -575,17 +551,14 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       <div className={styles.tabs}>
-        <TabBtn styles={styles} active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
+        <TabBtn active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
           Учасники
         </TabBtn>
-        <TabBtn styles={styles} active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
+        <TabBtn active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
           Таблиця
         </TabBtn>
-        <TabBtn styles={styles} active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
+        <TabBtn active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
           Сітка
-        </TabBtn>
-        <TabBtn styles={styles} active={tab === TABS.CHAT} onClick={() => setTab(TABS.CHAT)}>
-          Чат
         </TabBtn>
       </div>
 
@@ -603,7 +576,6 @@ export default function TournamentDetailPage({ params }) {
                 key={key}
                 className={`${styles.subTab} ${playersViewResolved === key ? styles.subTabOn : ''}`}
                 onClick={() => setPlayersView(key)}
-                aria-pressed={playersViewResolved === key}
               >
                 {label}
               </button>
@@ -726,12 +698,14 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       {/* Game schedule: every match in play order. Клік по незіграній
-          грі відкриває введення рахунку. */}
+          грі відкриває введення рахунку. Масштабується (+/−) — на
+          телефоні рядків багато. */}
       {tab === TABS.TABLE &&
         (matches.length === 0 ? (
             <div className={styles.loading}>Ігор ще немає</div>
           ) : (
-            <div className={styles.schedWrap}>
+            <ZoomTable>
+              <div className={styles.schedWrap}>
               <table className={styles.schedTable}>
                 <thead>
                   <tr>
@@ -775,6 +749,7 @@ export default function TournamentDetailPage({ params }) {
                 </tbody>
               </table>
             </div>
+            </ZoomTable>
           ))}
 
       {/* Manual finish is an americanka-only action: staged formats
@@ -787,10 +762,12 @@ export default function TournamentDetailPage({ params }) {
 
       {/* Interactive bracket: the flowchart with winner-lines like the
           paper sheet whenever the matches carry bracket pointers, the
-          classic columns-of-blocks otherwise (americanka rounds, King
-          groups). Pending games are highlighted and open the score
-          dialog. The search above jumps to a player's current game. */}
-      {tab === TABS.BRACKET && matches.length > 0 && (
+          classic columns-of-blocks otherwise (King groups). Americanka
+          has no elimination to draw at all — a live standings table
+          takes this tab over instead. Pending games are highlighted and
+          open the score dialog. The search above jumps to a player's
+          current game. */}
+      {tab === TABS.BRACKET && !isSum && matches.length > 0 && (
         <BracketSearch
           players={searchablePlayers}
           focus={focus}
@@ -810,7 +787,24 @@ export default function TournamentDetailPage({ params }) {
           focusSeq={focus?.seq || 0}
         />
       )}
-      {tab === TABS.BRACKET &&
+      {/* Americanka: live final-standings table, not a bracket. Recomputed
+          on every render from `matches`, and `matches` is kept fresh by
+          the realtime subscription above — so it updates the moment any
+          game's score is entered, for everyone watching. */}
+      {tab === TABS.BRACKET && isSum && (
+        matches.length === 0 ? (
+          <div className={styles.loading}>Ігор ще немає</div>
+        ) : (
+          <ZoomTable>
+            <AmericankaStandings
+              rows={placeStandings(standings)}
+              playerById={playerById}
+              currentPlayerId={player?.id}
+            />
+          </ZoomTable>
+        )
+      )}
+      {tab === TABS.BRACKET && !isSum &&
         (matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
@@ -859,32 +853,6 @@ export default function TournamentDetailPage({ params }) {
           })()
         ))}
 
-      {tab === TABS.CHAT && (
-        <div>
-          <div className={styles.chatBox}>
-            {messages.map((m) => (
-              <div key={m.id} className={m.player_id === player?.id ? styles.chatMsgMine : styles.chatMsg}>
-                <div className={styles.chatName}>{m.players.full_name.split(' ')[0]}</div>
-                <div className={styles.chatText}>{m.text}</div>
-              </div>
-            ))}
-          </div>
-          <div className={styles.chatBar}>
-            <input
-              className={styles.chatInput}
-              value={chatText}
-              onChange={(e) => setChatText(e.target.value)}
-              onKeyDown={(e) => e.key === 'Enter' && handleSendChat()}
-              placeholder="Написати повідомлення..."
-              aria-label="Написати повідомлення"
-            />
-            <button className={styles.chatSend} onClick={handleSendChat} aria-label="Надіслати повідомлення">
-              →
-            </button>
-          </div>
-        </div>
-      )}
-
       {slotModal && (
         <div className={styles.modalOverlay} onClick={() => setSlotModal(null)}>
           <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
@@ -904,7 +872,6 @@ export default function TournamentDetailPage({ params }) {
                   type="time"
                   value={slotModal.time}
                   autoFocus
-                  aria-label="Час гри"
                   onChange={(e) => setSlotModal((prev) => ({ ...prev, time: e.target.value, error: null }))}
                   onKeyDown={(e) => e.key === 'Enter' && handleSaveTime()}
                 />
@@ -922,7 +889,6 @@ export default function TournamentDetailPage({ params }) {
                       key={c}
                       className={`${styles.subTab} ${slotModal.court === c ? styles.subTabOn : ''}`}
                       onClick={() => saveSlot({ court: c })}
-                      aria-pressed={slotModal.court === c}
                     >
                       Корт {c}
                     </button>
@@ -955,7 +921,6 @@ export default function TournamentDetailPage({ params }) {
                         judgeModal.current === j.player_id ? styles.subTabOn : ''
                       }`}
                       onClick={() => handleSaveJudge(j.player_id)}
-                      aria-pressed={judgeModal.current === j.player_id}
                     >
                       {surnameOf(j.players)}
                       {j.is_head ? ' ★' : ''}
@@ -1002,7 +967,6 @@ export default function TournamentDetailPage({ params }) {
                   className={styles.scoreInput}
                   type="number"
                   value={scoreModal.scoreA}
-                  aria-label={`Рахунок: ${scoreModal.nameA || 'команда А'}`}
                   onChange={(e) => {
                     const v = e.target.value;
                     // Americanka auto-fills the complement to the sum.
@@ -1018,7 +982,6 @@ export default function TournamentDetailPage({ params }) {
                   className={styles.scoreInput}
                   type="number"
                   value={scoreModal.scoreB}
-                  aria-label={`Рахунок: ${scoreModal.nameB || 'команда Б'}`}
                   onChange={(e) => {
                     const v = e.target.value;
                     setScoreModal((prev) => ({
@@ -1043,7 +1006,6 @@ export default function TournamentDetailPage({ params }) {
                       className={styles.scoreInput}
                       type="number"
                       value={s.a}
-                      aria-label={`Рахунок: ${scoreModal.nameA || 'команда А'}, сет ${i + 1}`}
                       onChange={(e) =>
                         setScoreModal((prev) => ({
                           ...prev,
@@ -1056,7 +1018,6 @@ export default function TournamentDetailPage({ params }) {
                       className={styles.scoreInput}
                       type="number"
                       value={s.b}
-                      aria-label={`Рахунок: ${scoreModal.nameB || 'команда Б'}, сет ${i + 1}`}
                       onChange={(e) =>
                         setScoreModal((prev) => ({
                           ...prev,
@@ -1278,6 +1239,96 @@ function BracketSearch({ players, focus, onPick, onClear }) {
   );
 }
 
+// Zoomable wrapper: +/− controls around a table, using CSS `zoom` so
+// the layout actually reflows at the new size (no leftover blank space
+// like `transform: scale` leaves when shrinking). Steps of 10%, clamped
+// so the schedule/standings table stays legible but can also be shrunk
+// to fit a phone screen or blown up on a big display at the club.
+function ZoomTable({ children }) {
+  const [zoom, setZoom] = useState(1);
+  const step = (delta) => setZoom((z) => Math.min(1.6, Math.max(0.6, +(z + delta).toFixed(2))));
+  return (
+    <div className={styles.zoomWrap}>
+      <div className={styles.zoomControls}>
+        <button
+          type="button"
+          className={styles.zoomBtn}
+          onClick={() => step(-0.1)}
+          disabled={zoom <= 0.6}
+          aria-label="Зменшити"
+        >
+          −
+        </button>
+        <span className={styles.zoomPct}>{Math.round(zoom * 100)}%</span>
+        <button
+          type="button"
+          className={styles.zoomBtn}
+          onClick={() => step(0.1)}
+          disabled={zoom >= 1.6}
+          aria-label="Збільшити"
+        >
+          +
+        </button>
+      </div>
+      <div className={styles.zoomScroll} style={{ zoom }}>
+        {children}
+      </div>
+    </div>
+  );
+}
+
+// Live americanka standings: replaces the bracket tab entirely for this
+// format (a round robin has no elimination to draw). One row per
+// player, already carrying a shared `place` for anyone still level on
+// diff/points-for/wins (see placeStandings in lib/tournamentEngine).
+function AmericankaStandings({ rows, playerById, currentPlayerId }) {
+  if (rows.length === 0) return <div className={styles.loading}>Учасників ще немає</div>;
+  return (
+    <>
+      <table className={styles.standingsTable}>
+        <thead>
+          <tr>
+            <th>Місце</th>
+            <th className={styles.standingsNameCol}>Гравець</th>
+            <th title="Зіграно ігор">І</th>
+            <th title="Перемоги">В</th>
+            <th title="Виграно очок">О+</th>
+            <th title="Програно очок">О−</th>
+            <th title="Різниця очок">+/-</th>
+          </tr>
+        </thead>
+        <tbody>
+          {rows.map((r) => {
+            const diff = r.gamesFor - r.gamesAgainst;
+            return (
+              <tr key={r.player.id} className={r.player.id === currentPlayerId ? styles.meRow : ''}>
+                <td className={styles.placeCell}>
+                  {r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : r.place}
+                </td>
+                <td className={`${styles.nameCell} ${styles.standingsNameCol}`}>
+                  <PlayerAvatar player={playerById(r.player.id)} size={22} />
+                  {r.player.full_name}
+                </td>
+                <td>{r.played}</td>
+                <td>{r.wins}</td>
+                <td>{r.gamesFor}</td>
+                <td>{r.gamesAgainst}</td>
+                <td className={diff > 0 ? styles.standingsDiffPos : diff < 0 ? styles.standingsDiffNeg : ''}>
+                  {diff > 0 ? `+${diff}` : diff}
+                </td>
+              </tr>
+            );
+          })}
+        </tbody>
+      </table>
+      <div className={styles.standingsHint}>
+        Місце визначається за різницею очок, потім за виграними очками, потім за перемогами — рівність за
+        всіма трьома ділить місце.
+      </div>
+    </>
+  );
+}
+
 // One group block: live mini-standings on top, the group's games below.
 // A group whose stage hasn't started yet (no teams known) is grayed out.
 function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit, focusId }) {
@@ -1354,5 +1405,13 @@ function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused })
         <span className={styles.bracketScore}>{agg ? agg[1] : ''}</span>
       </div>
     </div>
+  );
+}
+
+function TabBtn({ active, onClick, children }) {
+  return (
+    <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick}>
+      {children}
+    </button>
   );
 }

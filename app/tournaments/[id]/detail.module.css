@@ -700,71 +700,6 @@
   cursor: pointer;
 }
 
-.chatBox {
-  background: var(--surface);
-  border-radius: var(--r-sm);
-  padding: 12px;
-  max-height: 320px;
-  overflow-y: auto;
-  margin-bottom: 10px;
-  box-shadow: var(--shadow-sm);
-}
-
-.chatMsg,
-.chatMsgMine {
-  margin-bottom: 10px;
-}
-
-.chatMsgMine {
-  text-align: right;
-}
-
-.chatName {
-  font-size: 10px;
-  font-weight: 700;
-  color: var(--sand2);
-}
-
-.chatText {
-  font-size: 13px;
-  background: var(--surface-alt);
-  color: var(--text);
-  padding: 9px 12px;
-  border-radius: var(--r-sm);
-  display: inline-block;
-}
-
-.chatMsgMine .chatText {
-  background: var(--navy);
-  color: #fff;
-}
-
-.chatBar {
-  display: flex;
-  gap: 8px;
-}
-
-.chatInput {
-  flex: 1;
-  padding: 12px 16px;
-  border: 1.5px solid var(--border-light);
-  border-radius: 24px;
-  font-size: 16px;
-  background: var(--surface);
-  color: var(--text);
-}
-
-.chatSend {
-  width: 44px;
-  height: 44px;
-  border-radius: 50%;
-  background: var(--sand);
-  color: var(--navy);
-  border: none;
-  cursor: pointer;
-  font-size: 16px;
-}
-
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -984,4 +919,104 @@
   border-radius: var(--r-sm);
   font-weight: 700;
   cursor: pointer;
+}
+
+/* Zoomable wrapper: pinch-free +/- controls around a table so it can
+   be sized up on a big screen or down to fit more on a phone. Uses the
+   CSS `zoom` property (not `transform: scale`) so the layout actually
+   reflows at the new size instead of leaving blank space or clipping —
+   supported on every browser this app targets (mobile Safari, Chrome,
+   modern Firefox). */
+.zoomWrap {
+  margin-top: 8px;
+}
+
+.zoomControls {
+  display: flex;
+  align-items: center;
+  justify-content: flex-end;
+  gap: 4px;
+  margin-bottom: 6px;
+}
+
+.zoomBtn {
+  width: 28px;
+  height: 28px;
+  border-radius: 8px;
+  border: 1.5px solid var(--border-light);
+  background: var(--surface);
+  color: var(--navy);
+  font-weight: 800;
+  font-size: 15px;
+  line-height: 1;
+  cursor: pointer;
+}
+
+.zoomBtn:disabled {
+  opacity: 0.4;
+  cursor: default;
+}
+
+.zoomPct {
+  min-width: 38px;
+  text-align: center;
+  font-size: 11px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.zoomScroll {
+  overflow-x: auto;
+}
+
+/* Live americanka standings — replaces the bracket columns for a
+   format with no elimination to draw. */
+.standingsTable {
+  width: 100%;
+  min-width: 460px;
+  border-collapse: collapse;
+  font-size: 12px;
+  color: var(--text);
+  background: var(--surface);
+  border-radius: var(--r-sm);
+  overflow: hidden;
+  box-shadow: var(--shadow-sm);
+}
+
+.standingsTable th {
+  padding: 9px 8px;
+  text-align: center;
+  font-size: 10px;
+  color: var(--text2);
+  border-bottom: 1.5px solid var(--border-light);
+  text-transform: uppercase;
+  white-space: nowrap;
+}
+
+.standingsTable td {
+  padding: 10px 8px;
+  border-bottom: 1px solid var(--border-light);
+  text-align: center;
+  white-space: nowrap;
+}
+
+.standingsNameCol {
+  text-align: left !important;
+}
+
+.standingsDiffPos {
+  color: #15803d;
+  font-weight: 800;
+}
+
+.standingsDiffNeg {
+  color: #b91c1c;
+  font-weight: 800;
+}
+
+.standingsHint {
+  font-size: 11px;
+  color: var(--text2);
+  margin-top: 8px;
+  text-align: center;
 }
