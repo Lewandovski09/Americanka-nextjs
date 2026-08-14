@@ -9,7 +9,7 @@ import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import CityPicker from '@/components/CityPicker';
-import { IconEdit, IconMail, IconChat, IconTrophy, IconMedal, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
+import { IconEdit, IconMail, IconChat, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
@@ -46,12 +46,6 @@ export default function ProfilePage() {
   const [editError, setEditError] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
-  const [searchLogin, setSearchLogin] = useState('');
-  const [searchError, setSearchError] = useState('');
-  const [searching, setSearching] = useState(false);
-  const [suggestions, setSuggestions] = useState([]);
-  const [showSuggestions, setShowSuggestions] = useState(false);
-
   const [eloRank, setEloRank] = useState(null);
   const [avpStanding, setAvpStanding] = useState(null);
   const [winStreak, setWinStreak] = useState(0);
@@ -81,50 +75,6 @@ export default function ProfilePage() {
     }
     load();
   }, [player]);
-
-  useEffect(() => {
-    const q = searchLogin.trim();
-    if (q.length < 2) {
-      setSuggestions([]);
-      return;
-    }
-    let active = true;
-    const supabase = createClient();
-    const timer = setTimeout(async () => {
-      const { data } = await supabase
-        .from('players')
-        .select('id, full_name, login, photo_url')
-        .eq('approval_status', 'approved')
-        .or(`login.ilike.%${q}%,full_name.ilike.%${q}%`)
-        .neq('id', player?.id || '')
-        .limit(6);
-      if (active) setSuggestions(data || []);
-    }, 250);
-    return () => {
-      active = false;
-      clearTimeout(timer);
-    };
-  }, [searchLogin, player?.id]);
-
-  function highlightMatch(text, query) {
-    if (!query || !text) return text;
-    const idx = text.toLowerCase().indexOf(query.toLowerCase());
-    if (idx === -1) return text;
-    return (
-      <>
-        {text.slice(0, idx)}
-        <b className={styles.matchHighlight}>{text.slice(idx, idx + query.length)}</b>
-        {text.slice(idx + query.length)}
-      </>
-    );
-  }
-
-  async function selectSuggestion(p) {
-    setSearchLogin('');
-    setShowSuggestions(false);
-    setSuggestions([]);
-    await openPartnerHistory(p, 'together');
-  }
 
   async function openTournamentDetails(tournamentId) {
     setOpenTournamentId(tournamentId);
@@ -188,27 +138,6 @@ export default function ProfilePage() {
     const paramKey = mode === 'together' ? 'p_partner_id' : 'p_opponent_id';
     const { data } = await supabase.rpc(fn, { p_player_id: player.id, [paramKey]: partnerId });
     setPartnerMatches(data || []);
-  }
-
-  async function handleSearchPlayer() {
-    setSearchError('');
-    if (!searchLogin.trim()) return;
-    setSearching(true);
-    const res = await fetch('/api/players/search', {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ login: searchLogin }),
-    });
-    const data = await res.json();
-    setSearching(false);
-
-    if (!data.success) {
-      setSearchError(data.error || 'Гравця не знайдено');
-      return;
-    }
-
-    setSearchLogin('');
-    openPartnerHistory(data.player, 'together');
   }
 
   async function handlePhotoChange(e) {
@@ -391,7 +320,11 @@ export default function ProfilePage() {
               )}
               <div className={styles.headerStatMeta}>
                 {eloRank ? `№${eloRank}` : ''}
-                {nextCategory ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}` : ''}
+                {nextCategory
+                  ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}`
+                  : playerCategory
+                  ? ' · Найвища категорія'
+                  : ''}
               </div>
             </div>
             {avpStanding && (
@@ -424,21 +357,8 @@ export default function ProfilePage() {
         </div>
       )}
 
-      <div className={`${styles.statSquares} riseIn`} style={{ animationDelay: '0.06s' }}>
-        <div className={styles.statSquare}>
-          <IconTrophy size={20} color="var(--navy)" />
-          <div className={styles.statSquareValue}>{totalGames}</div>
-          <div className={styles.statSquareLabel}>Ігор зіграно</div>
-        </div>
-        <div className={styles.statSquare}>
-          <IconMedal size={20} color="var(--navy)" />
-          <div className={styles.statSquareValue}>{winRate}%</div>
-          <div className={styles.statSquareLabel}>Перемог ({totalWins} з {totalGames})</div>
-        </div>
-      </div>
-
-      <div className="riseIn" style={{ animationDelay: '0.08s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} />
+      <div className="riseIn" style={{ animationDelay: '0.06s' }}>
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} totalGames={totalGames} winRate={winRate} />
       </div>
 
       <div className={styles.sectionLabelRow}>
@@ -474,40 +394,6 @@ export default function ProfilePage() {
 
       <div className={styles.sectionLabel}>Статистика з партнерами та суперниками</div>
       <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.14s' }}>
-        <div className={styles.searchRow} style={{ position: 'relative' }}>
-          <input
-            className={styles.searchInput}
-            placeholder="Логін гравця..."
-            aria-label="Пошук гравця за логіном"
-            value={searchLogin}
-            onChange={(e) => {
-              setSearchLogin(e.target.value);
-              setShowSuggestions(true);
-            }}
-            onFocus={() => setShowSuggestions(true)}
-            onBlur={() => setTimeout(() => setShowSuggestions(false), 150)}
-            onKeyDown={(e) => e.key === 'Enter' && handleSearchPlayer()}
-          />
-          <button className={styles.searchBtn} disabled={searching} onClick={handleSearchPlayer}>
-            {searching ? '...' : 'Знайти'}
-          </button>
-
-          {showSuggestions && suggestions.length > 0 && (
-            <div className={styles.suggestionsDropdown}>
-              {suggestions.map((s) => (
-                <div key={s.id} className={styles.suggestionRow} onClick={() => selectSuggestion(s)}>
-                  <PlayerAvatar player={s} size={26} />
-                  <div>
-                    <div className={styles.suggestionName}>{highlightMatch(s.full_name, searchLogin.trim())}</div>
-                    <div className={styles.suggestionLogin}>@{highlightMatch(s.login, searchLogin.trim())}</div>
-                  </div>
-                </div>
-              ))}
-            </div>
-          )}
-        </div>
-        {searchError && <div className={styles.searchError}>{searchError}</div>}
-
         {partners.length === 0 && <div className={styles.empty}>Дані після турнірів</div>}
         {partners.map((p) => (
           <div key={p.partner_id} className={styles.partnerRow} onClick={() => openPartnerHistory(p.partner)}>
@@ -546,20 +432,23 @@ export default function ProfilePage() {
         </div>
       ))}
 
-      <div className={styles.sectionLabel}>Журнал змін Ело</div>
-      {eloLog.length === 0 && <div className={styles.empty}>Ще немає змін рейтингу</div>}
-      {eloLog.map((h) => (
-        <div key={h.tournament_id} className={styles.eloLogRow}>
-          <div className={styles.eloLogDate}>
-            {h.finished_at ? new Date(h.finished_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' }) : '—'}
-          </div>
-          <div className={styles.eloLogName}>{h.tournament_name}</div>
-          <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
-            {h.elo_delta >= 0 ? '+' : ''}
-            {h.elo_delta}
-          </div>
-        </div>
-      ))}
+      {eloLog.length > 0 && (
+        <>
+          <div className={styles.sectionLabel}>Журнал змін Ело</div>
+          {eloLog.map((h) => (
+            <div key={h.tournament_id} className={styles.eloLogRow}>
+              <div className={styles.eloLogDate}>
+                {h.finished_at ? new Date(h.finished_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' }) : '—'}
+              </div>
+              <div className={styles.eloLogName}>{h.tournament_name}</div>
+              <div className={h.elo_delta >= 0 ? styles.positive : styles.negative}>
+                {h.elo_delta >= 0 ? '+' : ''}
+                {h.elo_delta}
+              </div>
+            </div>
+          ))}
+        </>
+      )}
 
       <div className={styles.sectionLabel}>Підтримка</div>
       <div className={styles.supportCard}>

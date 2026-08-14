@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { validateSumTo, validateSetsFirstTo, pointsTargetForStage } from '@/lib/formats/scoring';
 import { teamAWon } from '@/lib/formats/sets';
+import { categoryForElo } from '@/lib/elo';
 import { buildKingRound, rankGroupDetailed, kingAdvancers } from '@/lib/formats/kingOfBeach';
 import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from '@/lib/formats/brackets';
 import { stageWeight } from '@/lib/formats/stages';
@@ -108,6 +109,11 @@ export async function POST(request, { params }) {
   // loser into their next match slots, and finish the category when the
   // deciding match is played.
   await propagateBracket(supabaseAdmin, match, sets);
+
+  // Americanka: Ело recalculates itself after this game — see the
+  // function below for the scoping and why every other format stays
+  // admin-set instead.
+  await autoUpdateEloForAmericanka(supabaseAdmin, match, sets);
 
   // Stages advance themselves: once the last game of a King round or of
   // the group stage is entered, the next phase's teams are filled in —
@@ -345,6 +351,73 @@ async function propagateBracket(supabaseAdmin, match, sets) {
 
   const res = await finishCategory(supabaseAdmin, match.tournament_id);
   if (!res.ok && !res.alreadyDone) console.error('[score bracket-finish]:', res.error);
+}
+
+// Американка: Ело recalculates automatically after every game — every
+// other format leaves Ело admin-set (see the comment on this in
+// lib/server/finishCategory.ts for why that's the default everywhere
+// else). `match` here is the state fetched BEFORE this request's
+// update, so `match.played` reflects whether a score already existed —
+// that's what scopes this to a game's first entry only. A correction
+// (re-entering a score that was already in) does not undo-and-reapply
+// the old delta: doing that safely needs the exact sequence of every
+// Ело change these four players have had since, not just this one
+// match's old score, and getting that wrong would silently corrupt a
+// rating rather than obviously fail. An admin can still adjust
+// manually via the existing edit-Ело screen if a correction changes
+// who actually won.
+async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
+  if (match.played) return;
+
+  const format = match.tournaments?.tournament_events?.format_kind;
+  if (format !== 'americanka') return;
+
+  const teamA = match.team_a_players || [];
+  const teamB = match.team_b_players || [];
+  if (teamA.length !== 2 || teamB.length !== 2) return; // defensive — americanka is always 2v2
+
+  const allIds = [...teamA, ...teamB];
+  const { data: players } = await supabaseAdmin.from('players').select('id, elo').in('id', allIds);
+  const eloById = new Map((players || []).map((p) => [p.id, p.elo ?? 1200]));
+
+  // Team rating = average of its two players' current Ело — the same
+  // "what-if" math the calculator on a player's own profile already
+  // shows them (K=32), just applied to the team average instead of one
+  // player's Ело against a slider.
+  const teamAElo = (eloById.get(teamA[0]) + eloById.get(teamA[1])) / 2;
+  const teamBElo = (eloById.get(teamB[0]) + eloById.get(teamB[1])) / 2;
+  const aWon = teamAWon({ set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null });
+  const K = 32;
+  const expectedA = 1 / (1 + Math.pow(10, (teamBElo - teamAElo) / 400));
+  const deltaA = Math.round(K * ((aWon ? 1 : 0) - expectedA));
+  const deltaB = -deltaA;
+
+  for (const [side, delta] of [
+    [teamA, deltaA],
+    [teamB, deltaB],
+  ]) {
+    for (const playerId of side) {
+      const before = eloById.get(playerId) ?? 1200;
+      const after = before + delta;
+      const { error: updateError } = await supabaseAdmin
+        .from('players')
+        .update({ elo: after, category: categoryForElo(after)?.id })
+        .eq('id', playerId);
+      if (updateError) {
+        console.error('[auto-elo] players update:', updateError.message);
+        continue;
+      }
+      const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
+        player_id: playerId,
+        tournament_id: match.tournament_id,
+        delta,
+        elo_before: before,
+        elo_after: after,
+        reason: 'tournament_result',
+      });
+      if (historyError) console.error('[auto-elo] elo_history insert:', historyError.message);
+    }
+  }
 }
 
 // Pick the scoring rule from the event's format. Eventless categories

@@ -49,8 +49,11 @@ function groupBy(list, keyFn) {
  * (needs format_name from migration 008; gracefully defaults to
  * Americanka if that migration hasn't been run yet).
  * `gender` ('M' | 'F') picks the label for the single-sex format.
+ * `totalGames`/`winRate` are optional — when given, a compact summary
+ * line renders above the rows instead of those two numbers living in
+ * their own separate cards elsewhere on the page.
  */
-export default function TournamentStatsBreakdown({ history, gender }) {
+export default function TournamentStatsBreakdown({ history, gender, totalGames, winRate }) {
   const [openKey, setOpenKey] = useState(null);
 
   function formatLabel(f) {
@@ -76,6 +79,11 @@ export default function TournamentStatsBreakdown({ history, gender }) {
 
   return (
     <div className={styles.wrap}>
+      {totalGames > 0 && (
+        <div className={styles.gamesSummary}>
+          {totalGames} {totalGames === 1 ? 'гра' : 'ігор'} зіграно · {winRate}% перемог
+        </div>
+      )}
       {rows.map((row, i) => {
         const isOpen = openKey === row.key;
         const sections = buildSections(row.list);

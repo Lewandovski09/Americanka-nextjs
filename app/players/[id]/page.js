@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, expectedScore, SKILL_CATEGORIES } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconArrowLeft, IconTrophy, IconMedal, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
+import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
@@ -148,7 +148,11 @@ export default function PlayerProfilePage() {
               )}
               <div className={styles.headerStatMeta}>
                 {eloRank ? `№${eloRank}` : ''}
-                {nextCategory ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}` : ''}
+                {nextCategory
+                  ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}`
+                  : playerCategory
+                  ? ' · Найвища категорія'
+                  : ''}
               </div>
             </div>
             {avpStanding && (
@@ -177,21 +181,8 @@ export default function PlayerProfilePage() {
         </div>
       )}
 
-      <div className={`${styles.statSquares} riseIn`} style={{ animationDelay: '0.06s' }}>
-        <div className={styles.statSquare}>
-          <IconTrophy size={20} color="var(--navy)" />
-          <div className={styles.statSquareValue}>{totalGames}</div>
-          <div className={styles.statSquareLabel}>Ігор зіграно</div>
-        </div>
-        <div className={styles.statSquare}>
-          <IconMedal size={20} color="var(--navy)" />
-          <div className={styles.statSquareValue}>{winRate}%</div>
-          <div className={styles.statSquareLabel}>Перемог</div>
-        </div>
-      </div>
-
-      <div className="riseIn" style={{ animationDelay: '0.08s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} />
+      <div className="riseIn" style={{ animationDelay: '0.06s' }}>
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} totalGames={totalGames} winRate={winRate} />
       </div>
 
       {player.telegram_username && (
