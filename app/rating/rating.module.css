@@ -339,3 +339,97 @@
   color: var(--text2);
   margin-top: 2px;
 }
+
+.clubStatCard {
+  background: var(--surface);
+  border-radius: var(--r-md);
+  padding: 14px 16px;
+  margin-bottom: 10px;
+  box-shadow: var(--shadow-sm);
+}
+
+.clubStatTitle {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.clubStatRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 6px 0;
+}
+
+.clubStatRank {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  width: 16px;
+  flex-shrink: 0;
+}
+
+.clubStatName {
+  flex: 1;
+  font-size: 13px;
+  font-weight: 600;
+  color: var(--text);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.clubStatValue {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--navy);
+}
+
+.clubStatValuePositive {
+  font-size: 14px;
+  font-weight: 800;
+  color: var(--accent-green, #16a34a);
+}
+
+.comparePickerRow {
+  position: relative;
+  margin-bottom: 8px;
+}
+
+.compareSuggestions {
+  position: absolute;
+  top: 100%;
+  left: 0;
+  right: 0;
+  z-index: 5;
+  background: var(--surface);
+  border: 1.5px solid var(--border-light);
+  border-radius: var(--r-sm);
+  box-shadow: var(--shadow-sm);
+  margin-top: 2px;
+  overflow: hidden;
+}
+
+.compareSuggestionRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  padding: 8px 10px;
+  cursor: pointer;
+}
+
+.compareSuggestionRow:hover {
+  background: var(--surface-alt);
+}
+
+.compareSuggestionName {
+  font-size: 13px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.compareSuggestionLogin {
+  font-size: 11px;
+  color: var(--text2);
+}

@@ -4,6 +4,7 @@ import { useEffect, useState, useRef } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
+import { teamAWon } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './rating.module.css';
 
@@ -22,11 +23,21 @@ export default function RatingPage() {
   const [avpLoading, setAvpLoading] = useState(false);
 
   // ── Compare players state ──
-  const [loginA, setLoginA] = useState('');
-  const [loginB, setLoginB] = useState('');
+  const [loginA, setLoginA] = useState(null); // now holds the selected player object, not raw text
+  const [loginB, setLoginB] = useState(null);
+  const [queryA, setQueryA] = useState(''); // what's typed in the search box
+  const [queryB, setQueryB] = useState('');
+  const [suggestionsA, setSuggestionsA] = useState([]);
+  const [suggestionsB, setSuggestionsB] = useState([]);
   const [compareError, setCompareError] = useState('');
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareResult, setCompareResult] = useState(null); // { playerA, playerB, statsA, statsB }
+
+  // ── Club-wide statistics (Статистика tab) ──
+  const [clubStatsLoaded, setClubStatsLoaded] = useState(false);
+  const [clubStreaks, setClubStreaks] = useState([]);
+  const [clubTournamentWins, setClubTournamentWins] = useState([]);
+  const [clubEloGains, setClubEloGains] = useState([]);
 
   // Switching tabs used to refetch everything from scratch every single
   // time, even flipping straight back to a tab shown seconds ago —
@@ -159,6 +170,159 @@ export default function RatingPage() {
     load();
   }, [tab, seasonId]);
 
+  // Typeahead for the two compare-player pickers — same debounced
+  // search-then-select pattern as the admin panel's player search.
+  useEffect(() => {
+    if (queryA.trim().length < 2) {
+      setSuggestionsA([]);
+      return;
+    }
+    let active = true;
+    const supabase = createClient();
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('players')
+        .select('id, full_name, login, photo_url, elo')
+        .eq('approval_status', 'approved')
+        .or(`login.ilike.%${queryA.trim()}%,full_name.ilike.%${queryA.trim()}%`)
+        .limit(6);
+      if (active) setSuggestionsA(data || []);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [queryA]);
+
+  useEffect(() => {
+    if (queryB.trim().length < 2) {
+      setSuggestionsB([]);
+      return;
+    }
+    let active = true;
+    const supabase = createClient();
+    const timer = setTimeout(async () => {
+      const { data } = await supabase
+        .from('players')
+        .select('id, full_name, login, photo_url, elo')
+        .eq('approval_status', 'approved')
+        .or(`login.ilike.%${queryB.trim()}%,full_name.ilike.%${queryB.trim()}%`)
+        .limit(6);
+      if (active) setSuggestionsB(data || []);
+    }, 250);
+    return () => {
+      active = false;
+      clearTimeout(timer);
+    };
+  }, [queryB]);
+
+  // Club-wide leaderboards for the Статистика tab — loaded once, lazily,
+  // the first time the tab is opened (same lazy pattern the rating/AVP
+  // tabs already use). Each of the three is one club-wide query rather
+  // than one query per player, so this stays fast regardless of how
+  // many people are in the club.
+  useEffect(() => {
+    if (tab !== 'stats' || clubStatsLoaded) return;
+    async function loadClubStats() {
+      const supabase = createClient();
+      const since3mo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+
+      // ── Longest current win streaks ──
+      // Fetched from a bounded recent window (3 months, same window as
+      // the Ело-gain stat below) rather than truly "all games ever" —
+      // a real active streak will always be inside a recent window;
+      // reaching back further would cost a much bigger query for
+      // streaks nobody would actually be riding any more.
+      const { data: recentMatches } = await supabase
+        .from('matches')
+        .select('team_a_players, team_b_players, set1, set2, set3, played_at')
+        .eq('played', true)
+        .gte('played_at', since3mo)
+        .order('played_at', { ascending: false })
+        .limit(500);
+
+      const gamesByPlayer = new Map();
+      (recentMatches || []).forEach((m) => {
+        const aWon = teamAWon(m);
+        [...(m.team_a_players || [])].forEach((id) => {
+          if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
+          gamesByPlayer.get(id).push({ won: aWon, played_at: m.played_at });
+        });
+        [...(m.team_b_players || [])].forEach((id) => {
+          if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
+          gamesByPlayer.get(id).push({ won: !aWon, played_at: m.played_at });
+        });
+      });
+
+      const streakByPlayer = [];
+      for (const [playerId, games] of gamesByPlayer.entries()) {
+        games.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
+        let streak = 0;
+        for (const g of games) {
+          if (!g.won) break;
+          streak++;
+        }
+        if (streak >= 2) streakByPlayer.push({ playerId, streak });
+      }
+      streakByPlayer.sort((a, b) => b.streak - a.streak);
+      const topStreaks = streakByPlayer.slice(0, 5);
+
+      // ── Most tournament wins, every format EXCEPT Americanka ──
+      const { data: winPlacements } = await supabase
+        .from('tournament_placements')
+        .select('player_id, tournament_id')
+        .eq('place', 1);
+      const tIds = [...new Set((winPlacements || []).map((p) => p.tournament_id))];
+      const { data: tours } = tIds.length
+        ? await supabase.from('tournaments').select('id, event_id').in('id', tIds)
+        : { data: [] };
+      const eventIds = [...new Set((tours || []).map((t) => t.event_id).filter(Boolean))];
+      const { data: events } = eventIds.length
+        ? await supabase.from('tournament_events').select('id, format_kind').in('id', eventIds)
+        : { data: [] };
+      const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
+      const formatByTournament = new Map((tours || []).map((t) => [t.id, formatByEvent.get(t.event_id)]));
+
+      const winsByPlayer = new Map();
+      (winPlacements || []).forEach((p) => {
+        const format = formatByTournament.get(p.tournament_id);
+        if (!format || format === 'americanka') return;
+        winsByPlayer.set(p.player_id, (winsByPlayer.get(p.player_id) || 0) + 1);
+      });
+      const topWins = [...winsByPlayer.entries()]
+        .map(([playerId, wins]) => ({ playerId, wins }))
+        .sort((a, b) => b.wins - a.wins)
+        .slice(0, 5);
+
+      // ── Biggest Ело gain, last 3 months ──
+      const { data: eloRows } = await supabase.from('elo_history').select('player_id, delta').gte('created_at', since3mo);
+      const gainByPlayer = new Map();
+      (eloRows || []).forEach((r) => {
+        gainByPlayer.set(r.player_id, (gainByPlayer.get(r.player_id) || 0) + r.delta);
+      });
+      const topGains = [...gainByPlayer.entries()]
+        .map(([playerId, gain]) => ({ playerId, gain }))
+        .filter((r) => r.gain > 0)
+        .sort((a, b) => b.gain - a.gain)
+        .slice(0, 5);
+
+      // One shared name/avatar lookup for everyone appearing in any list.
+      const allIds = [
+        ...new Set([...topStreaks.map((r) => r.playerId), ...topWins.map((r) => r.playerId), ...topGains.map((r) => r.playerId)]),
+      ];
+      const { data: profiles } = allIds.length
+        ? await supabase.from('players').select('id, full_name, login, photo_url').in('id', allIds)
+        : { data: [] };
+      const profileById = new Map((profiles || []).map((p) => [p.id, p]));
+
+      setClubStreaks(topStreaks.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
+      setClubTournamentWins(topWins.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
+      setClubEloGains(topGains.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
+      setClubStatsLoaded(true);
+    }
+    loadClubStats();
+  }, [tab, clubStatsLoaded]);
+
   const filteredAvp = avpRows
     .filter((r) => r.player.gender === gender)
     .filter((r) => {
@@ -178,34 +342,23 @@ export default function RatingPage() {
   async function handleCompare() {
     setCompareError('');
     setCompareResult(null);
-    if (!loginA.trim() || !loginB.trim()) {
-      setCompareError("Вкажіть обидва логіни");
+    if (!loginA || !loginB) {
+      setCompareError('Оберіть обох гравців');
       return;
     }
 
     setCompareLoading(true);
     const supabase = createClient();
 
-    const [resA, resB] = await Promise.all([
-      supabase.from('players').select('*').eq('login', loginA.trim().toLowerCase()).maybeSingle(),
-      supabase.from('players').select('*').eq('login', loginB.trim().toLowerCase()).maybeSingle(),
-    ]);
-
-    if (!resA.data || !resB.data) {
-      setCompareLoading(false);
-      setCompareError('Одного або обох гравців не знайдено');
-      return;
-    }
-
     const [statsA, statsB] = await Promise.all([
-      supabase.rpc('get_player_format_stats', { p_player_id: resA.data.id }),
-      supabase.rpc('get_player_format_stats', { p_player_id: resB.data.id }),
+      supabase.rpc('get_player_format_stats', { p_player_id: loginA.id }),
+      supabase.rpc('get_player_format_stats', { p_player_id: loginB.id }),
     ]);
 
     setCompareLoading(false);
     setCompareResult({
-      playerA: resA.data,
-      playerB: resB.data,
+      playerA: loginA,
+      playerB: loginB,
       statsA: statsA.data || [],
       statsB: statsB.data || [],
     });
@@ -381,22 +534,117 @@ export default function RatingPage() {
 
       {tab === 'stats' && (
         <>
+          <div className={styles.sectionLabel}>Клубна статистика</div>
+
+          <div className={styles.clubStatCard}>
+            <div className={styles.clubStatTitle}>Найдовші серії перемог</div>
+            {clubStreaks.length === 0 && <div className={styles.empty}>Ще немає активних серій</div>}
+            {clubStreaks.map((r, i) => (
+              <div key={r.playerId} className={styles.clubStatRow}>
+                <span className={styles.clubStatRank}>{i + 1}.</span>
+                <PlayerAvatar player={r.player} size={24} />
+                <span className={styles.clubStatName}>{r.player.full_name}</span>
+                <span className={styles.clubStatValue}>{r.streak}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.clubStatCard}>
+            <div className={styles.clubStatTitle}>Найбільше перемог у турнірах (крім Американки)</div>
+            {clubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            {clubTournamentWins.map((r, i) => (
+              <div key={r.playerId} className={styles.clubStatRow}>
+                <span className={styles.clubStatRank}>{i + 1}.</span>
+                <PlayerAvatar player={r.player} size={24} />
+                <span className={styles.clubStatName}>{r.player.full_name}</span>
+                <span className={styles.clubStatValue}>{r.wins}</span>
+              </div>
+            ))}
+          </div>
+
+          <div className={styles.clubStatCard}>
+            <div className={styles.clubStatTitle}>Найбільший приріст Ело за 3 місяці</div>
+            {clubEloGains.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            {clubEloGains.map((r, i) => (
+              <div key={r.playerId} className={styles.clubStatRow}>
+                <span className={styles.clubStatRank}>{i + 1}.</span>
+                <PlayerAvatar player={r.player} size={24} />
+                <span className={styles.clubStatName}>{r.player.full_name}</span>
+                <span className={styles.clubStatValuePositive}>+{r.gain}</span>
+              </div>
+            ))}
+          </div>
+
           <div className={styles.sectionLabel}>Порівняти гравців</div>
           <div className={styles.compareCard}>
-            <input
-              className={styles.compareInput}
-              placeholder="Логін гравця А"
-              aria-label="Логін гравця А для порівняння"
-              value={loginA}
-              onChange={(e) => setLoginA(e.target.value)}
-            />
-            <input
-              className={styles.compareInput}
-              placeholder="Логін гравця Б"
-              aria-label="Логін гравця Б для порівняння"
-              value={loginB}
-              onChange={(e) => setLoginB(e.target.value)}
-            />
+            <div className={styles.comparePickerRow}>
+              <input
+                className={styles.compareInput}
+                placeholder="Гравець А — ім'я або логін"
+                aria-label="Пошук гравця А для порівняння"
+                value={loginA ? loginA.full_name : queryA}
+                onChange={(e) => {
+                  setLoginA(null);
+                  setQueryA(e.target.value);
+                }}
+              />
+              {!loginA && queryA.trim().length >= 2 && suggestionsA.length > 0 && (
+                <div className={styles.compareSuggestions}>
+                  {suggestionsA.map((p) => (
+                    <div
+                      key={p.id}
+                      className={styles.compareSuggestionRow}
+                      onClick={() => {
+                        setLoginA(p);
+                        setQueryA('');
+                        setSuggestionsA([]);
+                      }}
+                    >
+                      <PlayerAvatar player={p} size={24} />
+                      <div>
+                        <div className={styles.compareSuggestionName}>{p.full_name}</div>
+                        <div className={styles.compareSuggestionLogin}>@{p.login}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
+            <div className={styles.comparePickerRow}>
+              <input
+                className={styles.compareInput}
+                placeholder="Гравець Б — ім'я або логін"
+                aria-label="Пошук гравця Б для порівняння"
+                value={loginB ? loginB.full_name : queryB}
+                onChange={(e) => {
+                  setLoginB(null);
+                  setQueryB(e.target.value);
+                }}
+              />
+              {!loginB && queryB.trim().length >= 2 && suggestionsB.length > 0 && (
+                <div className={styles.compareSuggestions}>
+                  {suggestionsB.map((p) => (
+                    <div
+                      key={p.id}
+                      className={styles.compareSuggestionRow}
+                      onClick={() => {
+                        setLoginB(p);
+                        setQueryB('');
+                        setSuggestionsB([]);
+                      }}
+                    >
+                      <PlayerAvatar player={p} size={24} />
+                      <div>
+                        <div className={styles.compareSuggestionName}>{p.full_name}</div>
+                        <div className={styles.compareSuggestionLogin}>@{p.login}</div>
+                      </div>
+                    </div>
+                  ))}
+                </div>
+              )}
+            </div>
+
             <button className={styles.compareBtn} disabled={compareLoading} onClick={handleCompare}>
               {compareLoading ? 'Завантаження...' : 'Порівняти'}
             </button>
