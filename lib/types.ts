@@ -27,6 +27,10 @@ export interface Match extends MatchSets {
   group_index?: number | null;
   stage?: string | null;
   scheduled_at?: string | null;
+  /** Position in the generated schedule — the display order and the
+   *  game number both follow it. Stamped by commitCategoryStart; absent
+   *  on a row a generator has built but not yet inserted. */
+  order_index?: number | null;
   [key: string]: unknown;
 }
 

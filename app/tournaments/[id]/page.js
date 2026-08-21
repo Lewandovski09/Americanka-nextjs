@@ -92,7 +92,20 @@ export default function TournamentDetailPage({ params }) {
       .eq('category_id', id);
     setTeams(tt || []);
 
-    const { data: m } = await supabase.from('tournament_matches').select('*').eq('category_id', id).order('round_number');
+    // A TOTAL order, not just round_number. An americanka round holds two
+    // games, and with only round_number to sort by, Postgres was free to
+    // return them either way round — so entering a score (an UPDATE, which
+    // relocates the row) made that game swap places with its round-mate and
+    // take its game number along. order_index is the stored schedule order
+    // (migration 040); id is the last-resort tiebreaker in case a row ever
+    // reaches here without one.
+    const { data: m } = await supabase
+      .from('tournament_matches')
+      .select('*')
+      .eq('category_id', id)
+      .order('round_number')
+      .order('order_index')
+      .order('id');
     setMatches(m || []);
 
     // The judging crew belongs to the EVENT — the same people cover
@@ -557,8 +570,11 @@ export default function TournamentDetailPage({ params }) {
         <TabBtn active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
           Таблиця
         </TabBtn>
+        {/* Americanka has no bracket to draw — this tab holds the live
+            standings instead (see the AmericankaStandings branch below),
+            so «Сітка» would name something that isn't there. */}
         <TabBtn active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
-          Сітка
+          {isSum ? 'Рахунки' : 'Сітка'}
         </TabBtn>
       </div>
 
@@ -1128,7 +1144,13 @@ function buildBracketColumns(matches) {
     const ms = matches
       .filter((m) => (m.stage || 'group') === stage)
       .sort(
-        (a, b) => (a.group_index ?? 0) - (b.group_index ?? 0) || (a.round_number || 0) - (b.round_number || 0)
+        (a, b) =>
+          (a.group_index ?? 0) - (b.group_index ?? 0) ||
+          (a.round_number || 0) - (b.round_number || 0) ||
+          // Same group, same round is a real tie in the staged formats
+          // too — without this last key the sort leaves those in fetch
+          // order, which is exactly what shuffled on the americanka.
+          (a.order_index ?? 0) - (b.order_index ?? 0)
       );
     if (isSharedPlaceStage(stage)) {
       placeMatches.push(...ms);

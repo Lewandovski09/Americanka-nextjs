@@ -25,6 +25,29 @@ export function bracketLabel(id) {
   return BRACKET_SYSTEMS.find((b) => b.id === id)?.label || id;
 }
 
+/**
+ * Play order of two games of the same stage and group.
+ *
+ * `round_number` alone is NOT a total order and never was: a group-stage
+ * round of a four-team group holds two games, a six-team group three,
+ * and an americanka round two. Sorting by it leaves those tied, and a
+ * tied sort keeps whatever order the rows arrived in — which changes the
+ * moment a score is entered, because an UPDATE moves the row within the
+ * table. That is what made games swap places while the admin was
+ * entering results.
+ *
+ * `order_index` (migration 040) is the position the generator gave the
+ * game, so it settles every such tie; `id` covers a row that somehow
+ * reaches here without one.
+ */
+export function byRoundThenSchedule(a, b) {
+  return (
+    (a.round_number || 0) - (b.round_number || 0) ||
+    (a.order_index ?? 0) - (b.order_index ?? 0) ||
+    String(a.id).localeCompare(String(b.id))
+  );
+}
+
 // The category roster as a flat list in SEED order — the order the
 // bracket is built from. Rows the admin has already seeded come first by
 // `slot_index`; the rest fall back to when they were distributed, so an
@@ -297,7 +320,12 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const teams = category.tournament_teams || [];
   const solos = category.tournament_players || [];
-  const matches = category.tournament_matches || [];
+  // An embedded select carries no ORDER BY of its own, so this arrives
+  // in whatever order Postgres returned — which changes as soon as a
+  // score is entered. Sorted here so anything reading `matches`
+  // downstream starts from a fixed order; the lists that render it sort
+  // again with byRoundThenSchedule.
+  const matches = [...(category.tournament_matches || [])].sort(byRoundThenSchedule);
 
   const registered = isPair ? teams.length : solos.length;
   const capacity = category.max_participants || format?.fixedParticipants || null;
@@ -529,7 +557,7 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
                   <div className={styles.groupTitle}>{groupTitle(gi)}</div>
                   {ms
                     .filter((m) => (m.group_index ?? 0) === gi)
-                    .sort((a, b) => a.round_number - b.round_number)
+                    .sort(byRoundThenSchedule)
                     .map(renderMatch)}
                 </div>
               ))}
@@ -539,7 +567,7 @@ function StageMatches({ matches, nameById, isAdmin, busy, onScore, maxSets = 3 }
         return (
           <div key={stage} className={styles.stageBlock}>
             <div className={styles.stageTitle}>{stageLabel(stage)}</div>
-            {ms.sort((a, b) => a.round_number - b.round_number).map(renderMatch)}
+            {ms.sort(byRoundThenSchedule).map(renderMatch)}
           </div>
         );
       })}

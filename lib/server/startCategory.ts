@@ -92,7 +92,15 @@ export interface CommitResult {
 }
 
 export async function commitCategoryStart(supabaseAdmin: SupabaseAdmin, category: CategoryRow, rows: Match[]): Promise<CommitResult> {
-  const { error: insErr } = await supabaseAdmin.from('tournament_matches').insert(rows);
+  // Stamp the schedule order before it is lost. `rows` arrives in the
+  // order its generator built it — americanka round by round, a bracket
+  // row by row — and until migration 040 nothing recorded that, so the
+  // reading side fell back to whatever order Postgres returned and games
+  // (and their numbers) shuffled on every score entry. Done here rather
+  // than in each generator: one place, every format.
+  const ordered = rows.map((m, i) => ({ ...m, order_index: i }));
+
+  const { error: insErr } = await supabaseAdmin.from('tournament_matches').insert(ordered);
   if (insErr) {
     console.error('[start] matches insert:', insErr.message);
     return { error: 'Не вдалося створити матчі' };
@@ -117,7 +125,65 @@ export async function commitCategoryStart(supabaseAdmin: SupabaseAdmin, category
     await supabaseAdmin.from('tournament_events').update(eventUpdate).eq('id', event.id);
   }
 
+  await dropUndistributedApplications(supabaseAdmin, category);
+
   return { matches: rows.length };
+}
+
+/**
+ * Clear the applications that starting a league has just made
+ * undeliverable.
+ *
+ * Nothing used to do this, so «Черга заявок» went on listing rows the
+ * admin could not act on: assign() refuses any category that is not
+ * 'scheduled', which is correct — a roster is frozen the moment its
+ * schedule is generated, there is no way to add a player to a built
+ * bracket or an americanka round-robin. So the queue kept offering
+ * «Розподілити» buttons that could only answer «Категорію вже
+ * розпочато».
+ *
+ * The rows are deleted rather than moved to a status. Re-applying is not
+ * a way back in: commitCategoryStart has just set registration_open =
+ * false, and the apply route refuses a closed event.
+ *
+ * Scope matters — an event can be started one league at a time (see
+ * /api/tournaments/[tournamentId]/start), so a pending application may
+ * still have somewhere to go.
+ */
+async function dropUndistributedApplications(supabaseAdmin: SupabaseAdmin, category: CategoryRow): Promise<void> {
+  const eventId = category.tournament_events?.id;
+  if (!eventId) return; // legacy category with no event — no queue to clean
+
+  // This league's reserve dies with its start: those applicants were
+  // parked for THIS category and can no longer be promoted into it.
+  const { error: resErr } = await supabaseAdmin
+    .from('tournament_applications')
+    .delete()
+    .eq('event_id', eventId)
+    .eq('status', 'reserve')
+    .eq('assigned_category_id', category.id);
+  if (resErr) console.error('[start] reserve cleanup:', resErr.message);
+
+  // Pending applications name no category, so they stay deliverable
+  // while any league of the event is still unstarted.
+  const { data: stillScheduled } = await supabaseAdmin
+    .from('tournament_categories')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('status', 'scheduled')
+    .limit(1);
+  if (stillScheduled && stillScheduled.length > 0) return;
+
+  // Last league is away: sweep whatever is left. 'reserve' is repeated
+  // here on purpose — assigned_category_id is ON DELETE SET NULL, so a
+  // reserve whose league was deleted has no category to match on above
+  // and would otherwise outlive the event.
+  const { error: pendErr } = await supabaseAdmin
+    .from('tournament_applications')
+    .delete()
+    .eq('event_id', eventId)
+    .in('status', ['pending', 'reserve']);
+  if (pendErr) console.error('[start] pending cleanup:', pendErr.message);
 }
 
 // Planned start time for every generated game. A long game (до 21, or
