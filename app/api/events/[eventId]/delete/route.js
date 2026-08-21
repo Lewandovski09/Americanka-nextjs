@@ -41,13 +41,29 @@ export async function POST(request, { params }) {
   const categoryIds = (categories || []).map((c) => c.id);
 
   if (categoryIds.length > 0) {
-    const { count } = await supabaseAdmin
-      .from('elo_history')
-      .select('id', { count: 'exact', head: true })
-      .in('category_id', categoryIds);
-    if (count > 0) {
+    // BOTH ratings, not just Ело.
+    //
+    // This guard was written when elo_history was the only ledger, and
+    // it quietly stopped covering the common case once AVP arrived
+    // (migration 023). Ело is only ever written automatically for
+    // americanka — every other format leaves elo_history empty — while
+    // AVP points are awarded to every finished category that has a tier.
+    // So a finished mix or pair event passed the Ело check, and its
+    // avp_points rows then went with the event through ON DELETE
+    // CASCADE: the season standings changed retroactively, silently,
+    // through a button whose refusal message promises the opposite.
+    const [{ count: eloCount }, { count: avpCount }] = await Promise.all([
+      supabaseAdmin.from('elo_history').select('id', { count: 'exact', head: true }).in('category_id', categoryIds),
+      supabaseAdmin.from('avp_points').select('id', { count: 'exact', head: true }).in('category_id', categoryIds),
+    ]);
+
+    if (eloCount > 0 || avpCount > 0) {
+      // Name which one, so the admin knows what is holding the event:
+      // AVP can be released by clearing the event's tier and recalcing
+      // (see /api/admin/avp/recalc), Ело cannot be undone at all.
+      const what = eloCount > 0 && avpCount > 0 ? 'Ело та очки AVP' : eloCount > 0 ? 'Ело' : 'очки AVP';
       return Response.json(
-        { success: false, error: 'За турнір вже нараховано рейтинг — його не можна видалити' },
+        { success: false, error: `За турнір вже нараховано ${what} — його не можна видалити` },
         { status: 400 }
       );
     }
