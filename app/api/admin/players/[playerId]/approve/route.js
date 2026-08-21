@@ -79,13 +79,6 @@ export async function POST(request, { params }) {
     return Response.json({ success: true, alreadyApproved: true });
   }
 
-  await supabaseAdmin.from('admin_actions').insert({
-    admin_id: authUser.user.id,
-    action_type: 'approve_player',
-    target_player_id: playerId,
-    details: { elo: finalElo, category: finalCategory },
-  });
-
   // Push an immediate Telegram notification too (in addition to the
   // in-app popup on next login) — players get the good news right away.
   if (player.telegram_user_id) {

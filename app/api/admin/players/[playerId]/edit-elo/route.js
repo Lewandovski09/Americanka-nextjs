@@ -43,12 +43,5 @@ export async function POST(request, { params }) {
     reason: 'admin_adjustment',
   });
 
-  await supabaseAdmin.from('admin_actions').insert({
-    admin_id: authUser.user.id,
-    action_type: 'edit_elo',
-    target_player_id: playerId,
-    details: { new_elo: elo },
-  });
-
   return Response.json({ success: true });
 }

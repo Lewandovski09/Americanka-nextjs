@@ -1,0 +1,32 @@
+-- ============================================================
+-- AMERICANKA — Migration 034: drop admin_actions
+-- ============================================================
+-- The audit log is gone. It was a write-only table: three routes
+-- (approve / reject / edit-elo) inserted into it and NOTHING ever read
+-- it back — no page, no route, no export. So it recorded history that
+-- could only be reached by opening the SQL editor by hand.
+--
+-- Two of those three actions were already recorded properly elsewhere,
+-- which is why removing it loses almost nothing:
+--   approve_player → players.approved_by / players.approved_at
+--   edit_elo       → elo_history (reason 'admin_adjustment'), with the
+--                    before/after/delta the log didn't even carry, and
+--                    it is the version actually shown in the UI
+--
+-- Only reject_player was unique to the log. That trace is deliberately
+-- given up: the club has ONE admin, so "who did this" has a single
+-- answer and never needed a table to store it. If a second admin ever
+-- appears, this comes back as a real audit trail — logged from every
+-- mutating admin route, not three of them, and with a screen to read
+-- it on. Half a log is worse than none: it invites trust it can't
+-- earn.
+--
+-- Dropping the table also removes a landmine migration 008 left half
+-- fixed: admin_actions.target_tournament_id still referenced
+-- tournaments(id) with the default NO ACTION, so the first audit row
+-- ever written about a tournament would have blocked that tournament's
+-- deletion — exactly the bug 008 had to fix for target_player_id.
+--
+-- Safe to run once in the Supabase SQL editor.
+
+drop table if exists admin_actions;

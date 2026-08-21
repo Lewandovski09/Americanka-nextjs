@@ -22,10 +22,11 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Тільки адмін може відхиляти заявки' }, { status: 403 });
   }
 
-  // Grab the details for the audit trail before the row disappears.
+  // The login, read before the row disappears — it goes back in the
+  // response so the admin sees who was actually deleted.
   const { data: target } = await supabaseAdmin
     .from('players')
-    .select('login, full_name')
+    .select('login')
     .eq('id', playerId)
     .maybeSingle();
 
@@ -34,10 +35,7 @@ export async function POST(request, { params }) {
   }
 
   // Deleting the auth user cascades to the players row (FK with ON DELETE
-  // CASCADE). This has to happen BEFORE the audit row is written:
-  // admin_actions.target_player_id points at players, so logging first
-  // made the delete fail on that very reference — which is why rejecting
-  // silently did nothing.
+  // CASCADE), so this is the whole rejection: no row is left behind.
   const { error } = await supabaseAdmin.auth.admin.deleteUser(playerId);
 
   if (error) {
@@ -51,19 +49,6 @@ export async function POST(request, { params }) {
       },
       { status: 500 }
     );
-  }
-
-  // Player-independent audit record — the id is kept in details rather
-  // than as a foreign key, since the row it pointed to is now gone.
-  const { error: auditError } = await supabaseAdmin.from('admin_actions').insert({
-    admin_id: authUser.user.id,
-    action_type: 'reject_player',
-    details: { player_id: playerId, login: target.login, full_name: target.full_name },
-  });
-
-  if (auditError) {
-    // Non-fatal: the player is already deleted, which is what was asked.
-    console.error('[reject-player] audit insert failed:', auditError.message);
   }
 
   return Response.json({ success: true, deleted: target.login });
