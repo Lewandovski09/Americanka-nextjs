@@ -59,7 +59,7 @@ export default function RatingPage() {
     async function load() {
       const supabase = createClient();
       let query = supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, login, elo, photo_url')
         .eq('gender', gender)
         .eq('approval_status', 'approved')
@@ -89,12 +89,12 @@ export default function RatingPage() {
       // tab already shows the all-formats count via tournaments_counted.
       const ids = (data || []).map((p) => p.id);
       const { data: placements } = ids.length
-        ? await supabase.from('tournament_placements').select('player_id, tournament_id').in('player_id', ids)
+        ? await supabase.from('tournament_placements').select('user_id, category_id').in('user_id', ids)
         : { data: [] };
 
-      const tIds = [...new Set((placements || []).map((tp) => tp.tournament_id))];
+      const tIds = [...new Set((placements || []).map((tp) => tp.category_id))];
       const { data: tours } = tIds.length
-        ? await supabase.from('tournaments').select('id, event_id').in('id', tIds)
+        ? await supabase.from('tournament_categories').select('id, event_id').in('id', tIds)
         : { data: [] };
       const eventIds = [...new Set((tours || []).map((t) => t.event_id).filter(Boolean))];
       const { data: events } = eventIds.length
@@ -105,8 +105,8 @@ export default function RatingPage() {
 
       const countByPlayer = new Map();
       (placements || []).forEach((tp) => {
-        if (formatByTournament.get(tp.tournament_id) !== 'americanka') return;
-        countByPlayer.set(tp.player_id, (countByPlayer.get(tp.player_id) || 0) + 1);
+        if (formatByTournament.get(tp.category_id) !== 'americanka') return;
+        countByPlayer.set(tp.user_id, (countByPlayer.get(tp.user_id) || 0) + 1);
       });
       const withCounts = (data || []).map((p) => ({ ...p, tournaments_played: countByPlayer.get(p.id) || 0 }));
 
@@ -147,21 +147,21 @@ export default function RatingPage() {
       const supabase = createClient();
       const { data: standings } = await supabase
         .from('avp_standings')
-        .select('player_id, points, tournaments_counted')
+        .select('user_id, points, tournaments_counted')
         .eq('season_id', seasonId)
         .order('points', { ascending: false });
 
-      const ids = (standings || []).map((s) => s.player_id);
+      const ids = (standings || []).map((s) => s.user_id);
       const { data: profiles } = ids.length
         ? await supabase
-            .from('players')
+            .from('users')
             .select('id, full_name, login, photo_url, gender, elo')
             .in('id', ids)
         : { data: [] };
 
       const byId = new Map((profiles || []).map((p) => [p.id, p]));
       const rows = (standings || [])
-        .map((s) => ({ ...s, player: byId.get(s.player_id) }))
+        .map((s) => ({ ...s, player: byId.get(s.user_id) }))
         .filter((s) => s.player);
       avpCacheRef.current[seasonId] = rows;
       setAvpRows(rows);
@@ -181,7 +181,7 @@ export default function RatingPage() {
     const supabase = createClient();
     const timer = setTimeout(async () => {
       const { data } = await supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, login, photo_url, elo')
         .eq('approval_status', 'approved')
         .or(`login.ilike.%${queryA.trim()}%,full_name.ilike.%${queryA.trim()}%`)
@@ -203,7 +203,7 @@ export default function RatingPage() {
     const supabase = createClient();
     const timer = setTimeout(async () => {
       const { data } = await supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, login, photo_url, elo')
         .eq('approval_status', 'approved')
         .or(`login.ilike.%${queryB.trim()}%,full_name.ilike.%${queryB.trim()}%`)
@@ -234,7 +234,7 @@ export default function RatingPage() {
       // reaching back further would cost a much bigger query for
       // streaks nobody would actually be riding any more.
       const { data: recentMatches } = await supabase
-        .from('matches')
+        .from('tournament_matches')
         .select('team_a_players, team_b_players, set1, set2, set3, played_at')
         .eq('played', true)
         .gte('played_at', since3mo)
@@ -270,14 +270,14 @@ export default function RatingPage() {
       // ── Most GAMES won, every format EXCEPT Americanka ──
       // Not "won the whole tournament" (that's placement=1 in
       // tournament_placements) — individual match wins, the same way
-      // get_player_format_stats counts games_won for one player, just
+      // get_user_format_stats counts games_won for one player, just
       // summed across the whole club and every non-Americanka format
       // at once. Separate queries + a JS-side join, same proven
       // pattern as the rating tab's own tournament count above —
       // safer than relying on nested-filter syntax (`!inner` +
       // dotted-path `.neq()`) that isn't used anywhere else in this
       // codebase and hasn't been verified to work as expected here.
-      const { data: allTournaments } = await supabase.from('tournaments').select('id, event_id');
+      const { data: allTournaments } = await supabase.from('tournament_categories').select('id, event_id');
       const { data: allEvents } = await supabase.from('tournament_events').select('id, format_kind');
       const formatByEvent = new Map((allEvents || []).map((ev) => [ev.id, ev.format_kind]));
       const nonAmerIds = (allTournaments || [])
@@ -286,9 +286,9 @@ export default function RatingPage() {
 
       const { data: nonAmerMatches } = nonAmerIds.length
         ? await supabase
-            .from('matches')
+            .from('tournament_matches')
             .select('team_a_players, team_b_players, set1, set2, set3')
-            .in('tournament_id', nonAmerIds)
+            .in('category_id', nonAmerIds)
             .eq('played', true)
         : { data: [] };
 
@@ -313,12 +313,12 @@ export default function RatingPage() {
       // the whole point of this leaderboard.
       const { data: eloRows } = await supabase
         .from('elo_history')
-        .select('player_id, delta')
+        .select('user_id, delta')
         .eq('reason', 'tournament_result')
         .gte('created_at', since3mo);
       const gainByPlayer = new Map();
       (eloRows || []).forEach((r) => {
-        gainByPlayer.set(r.player_id, (gainByPlayer.get(r.player_id) || 0) + r.delta);
+        gainByPlayer.set(r.user_id, (gainByPlayer.get(r.user_id) || 0) + r.delta);
       });
       const topGains = [...gainByPlayer.entries()]
         .map(([playerId, gain]) => ({ playerId, gain }))
@@ -330,7 +330,7 @@ export default function RatingPage() {
         ...new Set([...topStreaks.map((r) => r.playerId), ...topWins.map((r) => r.playerId), ...topGains.map((r) => r.playerId)]),
       ];
       const { data: profiles } = allIds.length
-        ? await supabase.from('players').select('id, full_name, login, photo_url, gender').in('id', allIds)
+        ? await supabase.from('users').select('id, full_name, login, photo_url, gender').in('id', allIds)
         : { data: [] };
       const profileById = new Map((profiles || []).map((p) => [p.id, p]));
 
@@ -378,8 +378,8 @@ export default function RatingPage() {
     const supabase = createClient();
 
     const [statsA, statsB] = await Promise.all([
-      supabase.rpc('get_player_format_stats', { p_player_id: loginA.id }),
-      supabase.rpc('get_player_format_stats', { p_player_id: loginB.id }),
+      supabase.rpc('get_user_format_stats', { p_user_id: loginA.id }),
+      supabase.rpc('get_user_format_stats', { p_user_id: loginB.id }),
     ]);
 
     setCompareLoading(false);
@@ -536,9 +536,9 @@ export default function RatingPage() {
 
           {filteredAvp.map((r, i) => (
             <a
-              key={r.player_id}
-              href={r.player_id === player?.id ? '/profile' : `/players/${r.player_id}`}
-              className={`${styles.playerRow} ${r.player_id === player?.id ? styles.meRow : ''}`}
+              key={r.user_id}
+              href={r.user_id === player?.id ? '/profile' : `/players/${r.user_id}`}
+              className={`${styles.playerRow} ${r.user_id === player?.id ? styles.meRow : ''}`}
             >
               <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>
                 {i + 1}

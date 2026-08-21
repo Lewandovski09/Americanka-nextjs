@@ -24,7 +24,7 @@ export async function POST(request) {
 
   const supabaseAdmin = createAdminClient();
   const { data: me } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -37,7 +37,7 @@ export async function POST(request) {
     categoryIds = [categoryId];
   } else if (eventId) {
     const { data: cats } = await supabaseAdmin
-      .from('tournaments')
+      .from('tournament_categories')
       .select('id')
       .eq('event_id', eventId);
     categoryIds = (cats || []).map((c) => c.id);

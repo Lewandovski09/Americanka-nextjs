@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -62,7 +62,7 @@ export async function POST(request, { params }) {
   }
 
   const { data: judgePlayer } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, approval_status')
     .eq('id', playerId)
     .maybeSingle();
@@ -75,7 +75,7 @@ export async function POST(request, { params }) {
       .from('tournament_judges')
       .delete()
       .eq('event_id', eventId)
-      .eq('player_id', playerId);
+      .eq('user_id', playerId);
     if (error) {
       console.error('[judges remove]:', error.message);
       return Response.json({ success: false, error: 'Не вдалося видалити суддю' }, { status: 500 });
@@ -83,14 +83,14 @@ export async function POST(request, { params }) {
     // The games they were assigned to lose their judge; the crew still
     // covers them, so this is a blank cell, not an error. Only this
     // event's games — the same person may judge another day.
-    const { data: cats } = await supabaseAdmin.from('tournaments').select('id').eq('event_id', eventId);
+    const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId);
     const categoryIds = (cats || []).map((c) => c.id);
     if (categoryIds.length > 0) {
       const { error: unassign } = await supabaseAdmin
-        .from('matches')
+        .from('tournament_matches')
         .update({ judge_id: null })
         .eq('judge_id', playerId)
-        .in('tournament_id', categoryIds);
+        .in('category_id', categoryIds);
       if (unassign) console.error('[judges remove] unassign:', unassign.message);
     }
     return Response.json({ success: true });
@@ -99,7 +99,7 @@ export async function POST(request, { params }) {
   if (action === 'add') {
     const { error } = await supabaseAdmin
       .from('tournament_judges')
-      .insert({ event_id: eventId, player_id: playerId });
+      .insert({ event_id: eventId, user_id: playerId });
     if (error) {
       if (error.code === '23505') {
         return Response.json({ success: false, error: 'Цей суддя вже у списку' }, { status: 400 });
@@ -124,7 +124,7 @@ export async function POST(request, { params }) {
 
   const { error } = await supabaseAdmin
     .from('tournament_judges')
-    .upsert({ event_id: eventId, player_id: playerId, is_head: true }, { onConflict: 'event_id,player_id' });
+    .upsert({ event_id: eventId, user_id: playerId, is_head: true }, { onConflict: 'event_id,user_id' });
   if (error) {
     console.error('[judges set_head]:', error.message);
     return Response.json({ success: false, error: 'Не вдалося призначити головного суддю' }, { status: 500 });

@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -45,13 +45,13 @@ export async function POST(request, { params }) {
   // those genders get test applications — a women's-only event must
   // not be flooded with men's applications (and vice versa).
   const { data: cats } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('gender')
     .eq('event_id', eventId);
   const eventGenders = new Set((cats || []).map((c) => c.gender).filter(Boolean));
 
   const { data: rawTestPlayers } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, login, gender, elo')
     .or('login.like.male*,login.like.female*')
     .eq('approval_status', 'approved');
@@ -68,20 +68,20 @@ export async function POST(request, { params }) {
 
   // Existing applications: live ones make the player unavailable; stale
   // (withdrawn/rejected) rows are cleared so the insert doesn't hit the
-  // unique (event_id, player_id) constraint.
+  // unique (event_id, user_id) constraint.
   const testIds = testPlayers.map((p) => p.id);
   const { data: apps } = await supabaseAdmin
     .from('tournament_applications')
-    .select('id, player_id, partner_id, status')
+    .select('id, user_id, partner_id, status')
     .eq('event_id', eventId);
   const activeIds = new Set(
     (apps || [])
       .filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected')
-      .flatMap((a) => [a.player_id, a.partner_id])
+      .flatMap((a) => [a.user_id, a.partner_id])
       .filter(Boolean)
   );
   const staleIds = (apps || [])
-    .filter((a) => (a.status === 'withdrawn' || a.status === 'rejected') && testIds.includes(a.player_id))
+    .filter((a) => (a.status === 'withdrawn' || a.status === 'rejected') && testIds.includes(a.user_id))
     .map((a) => a.id);
   if (staleIds.length > 0) {
     await supabaseAdmin.from('tournament_applications').delete().in('id', staleIds);
@@ -95,12 +95,12 @@ export async function POST(request, { params }) {
   const rows = [];
   const baseRow = (player, partner) => ({
     event_id: eventId,
-    player_id: player.id,
+    user_id: player.id,
     partner_id: partner?.id || null,
     seeking_partner: false,
     requested_category: null,
     status: 'pending',
-    assigned_tournament_id: null,
+    assigned_category_id: null,
   });
 
   if (!isPair) {

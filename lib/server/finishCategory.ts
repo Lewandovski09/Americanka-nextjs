@@ -51,19 +51,19 @@ export interface RecalcPlacementsResult {
  */
 export async function recalcPlacementsForCategory(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<RecalcPlacementsResult> {
   const [{ data: matches }, { data: tps }, { data: teams }] = await Promise.all([
-    supabaseAdmin.from('matches').select('*').eq('tournament_id', categoryId),
+    supabaseAdmin.from('tournament_matches').select('*').eq('category_id', categoryId),
     supabaseAdmin
       .from('tournament_players')
-      .select('player_id, players(full_name)')
-      .eq('tournament_id', categoryId),
+      .select('user_id, users(full_name)')
+      .eq('category_id', categoryId),
     supabaseAdmin
       .from('tournament_teams')
-      .select('player1_id, player2_id')
-      .eq('tournament_id', categoryId),
+      .select('user1_id, user2_id')
+      .eq('category_id', categoryId),
   ]);
 
-  const typedTps = (tps || []) as unknown as { player_id: string; players: { full_name: string | null } | null }[];
-  const players = typedTps.map((tp) => ({ id: tp.player_id, full_name: tp.players?.full_name }));
+  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
+  const players = typedTps.map((tp) => ({ id: tp.user_id, full_name: tp.users?.full_name }));
   const placements = placementsFor({ matches: (matches as Match[]) || [], teams: teams || [], players });
 
   await recordPlacements(supabaseAdmin, categoryId, placements);
@@ -77,7 +77,7 @@ export async function recalcPlacementsForCategory(supabaseAdmin: SupabaseAdmin, 
  */
 export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<FinishCategoryResult> {
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, status, event_id')
     .eq('id', categoryId)
     .maybeSingle();
@@ -86,15 +86,15 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   if (category.status === 'done') return { ok: false, alreadyDone: true, error: 'Категорію вже завершено' };
 
   const [{ data: matches }, { data: tps }, { data: teams }] = await Promise.all([
-    supabaseAdmin.from('matches').select('*').eq('tournament_id', categoryId),
+    supabaseAdmin.from('tournament_matches').select('*').eq('category_id', categoryId),
     supabaseAdmin
       .from('tournament_players')
-      .select('player_id, players(full_name)')
-      .eq('tournament_id', categoryId),
+      .select('user_id, users(full_name)')
+      .eq('category_id', categoryId),
     supabaseAdmin
       .from('tournament_teams')
-      .select('player1_id, player2_id')
-      .eq('tournament_id', categoryId),
+      .select('user1_id, user2_id')
+      .eq('category_id', categoryId),
   ]);
 
   // Cast through `unknown` first: without generated Database types, the
@@ -102,10 +102,10 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   // a to-one foreign key) — the real value at runtime is a single row
   // or null. Casting the whole array once lets .map() below infer its
   // callback parameter correctly instead of colliding with it.
-  const typedTps = (tps || []) as unknown as { player_id: string; players: { full_name: string | null } | null }[];
+  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
   const players = typedTps.map((tp) => ({
-    id: tp.player_id,
-    full_name: tp.players?.full_name,
+    id: tp.user_id,
+    full_name: tp.users?.full_name,
   }));
   const placements = placementsFor({ matches: (matches as Match[]) || [], teams: teams || [], players });
 
@@ -134,11 +134,11 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   const winnerPlayerId = placements.find((p) => p.place === 1)?.playerIds?.[0] || null;
 
   const { error } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .update({
       status: 'done',
       finished_at: new Date().toISOString(),
-      winner_player_id: winnerPlayerId,
+      winner_user_id: winnerPlayerId,
     })
     .eq('id', categoryId);
   if (error) {
@@ -165,13 +165,13 @@ async function bumpTournamentCounters(supabaseAdmin: SupabaseAdmin, participants
   if (participants.length === 0) return;
 
   const { data: rows } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, tournaments_played, tournaments_won')
     .in('id', participants);
 
   for (const row of (rows || []) as { id: string; tournaments_played: number | null; tournaments_won: number | null }[]) {
     await supabaseAdmin
-      .from('players')
+      .from('users')
       .update({
         tournaments_played: (row.tournaments_played || 0) + 1,
         tournaments_won: (row.tournaments_won || 0) + (winners.has(row.id) ? 1 : 0),
@@ -216,20 +216,20 @@ export interface RecalcPartnerStatsResult {
  * games the club has played.
  */
 export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promise<RecalcPartnerStatsResult> {
-  const { error: clearError } = await supabaseAdmin.from('partner_stats').delete().neq('player_id', '00000000-0000-0000-0000-000000000000');
+  const { error: clearError } = await supabaseAdmin.from('partner_stats').delete().neq('user_id', '00000000-0000-0000-0000-000000000000');
   if (clearError) {
     console.error('[recalcAllPartnerStats] clear:', clearError.message);
     return { ok: false, error: 'Не вдалося очистити partner_stats' };
   }
 
-  const { data: doneCategories } = await supabaseAdmin.from('tournaments').select('id').eq('status', 'done');
+  const { data: doneCategories } = await supabaseAdmin.from('tournament_categories').select('id').eq('status', 'done');
   const categoryIds = (doneCategories || []).map((c) => c.id);
   if (categoryIds.length === 0) return { ok: true, tournaments: 0 };
 
   const { data: allMatches, error: matchesError } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select('team_a_players, team_b_players, set1, set2, set3, played, played_at')
-    .in('tournament_id', categoryIds)
+    .in('category_id', categoryIds)
     .eq('played', true);
   if (matchesError) {
     console.error('[recalcAllPartnerStats] matches fetch:', matchesError.message);
@@ -237,7 +237,7 @@ export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promi
   }
 
   interface PartnerRow {
-    player_id: string;
+    user_id: string;
     partner_id: string;
     games_together: number;
     wins_together: number;
@@ -253,7 +253,7 @@ export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promi
       [p2, p1],
     ]) {
       const key = `${a}::${b}`;
-      const row = totals.get(key) || { player_id: a, partner_id: b, games_together: 0, wins_together: 0, last_played_at: playedAt };
+      const row = totals.get(key) || { user_id: a, partner_id: b, games_together: 0, wins_together: 0, last_played_at: playedAt };
       row.games_together += 1;
       if (won) row.wins_together += 1;
       if (playedAt > row.last_played_at) row.last_played_at = playedAt;
@@ -283,18 +283,18 @@ export async function recalcAllPartnerStats(supabaseAdmin: SupabaseAdmin): Promi
 
 // One row per (tournament, player) with their actual finishing place —
 // both halves of a pair get their own row here, unlike
-// tournaments.winner_player_id which only ever held one id. Cleared
+// tournaments.winner_user_id which only ever held one id. Cleared
 // and rewritten each call, same idempotency pattern as
 // recalcAvpForCategory's clearCategory: a category can't be finished
 // twice (finishCategory guards on status), but this keeps the function
 // safe to call again if that guard is ever bypassed for a fix.
 async function recordPlacements(supabaseAdmin: SupabaseAdmin, categoryId: string, placements: PlacementRow[]): Promise<void> {
-  await supabaseAdmin.from('tournament_placements').delete().eq('tournament_id', categoryId);
+  await supabaseAdmin.from('tournament_placements').delete().eq('category_id', categoryId);
 
-  const rows: { tournament_id: string; player_id: string; place: number }[] = [];
+  const rows: { category_id: string; user_id: string; place: number }[] = [];
   for (const { place, playerIds } of placements) {
     for (const playerId of playerIds || []) {
-      if (playerId) rows.push({ tournament_id: categoryId, player_id: playerId, place });
+      if (playerId) rows.push({ category_id: categoryId, user_id: playerId, place });
     }
   }
   if (rows.length === 0) return;
@@ -314,12 +314,12 @@ async function recordPartnerPair(supabaseAdmin: SupabaseAdmin, teamPlayerIds: st
     const { data: existing } = await supabaseAdmin
       .from('partner_stats')
       .select('games_together, wins_together')
-      .eq('player_id', a)
+      .eq('user_id', a)
       .eq('partner_id', b)
       .maybeSingle();
 
     await supabaseAdmin.from('partner_stats').upsert({
-      player_id: a,
+      user_id: a,
       partner_id: b,
       games_together: (existing?.games_together || 0) + 1,
       wins_together: (existing?.wins_together || 0) + (won ? 1 : 0),
@@ -336,7 +336,7 @@ async function finishEventIfLastCategory(supabaseAdmin: SupabaseAdmin, eventId: 
   if (!eventId) return;
 
   const { data: siblings } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('status')
     .eq('event_id', eventId);
 

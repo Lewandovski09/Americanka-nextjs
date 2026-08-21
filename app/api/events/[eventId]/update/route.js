@@ -24,7 +24,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -95,7 +95,7 @@ export async function POST(request, { params }) {
   // and existing rows missing from the payload are deleted — but only
   // when nobody is assigned to them yet.
   const { data: existing } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, category_label, gender, tournament_players(count), tournament_teams(count)')
     .eq('event_id', eventId);
 
@@ -120,7 +120,7 @@ export async function POST(request, { params }) {
     const { count: parked } = await supabaseAdmin
       .from('tournament_applications')
       .select('id', { count: 'exact', head: true })
-      .in('assigned_tournament_id', removedIds)
+      .in('assigned_category_id', removedIds)
       .in('status', ['assigned', 'reserve']);
     if (parked > 0) {
       return Response.json(
@@ -155,7 +155,7 @@ export async function POST(request, { params }) {
 
   if (removed.length > 0) {
     const { error: delError } = await supabaseAdmin
-      .from('tournaments')
+      .from('tournament_categories')
       .delete()
       .in('id', removed.map((r) => r.id));
     if (delError) {
@@ -167,9 +167,9 @@ export async function POST(request, { params }) {
   for (const c of categories) {
     const row = categoryRow(format, updatedEvent, c, bandByKey);
     const { error: catError } = c.id
-      ? await supabaseAdmin.from('tournaments').update(row).eq('id', c.id).eq('event_id', eventId)
+      ? await supabaseAdmin.from('tournament_categories').update(row).eq('id', c.id).eq('event_id', eventId)
       : await supabaseAdmin
-          .from('tournaments')
+          .from('tournament_categories')
           .insert({ ...row, status: 'scheduled', created_by: authUser.user.id });
     if (catError) {
       console.error('[update-event] category error:', catError.message);

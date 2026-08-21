@@ -59,7 +59,7 @@ export default function PlayerHistoryAccordion({ partners, tournamentHistory, el
                     <div className={styles.empty}>Ще немає турнірів</div>
                   ) : (
                     tournamentHistory.map((h) => (
-                      <div key={h.tournament_id} className={styles.historyCard} onClick={() => onOpenTournament(h.tournament_id)}>
+                      <div key={h.category_id} className={styles.historyCard} onClick={() => onOpenTournament(h.category_id)}>
                         <div>
                           <div className={styles.historyName}>{h.tournament_name}</div>
                           <div className={styles.historyMeta}>

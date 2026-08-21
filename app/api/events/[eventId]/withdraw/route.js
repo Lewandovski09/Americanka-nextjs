@@ -34,7 +34,7 @@ export async function POST(request, { params }) {
   // Only categories that have NOT started yet — you can't leave a
   // category whose matches are already generated.
   const { data: cats } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, status')
     .eq('event_id', eventId)
     .eq('status', 'scheduled');
@@ -45,25 +45,25 @@ export async function POST(request, { params }) {
       const { data: team } = await supabaseAdmin
         .from('tournament_teams')
         .select('*')
-        .in('tournament_id', categoryIds)
-        .or(`player1_id.eq.${playerId},player2_id.eq.${playerId}`)
+        .in('category_id', categoryIds)
+        .or(`user1_id.eq.${playerId},user2_id.eq.${playerId}`)
         .maybeSingle();
 
       if (team) {
-        const alone = !team.player2_id;
+        const alone = !team.user2_id;
         if (withPartner || alone) {
           await supabaseAdmin.from('tournament_teams').delete().eq('id', team.id);
-        } else if (team.player2_id === playerId) {
+        } else if (team.user2_id === playerId) {
           // The second player leaves; owner stays and looks for a new partner.
           await supabaseAdmin
             .from('tournament_teams')
-            .update({ player2_id: null })
+            .update({ user2_id: null })
             .eq('id', team.id);
         } else {
           // The owner leaves but the partner stays — promote partner to owner.
           await supabaseAdmin
             .from('tournament_teams')
-            .update({ player1_id: team.player2_id, player2_id: null })
+            .update({ user1_id: team.user2_id, user2_id: null })
             .eq('id', team.id);
         }
       }
@@ -71,8 +71,8 @@ export async function POST(request, { params }) {
       await supabaseAdmin
         .from('tournament_players')
         .delete()
-        .eq('player_id', playerId)
-        .in('tournament_id', categoryIds);
+        .eq('user_id', playerId)
+        .in('category_id', categoryIds);
     }
   }
 
@@ -82,18 +82,18 @@ export async function POST(request, { params }) {
   // withdrawn or handed over to whoever stays on.
   const { data: appRows } = await supabaseAdmin
     .from('tournament_applications')
-    .select('id, player_id, partner_id')
+    .select('id, user_id, partner_id')
     .eq('event_id', eventId)
-    .or(`player_id.eq.${playerId},partner_id.eq.${playerId}`);
+    .or(`user_id.eq.${playerId},partner_id.eq.${playerId}`);
 
   const withdraw = (id) =>
     supabaseAdmin
       .from('tournament_applications')
-      .update({ status: 'withdrawn', assigned_tournament_id: null })
+      .update({ status: 'withdrawn', assigned_category_id: null })
       .eq('id', id);
 
   for (const row of appRows || []) {
-    if (row.player_id !== playerId) {
+    if (row.user_id !== playerId) {
       // The named partner leaves: alone — the applicant stays on and is
       // now looking for someone; together — the application is gone.
       if (withPartner) await withdraw(row.id);
@@ -108,7 +108,7 @@ export async function POST(request, { params }) {
       // data) would collide, so fall back to a plain withdrawal.
       const { error } = await supabaseAdmin
         .from('tournament_applications')
-        .update({ player_id: row.partner_id, partner_id: null, seeking_partner: true })
+        .update({ user_id: row.partner_id, partner_id: null, seeking_partner: true })
         .eq('id', row.id);
       if (error) await withdraw(row.id);
     } else {

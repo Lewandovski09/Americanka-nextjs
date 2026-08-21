@@ -45,7 +45,7 @@ function groupBy(list, keyFn) {
  * never played, shown as 0 — and for formats actually played, the
  * categories played in.
  *
- * `history` is the array from get_player_tournament_history
+ * `history` is the array from get_user_tournament_history
  * (needs format_name from migration 008; gracefully defaults to
  * Americanka if that migration hasn't been run yet).
  * `gender` ('M' | 'F') picks the label for the single-sex format.

@@ -14,7 +14,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
   const { categoryId, playerId, teamId } = await request.json();
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, event_id, status, tournament_events(format_kind)')
     .eq('id', categoryId)
     .maybeSingle();
@@ -39,19 +39,19 @@ export async function POST(request, { params }) {
     if (!teamId) return Response.json({ success: false, error: 'Не вказано пару' }, { status: 400 });
     const { data: team } = await supabaseAdmin
       .from('tournament_teams')
-      .select('player1_id, player2_id')
+      .select('user1_id, user2_id')
       .eq('id', teamId)
-      .eq('tournament_id', categoryId)
+      .eq('category_id', categoryId)
       .maybeSingle();
 
-    await supabaseAdmin.from('tournament_teams').delete().eq('id', teamId).eq('tournament_id', categoryId);
+    await supabaseAdmin.from('tournament_teams').delete().eq('id', teamId).eq('category_id', categoryId);
 
     if (team) {
       await supabaseAdmin
         .from('tournament_applications')
-        .update({ status: 'pending', assigned_tournament_id: null })
+        .update({ status: 'pending', assigned_category_id: null })
         .eq('event_id', category.event_id)
-        .in('player_id', [team.player1_id, team.player2_id].filter(Boolean));
+        .in('user_id', [team.user1_id, team.user2_id].filter(Boolean));
     }
     return Response.json({ success: true });
   }
@@ -60,14 +60,14 @@ export async function POST(request, { params }) {
   await supabaseAdmin
     .from('tournament_players')
     .delete()
-    .eq('tournament_id', categoryId)
-    .eq('player_id', playerId);
+    .eq('category_id', categoryId)
+    .eq('user_id', playerId);
 
   await supabaseAdmin
     .from('tournament_applications')
-    .update({ status: 'pending', assigned_tournament_id: null })
+    .update({ status: 'pending', assigned_category_id: null })
     .eq('event_id', category.event_id)
-    .eq('player_id', playerId);
+    .eq('user_id', playerId);
 
   return Response.json({ success: true });
 }

@@ -26,10 +26,10 @@ export default function JudgesTab({ event, judges, busy, post }) {
       <div className={styles.poolTitle}>Бригада ({judges.length})</div>
       {judges.length === 0 && <div className={styles.empty}>Суддів ще немає</div>}
       {judges.map((j) => (
-        <div key={j.player_id} className={styles.regRow}>
+        <div key={j.user_id} className={styles.regRow}>
           <span className={styles.regNames}>
-            <PlayerAvatar player={j.players} size={24} />
-            {j.players?.full_name || j.player_id.slice(0, 8)}
+            <PlayerAvatar player={j.users} size={24} />
+            {j.users?.full_name || j.user_id.slice(0, 8)}
             {j.is_head && <span className={styles.judgeBadge}>Головний</span>}
           </span>
           <div className={styles.memberControls}>
@@ -37,7 +37,7 @@ export default function JudgesTab({ event, judges, busy, post }) {
               className={styles.btnGhost}
               disabled={busy}
               onClick={() =>
-                post(url, j.is_head ? { action: 'clear_head' } : { playerId: j.player_id, action: 'set_head' })
+                post(url, j.is_head ? { action: 'clear_head' } : { playerId: j.user_id, action: 'set_head' })
               }
             >
               {j.is_head ? 'Зняти головного' : 'Зробити головним'}
@@ -46,7 +46,7 @@ export default function JudgesTab({ event, judges, busy, post }) {
               className={styles.miniRemove}
               disabled={busy}
               title="Прибрати з бригади"
-              onClick={() => post(url, { playerId: j.player_id, action: 'remove' })}
+              onClick={() => post(url, { playerId: j.user_id, action: 'remove' })}
             >
               ✕
             </button>
@@ -64,7 +64,7 @@ export default function JudgesTab({ event, judges, busy, post }) {
         Додати суддю
       </div>
       <PlayerPicker
-        excludeIds={judges.map((j) => j.player_id)}
+        excludeIds={judges.map((j) => j.user_id)}
         disabled={busy}
         onPick={(p) => post(url, { playerId: p.id, action: 'add' })}
       />

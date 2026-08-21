@@ -65,7 +65,7 @@ export default function EventRegisterPage({ params, searchParams }) {
   // status instead of a form that would be refused anyway.
   const myApp = applications.find(
     (a) =>
-      (a.player_id === player?.id || a.partner_id === player?.id) &&
+      (a.user_id === player?.id || a.partner_id === player?.id) &&
       a.status !== 'withdrawn' &&
       a.status !== 'rejected'
   );
@@ -76,10 +76,10 @@ export default function EventRegisterPage({ params, searchParams }) {
     ...new Set([
       ...applications
         .filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected')
-        .flatMap((a) => [a.player_id, a.partner_id]),
+        .flatMap((a) => [a.user_id, a.partner_id]),
       ...categories.flatMap((c) => [
-        ...(c.tournament_players || []).map((tp) => tp.player_id),
-        ...(c.tournament_teams || []).flatMap((t) => [t.player1_id, t.player2_id]),
+        ...(c.tournament_players || []).map((tp) => tp.user_id),
+        ...(c.tournament_teams || []).flatMap((t) => [t.user1_id, t.user2_id]),
       ]),
       player?.id,
     ]),
@@ -146,7 +146,7 @@ function MyRegistration({ isPair, me, takenIds = [], categories, initialCategory
     const inReserve = myApp.status === 'reserve';
     // The application may have been filed by the partner — then the other
     // half of the pair is the applicant, not the `partner` column.
-    const filedByPartner = myApp.player_id !== me?.id;
+    const filedByPartner = myApp.user_id !== me?.id;
     const otherName = filedByPartner ? myApp.applicant?.full_name : myApp.partner?.full_name;
     return (
       <div className={styles.myBox}>

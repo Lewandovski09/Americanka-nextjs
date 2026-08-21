@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -29,7 +29,7 @@ export async function POST(request, { params }) {
   }
 
   const { data: categories } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, category_label, gender, status')
     .eq('event_id', eventId)
     .order('gender', { ascending: true })

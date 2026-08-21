@@ -47,7 +47,7 @@ export default function PlayerPicker({
       setLoading(true);
       const supabase = createClient();
       let request = supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, login, telegram_username, photo_url, gender')
         .eq('approval_status', 'approved')
         .order('full_name')

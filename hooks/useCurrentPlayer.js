@@ -54,7 +54,7 @@ export function useCurrentPlayer() {
         }
 
         const profileResult = await withTimeout(
-          supabase.from('players').select('*').eq('id', authData.user.id).maybeSingle(),
+          supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle(),
           8000,
           { data: null, error: { message: 'timeout' } }
         );

@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -33,12 +33,12 @@ export async function POST(request, { params }) {
   }
 
   const { data: from } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, event_id, status')
     .eq('id', fromCategoryId)
     .maybeSingle();
   const { data: target } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('*, tournament_events(format_kind)')
     .eq('id', targetCategoryId)
     .maybeSingle();
@@ -60,40 +60,40 @@ export async function POST(request, { params }) {
       if (!teamId) return Response.json({ success: false, error: 'Не вказано пару' }, { status: 400 });
       const { data: team } = await supabaseAdmin
         .from('tournament_teams')
-        .select('player1_id, player2_id')
+        .select('user1_id, user2_id')
         .eq('id', teamId)
-        .eq('tournament_id', fromCategoryId)
+        .eq('category_id', fromCategoryId)
         .maybeSingle();
       if (!team) return Response.json({ success: false, error: 'Пару не знайдено' }, { status: 404 });
 
-      await supabaseAdmin.from('tournament_teams').delete().eq('id', teamId).eq('tournament_id', fromCategoryId);
+      await supabaseAdmin.from('tournament_teams').delete().eq('id', teamId).eq('category_id', fromCategoryId);
       await supabaseAdmin
         .from('tournament_applications')
-        .update({ status: 'reserve', assigned_tournament_id: targetCategoryId })
+        .update({ status: 'reserve', assigned_category_id: targetCategoryId })
         .eq('event_id', from.event_id)
-        .in('player_id', [team.player1_id, team.player2_id].filter(Boolean));
+        .in('user_id', [team.user1_id, team.user2_id].filter(Boolean));
       return Response.json({ success: true, reserved: true });
     }
 
     if (!playerId) return Response.json({ success: false, error: 'Не вказано гравця' }, { status: 400 });
     const { data: row } = await supabaseAdmin
       .from('tournament_players')
-      .select('player_id')
-      .eq('tournament_id', fromCategoryId)
-      .eq('player_id', playerId)
+      .select('user_id')
+      .eq('category_id', fromCategoryId)
+      .eq('user_id', playerId)
       .maybeSingle();
     if (!row) return Response.json({ success: false, error: 'Гравця не знайдено' }, { status: 404 });
 
     await supabaseAdmin
       .from('tournament_players')
       .delete()
-      .eq('tournament_id', fromCategoryId)
-      .eq('player_id', playerId);
+      .eq('category_id', fromCategoryId)
+      .eq('user_id', playerId);
     await supabaseAdmin
       .from('tournament_applications')
-      .update({ status: 'reserve', assigned_tournament_id: targetCategoryId })
+      .update({ status: 'reserve', assigned_category_id: targetCategoryId })
       .eq('event_id', from.event_id)
-      .eq('player_id', playerId);
+      .eq('user_id', playerId);
     return Response.json({ success: true, reserved: true });
   }
 
@@ -104,14 +104,14 @@ export async function POST(request, { params }) {
       .from('tournament_teams')
       .select('*')
       .eq('id', teamId)
-      .eq('tournament_id', fromCategoryId)
+      .eq('category_id', fromCategoryId)
       .maybeSingle();
     if (!team) return Response.json({ success: false, error: 'Пару не знайдено' }, { status: 404 });
 
     const { count } = await supabaseAdmin
       .from('tournament_teams')
       .select('id', { count: 'exact', head: true })
-      .eq('tournament_id', targetCategoryId);
+      .eq('category_id', targetCategoryId);
     if (target.max_participants && count >= target.max_participants) {
       return Response.json({ success: false, error: 'У цільовій категорії немає місць' }, { status: 400 });
     }
@@ -121,7 +121,7 @@ export async function POST(request, { params }) {
     // The pair reappears at the bottom of the target's «Посів» tab.
     const { error } = await supabaseAdmin
       .from('tournament_teams')
-      .update({ tournament_id: targetCategoryId, slot_index: null })
+      .update({ category_id: targetCategoryId, slot_index: null })
       .eq('id', teamId);
     if (error) {
       if (error.code === '23505') return Response.json({ success: false, error: 'Гравець вже у цільовій категорії' }, { status: 400 });
@@ -130,9 +130,9 @@ export async function POST(request, { params }) {
 
     await supabaseAdmin
       .from('tournament_applications')
-      .update({ assigned_tournament_id: targetCategoryId })
+      .update({ assigned_category_id: targetCategoryId })
       .eq('event_id', from.event_id)
-      .in('player_id', [team.player1_id, team.player2_id].filter(Boolean));
+      .in('user_id', [team.user1_id, team.user2_id].filter(Boolean));
 
     return Response.json({ success: true });
   }
@@ -142,9 +142,9 @@ export async function POST(request, { params }) {
 
   const { data: row } = await supabaseAdmin
     .from('tournament_players')
-    .select('player_id')
-    .eq('tournament_id', fromCategoryId)
-    .eq('player_id', playerId)
+    .select('user_id')
+    .eq('category_id', fromCategoryId)
+    .eq('user_id', playerId)
     .maybeSingle();
   if (!row) return Response.json({ success: false, error: 'Гравця не знайдено' }, { status: 404 });
 
@@ -156,14 +156,14 @@ export async function POST(request, { params }) {
   await supabaseAdmin
     .from('tournament_players')
     .delete()
-    .eq('tournament_id', fromCategoryId)
-    .eq('player_id', playerId);
+    .eq('category_id', fromCategoryId)
+    .eq('user_id', playerId);
 
   await supabaseAdmin
     .from('tournament_applications')
-    .update({ assigned_tournament_id: targetCategoryId })
+    .update({ assigned_category_id: targetCategoryId })
     .eq('event_id', from.event_id)
-    .eq('player_id', playerId);
+    .eq('user_id', playerId);
 
   return Response.json({ success: true });
 }

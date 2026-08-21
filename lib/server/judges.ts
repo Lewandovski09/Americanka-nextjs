@@ -16,7 +16,7 @@ export async function getJudgeRole(
   eventId: string | null
 ): Promise<JudgeRole> {
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', playerId)
     .maybeSingle();
@@ -28,7 +28,7 @@ export async function getJudgeRole(
     .from('tournament_judges')
     .select('is_head')
     .eq('event_id', eventId)
-    .eq('player_id', playerId)
+    .eq('user_id', playerId)
     .maybeSingle();
 
   return { isAdmin, isJudge: !!judge, isHeadJudge: !!judge?.is_head };
@@ -37,10 +37,10 @@ export async function getJudgeRole(
 export interface MatchContext {
   match: {
     id: string;
-    tournament_id: string | null;
+    category_id: string | null;
     court: number | null;
     judge_id: string | null;
-    tournaments: { status: string; courts: number[]; event_id: string | null } | null;
+    tournament_categories: { status: string; courts: number[]; event_id: string | null } | null;
     [key: string]: unknown;
   };
   eventId: string | null;
@@ -53,8 +53,8 @@ export interface MatchContext {
  */
 export async function loadMatchContext(supabaseAdmin: SupabaseAdmin, matchId: string): Promise<MatchContext | null> {
   const { data: rawMatch } = await supabaseAdmin
-    .from('matches')
-    .select('id, tournament_id, court, judge_id, tournaments(status, courts, event_id)')
+    .from('tournament_matches')
+    .select('id, category_id, court, judge_id, tournament_categories(status, courts, event_id)')
     .eq('id', matchId)
     .maybeSingle();
   if (!rawMatch) return null;
@@ -63,5 +63,5 @@ export async function loadMatchContext(supabaseAdmin: SupabaseAdmin, matchId: st
   // see this is a to-one foreign key) — the real value at runtime is a
   // single row or null.
   const match = rawMatch as unknown as MatchContext['match'];
-  return { match, eventId: match.tournaments?.event_id || null };
+  return { match, eventId: match.tournament_categories?.event_id || null };
 }

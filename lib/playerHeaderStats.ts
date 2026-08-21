@@ -31,7 +31,7 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   // own list is built from, so the number matches what they'd see there.
   if (player.elo != null && player.gender) {
     const { count } = await supabase
-      .from('players')
+      .from('users')
       .select('id', { count: 'exact', head: true })
       .eq('gender', player.gender)
       .eq('approval_status', 'approved')
@@ -51,7 +51,7 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   if (season) {
     const { data: rows } = await supabase
       .from('avp_standings')
-      .select('player_id, points')
+      .select('user_id, points')
       .eq('season_id', season.id)
       .order('points', { ascending: false });
 
@@ -62,14 +62,14 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
     // alone). Ranking against everyone combined here is what produced
     // that mismatch — "№5 сезону" in the header against "3-е місце" in
     // the AVP card below, for the same player, same season.
-    const ids = (rows || []).map((r) => r.player_id);
+    const ids = (rows || []).map((r) => r.user_id);
     const { data: profiles } = player.gender && ids.length
-      ? await supabase.from('players').select('id, gender').in('id', ids)
+      ? await supabase.from('users').select('id, gender').in('id', ids)
       : { data: [] };
     const sameGenderIds = new Set((profiles || []).filter((p) => p.gender === player.gender).map((p) => p.id));
-    const scopedRows = player.gender ? (rows || []).filter((r) => sameGenderIds.has(r.player_id)) : rows || [];
+    const scopedRows = player.gender ? (rows || []).filter((r) => sameGenderIds.has(r.user_id)) : rows || [];
 
-    const idx = scopedRows.findIndex((r) => r.player_id === player.id);
+    const idx = scopedRows.findIndex((r) => r.user_id === player.id);
     avpStanding = idx === -1 ? null : { points: scopedRows[idx].points, rank: idx + 1 };
   }
 
@@ -80,7 +80,7 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   // consecutive wins from the most recent game back, stopping at the
   // first loss.
   const { data: recent } = await supabase
-    .from('matches')
+    .from('tournament_matches')
     .select('team_a_players, team_b_players, set1, set2, set3, played_at')
     .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
     .eq('played', true)

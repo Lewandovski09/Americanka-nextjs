@@ -153,13 +153,13 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
     setCompareError('');
     setCompareLoading(true);
     const supabase = createClient();
-    const { data: found } = await supabase.from('players').select('*').eq('login', login).maybeSingle();
+    const { data: found } = await supabase.from('users').select('*').eq('login', login).maybeSingle();
     if (!found) {
       setCompareLoading(false);
       setCompareError('Гравця не знайдено');
       return;
     }
-    const { data: th } = await supabase.rpc('get_player_tournament_history', { p_player_id: found.id });
+    const { data: th } = await supabase.rpc('get_user_tournament_history', { p_user_id: found.id });
     setComparePlayer(found);
     setCompareHistory(th || []);
     setCompareLoading(false);

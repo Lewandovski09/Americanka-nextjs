@@ -24,7 +24,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
   }
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, status, bracket_system, max_participants, tournament_events(format_kind)')
     .eq('id', categoryId)
     .maybeSingle();
@@ -67,12 +67,12 @@ export async function POST(request, { params }) {
   }
 
   const table = isPair ? 'tournament_teams' : 'tournament_players';
-  const key = isPair ? 'id' : 'player_id';
+  const key = isPair ? 'id' : 'user_id';
 
   const { data: roster } = await supabaseAdmin
     .from(table)
     .select(key)
-    .eq('tournament_id', categoryId);
+    .eq('category_id', categoryId);
 
   // The payload must cover exactly the current roster — no extras, no
   // missing rows, no duplicates — otherwise a stale tab could half-seed
@@ -99,7 +99,7 @@ export async function POST(request, { params }) {
   }
 
   // Two passes: the target slots overlap the current ones, and
-  // (tournament_id, slot_index) is unique — so park everything on
+  // (category_id, slot_index) is unique — so park everything on
   // negative slots first, then write the real positions.
   const writes = places
     .map((k, i) => ({ k, i }))
@@ -109,7 +109,7 @@ export async function POST(request, { params }) {
     const { error } = await supabaseAdmin
       .from(table)
       .update({ slot_index: -1 - n })
-      .eq('tournament_id', categoryId)
+      .eq('category_id', categoryId)
       .eq(key, writes[n].k);
     if (error) {
       console.error('[seeding] park error:', error.message);
@@ -120,7 +120,7 @@ export async function POST(request, { params }) {
     const { error } = await supabaseAdmin
       .from(table)
       .update({ slot_index: i })
-      .eq('tournament_id', categoryId)
+      .eq('category_id', categoryId)
       .eq(key, k);
     if (error) {
       console.error('[seeding] write error:', error.message);

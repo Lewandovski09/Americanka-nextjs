@@ -1,0 +1,30 @@
+-- ============================================================
+-- AMERICANKA — Migration 036: drop tournament_messages
+-- ============================================================
+-- The tournament chat is gone. Commit 4854d1a removed the whole
+-- feature from app/tournaments/[id]/page.js — the «Чат» tab, the
+-- realtime subscription on INSERT into this table, and the send
+-- handler. Nothing in the codebase has referenced it since.
+--
+-- Unlike the other two tables dropped around here, this one may hold
+-- real text people wrote. That is a deliberate loss, not an oversight:
+-- there is no screen left to read it on, and keeping a table alive so
+-- that its contents can only be reached through the SQL editor is the
+-- same non-decision that left admin_actions lying around.
+--
+-- It also removes a live footgun. tournament_messages.player_id
+-- referenced players(id) with the default NO ACTION, so a single old
+-- chat line blocked that player's deletion outright — and the reject
+-- route deletes the auth user, which cascades to players. Migration
+-- 008 hit exactly this with admin_actions and noted that
+-- tournament_messages "still blocks deletion by design"; that design
+-- assumed a chat that existed. Rejecting a player who once wrote a
+-- message would have surfaced a raw FK error under «Не вдалося
+-- видалити гравця».
+--
+-- The RLS policies (messages_select_all, messages_insert_own) go with
+-- the table.
+--
+-- Safe to run once in the Supabase SQL editor.
+
+drop table if exists tournament_messages;

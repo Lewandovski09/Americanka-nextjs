@@ -39,7 +39,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  if (match.tournaments?.status === 'done') {
+  if (match.tournament_categories?.status === 'done') {
     return Response.json(
       { success: false, error: 'Категорію завершено — розклад змінити не можна' },
       { status: 400 }
@@ -64,7 +64,7 @@ export async function POST(request, { params }) {
     const n = Number(court);
     // Only the courts the category actually booked — a game on court 5 of
     // a two-court event would silently drop out of everyone's plan.
-    const allowed = match.tournaments?.courts?.length ? match.tournaments.courts : [1];
+    const allowed = match.tournament_categories?.courts?.length ? match.tournament_categories.courts : [1];
     if (!Number.isInteger(n) || !allowed.includes(n)) {
       return Response.json(
         { success: false, error: `Корт має бути одним із: ${allowed.join(', ')}` },
@@ -78,7 +78,7 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Нічого змінювати' }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin.from('matches').update(update).eq('id', matchId);
+  const { error } = await supabaseAdmin.from('tournament_matches').update(update).eq('id', matchId);
   if (error) {
     console.error('[match schedule]:', error.message);
     return Response.json({ success: false, error: 'Не вдалося зберегти розклад' }, { status: 500 });

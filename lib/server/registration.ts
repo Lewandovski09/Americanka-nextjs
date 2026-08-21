@@ -36,27 +36,27 @@ export async function eventParticipantIds(supabaseAdmin: SupabaseAdmin, eventId:
 
   const { data: apps } = await supabaseAdmin
     .from('tournament_applications')
-    .select('player_id, partner_id')
+    .select('user_id, partner_id')
     .eq('event_id', eventId)
     .not('status', 'in', '(withdrawn,rejected)');
-  (apps || []).forEach((a: { player_id: string | null; partner_id: string | null }) => {
-    if (a.player_id) ids.add(a.player_id);
+  (apps || []).forEach((a: { user_id: string | null; partner_id: string | null }) => {
+    if (a.user_id) ids.add(a.user_id);
     if (a.partner_id) ids.add(a.partner_id);
   });
 
   // Rosters too: a manually entered player or one distributed long ago
   // must not be offered again even if the application rows drifted.
-  const { data: cats } = await supabaseAdmin.from('tournaments').select('id').eq('event_id', eventId);
+  const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId);
   const catIds = (cats || []).map((c: { id: string }) => c.id);
   if (catIds.length > 0) {
     const [{ data: solos }, { data: teams }] = await Promise.all([
-      supabaseAdmin.from('tournament_players').select('player_id').in('tournament_id', catIds),
-      supabaseAdmin.from('tournament_teams').select('player1_id, player2_id').in('tournament_id', catIds),
+      supabaseAdmin.from('tournament_players').select('user_id').in('category_id', catIds),
+      supabaseAdmin.from('tournament_teams').select('user1_id, user2_id').in('category_id', catIds),
     ]);
-    (solos || []).forEach((r: { player_id: string }) => ids.add(r.player_id));
-    (teams || []).forEach((t: { player1_id: string | null; player2_id: string | null }) => {
-      if (t.player1_id) ids.add(t.player1_id);
-      if (t.player2_id) ids.add(t.player2_id);
+    (solos || []).forEach((r: { user_id: string }) => ids.add(r.user_id));
+    (teams || []).forEach((t: { user1_id: string | null; user2_id: string | null }) => {
+      if (t.user1_id) ids.add(t.user1_id);
+      if (t.user2_id) ids.add(t.user2_id);
     });
   }
 
@@ -75,15 +75,15 @@ export async function placeMember(
     const { count } = await supabaseAdmin
       .from('tournament_teams')
       .select('id', { count: 'exact', head: true })
-      .eq('tournament_id', category.id);
+      .eq('category_id', category.id);
 
     const capacity = category.max_participants; // pairs
     if (capacity && (count ?? 0) >= capacity) return { error: 'У категорії немає вільних місць' };
 
     const { error } = await supabaseAdmin.from('tournament_teams').insert({
-      tournament_id: category.id,
-      player1_id: applicant.playerId,
-      player2_id: applicant.seekingPartner ? null : applicant.partnerId || null,
+      category_id: category.id,
+      user1_id: applicant.playerId,
+      user2_id: applicant.seekingPartner ? null : applicant.partnerId || null,
     });
     if (error) {
       if (error.code === '23505') return { error: 'Ви або напарник вже у цій категорії' };
@@ -97,7 +97,7 @@ export async function placeMember(
   const { count } = await supabaseAdmin
     .from('tournament_players')
     .select('id', { count: 'exact', head: true })
-    .eq('tournament_id', category.id);
+    .eq('category_id', category.id);
 
   const capacity = category.max_participants || format.fixedParticipants || null;
   if (capacity && (count ?? 0) >= capacity) return { error: 'У категорії немає вільних місць' };
@@ -106,8 +106,8 @@ export async function placeMember(
   // «Посів» tab, exactly like for pairs, and the category refuses to
   // start until every row has one.
   const { error } = await supabaseAdmin.from('tournament_players').insert({
-    tournament_id: category.id,
-    player_id: applicant.playerId,
+    category_id: category.id,
+    user_id: applicant.playerId,
   });
   if (error) {
     if (error.code === '23505') return { error: 'Ви вже у цій категорії' };

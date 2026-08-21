@@ -74,10 +74,10 @@ export default function EventSettingsPage({ params }) {
     ...new Set([
       ...applications
         .filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected')
-        .flatMap((a) => [a.player_id, a.partner_id]),
+        .flatMap((a) => [a.user_id, a.partner_id]),
       ...categories.flatMap((c) => [
-        ...(c.tournament_players || []).map((tp) => tp.player_id),
-        ...(c.tournament_teams || []).flatMap((t) => [t.player1_id, t.player2_id]),
+        ...(c.tournament_players || []).map((tp) => tp.user_id),
+        ...(c.tournament_teams || []).flatMap((t) => [t.user1_id, t.user2_id]),
       ]),
     ]),
   ].filter(Boolean);
@@ -275,7 +275,7 @@ function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, o
     const target = choice[a.id] || '';
     const targetStat = catStats.find((c) => c.id === target);
     const full = targetStat && targetStat.free === 0;
-    const reservedCat = reserved ? catStats.find((c) => c.id === a.assigned_tournament_id) : null;
+    const reservedCat = reserved ? catStats.find((c) => c.id === a.assigned_category_id) : null;
     const pref = [
       a.requested_category && `хоче ${a.requested_category}`,
       reserved && `резерв${reservedCat ? ` ${reservedCat.label}` : ''}`,
@@ -283,7 +283,7 @@ function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, o
       .filter(Boolean)
       .join(' · ');
     const applicant = {
-      name: a.applicant?.full_name || a.player_id.slice(0, 8),
+      name: a.applicant?.full_name || a.user_id.slice(0, 8),
       gender: a.applicant?.gender,
     };
     return (

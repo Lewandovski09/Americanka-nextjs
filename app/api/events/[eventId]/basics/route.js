@@ -23,7 +23,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -87,7 +87,7 @@ export async function POST(request, { params }) {
   // this is safe to run over categories that never earned anything.
   if ('avpTier' in body || scheduledAt !== undefined) {
     const { data: finished } = await supabaseAdmin
-      .from('tournaments')
+      .from('tournament_categories')
       .select('id')
       .eq('event_id', eventId)
       .eq('status', 'done');

@@ -17,7 +17,7 @@ export async function POST(request) {
   const supabaseAdmin = createAdminClient();
 
   const { data: foundPlayer, error } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, full_name, login, photo_url, elo, category, gender')
     .eq('login', login.trim().toLowerCase())
     .eq('approval_status', 'approved')

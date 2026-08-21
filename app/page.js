@@ -80,7 +80,7 @@ export default function HomePage() {
       // the nearest upcoming one, then pulls every category alongside
       // it under the same event_id.
       const { data: nearest } = await supabase
-        .from('tournaments')
+        .from('tournament_categories')
         .select('event_id, scheduled_at')
         .in('status', ['scheduled', 'live'])
         .order('scheduled_at', { ascending: true })
@@ -96,7 +96,7 @@ export default function HomePage() {
       const [{ data: event }, { data: cats }] = await Promise.all([
         supabase.from('tournament_events').select('id, format_kind, avp_tier').eq('id', nearest.event_id).maybeSingle(),
         supabase
-          .from('tournaments')
+          .from('tournament_categories')
           .select('id, status, name, scheduled_at, location, category, category_label, gender, max_participants, avp_tier, bracket_system')
           .eq('event_id', nearest.event_id)
           .in('status', ['scheduled', 'live'])
@@ -129,13 +129,13 @@ export default function HomePage() {
       // A player's own dismissals hide a notification just for them —
       // the admin's delete (below) is the only thing that removes it
       // for everyone. Skipped for a signed-out visitor: there's no
-      // player_id to look up dismissals by, and nothing to dismiss yet.
+      // user_id to look up dismissals by, and nothing to dismiss yet.
       let dismissedIds = new Set();
       if (player?.id && notifs?.length) {
         const { data: dismissals } = await supabase
           .from('notification_dismissals')
           .select('notification_id')
-          .eq('player_id', player.id)
+          .eq('user_id', player.id)
           .in('notification_id', notifs.map((n) => n.id));
         dismissedIds = new Set((dismissals || []).map((d) => d.notification_id));
       }
@@ -145,13 +145,13 @@ export default function HomePage() {
 
     async function loadCommunity() {
       const { count } = await supabase
-        .from('players')
+        .from('users')
         .select('id', { count: 'exact', head: true })
         .eq('approval_status', 'approved');
       setCommunityCount(count || 0);
 
       const { data: recent } = await supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, photo_url')
         .eq('approval_status', 'approved')
         .order('created_at', { ascending: false })
@@ -190,7 +190,7 @@ export default function HomePage() {
     // harmlessly — the dismissal it wanted is already there.
     await supabase.from('notification_dismissals').insert({
       notification_id: notificationId,
-      player_id: player.id,
+      user_id: player.id,
     });
   }
 

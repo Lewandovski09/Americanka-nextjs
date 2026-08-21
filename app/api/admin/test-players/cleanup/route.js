@@ -17,12 +17,12 @@ export async function POST() {
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: me } = await supabaseAdmin.from('players').select('is_admin').eq('id', authUser.user.id).maybeSingle();
+  const { data: me } = await supabaseAdmin.from('users').select('is_admin').eq('id', authUser.user.id).maybeSingle();
   if (!me?.is_admin) {
     return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }
 
-  const { data: bots } = await supabaseAdmin.from('players').select('id, login').ilike('login', 'testbot_%');
+  const { data: bots } = await supabaseAdmin.from('users').select('id, login').ilike('login', 'testbot_%');
 
   let removed = 0;
   const errors = [];

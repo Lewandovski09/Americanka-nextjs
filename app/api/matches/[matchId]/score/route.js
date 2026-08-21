@@ -30,9 +30,9 @@ export async function POST(request, { params }) {
   const supabaseAdmin = createAdminClient();
 
   const { data: match } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select(
-      `*, tournaments(status, points_to_win, event_id,
+      `*, tournament_categories(status, points_to_win, event_id,
         tournament_events(format_kind, points_to_win, points_mode, final_points_to_win))`
     )
     .eq('id', matchId)
@@ -52,7 +52,7 @@ export async function POST(request, { params }) {
   //
   // Legacy categories that predate events have no crew, so only an admin
   // can score them.
-  const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournaments?.event_id || null);
+  const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournament_categories?.event_id || null);
   if (!role.isAdmin && !role.isJudge) {
     return Response.json(
       { success: false, error: 'Рахунок може вводити лише суддя або адміністратор' },
@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
   // and only while the match's stage is still current. A finished
   // category is locked outright.
   if (match.played) {
-    if (match.tournaments?.status === 'done') {
+    if (match.tournament_categories?.status === 'done') {
       return Response.json(
         { success: false, error: 'Категорію завершено — рахунок змінити не можна' },
         { status: 400 }
@@ -90,7 +90,7 @@ export async function POST(request, { params }) {
   }
 
   const { error } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .update({
       set1: sets[0],
       set2: sets[1] ?? null,
@@ -132,7 +132,7 @@ export async function POST(request, { params }) {
 async function checkStillCurrentStage(supabaseAdmin, match) {
   const downstream = [match.winner_to_match_id, match.loser_to_match_id].filter(Boolean);
   if (downstream.length > 0) {
-    const { data: next } = await supabaseAdmin.from('matches').select('id, played').in('id', downstream);
+    const { data: next } = await supabaseAdmin.from('tournament_matches').select('id, played').in('id', downstream);
     if ((next || []).some((m) => m.played)) {
       return { ok: false, error: 'Наступний матч сітки вже зіграно — рахунок змінити не можна' };
     }
@@ -143,9 +143,9 @@ async function checkStillCurrentStage(supabaseAdmin, match) {
   if (match.is_final || /^p\d+_\d+$/.test(s) || s === 'gf') return { ok: true };
   if (!s) return { ok: true }; // americanka: locked only by the manual finish
   const { data: all } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select('stage, played')
-    .eq('tournament_id', match.tournament_id);
+    .eq('category_id', match.category_id);
   const w = stageWeight(s);
   if ((all || []).some((m) => m.played && m.stage && stageWeight(m.stage) > w)) {
     return {
@@ -165,9 +165,9 @@ async function autoAdvanceKing(supabaseAdmin, match) {
   const round = Number(kr[1]);
 
   const { data: all } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select('id, stage, round_number, group_index, team_a_players, team_b_players, set1, set2, set3, played')
-    .eq('tournament_id', match.tournament_id);
+    .eq('category_id', match.category_id);
   const current = (all || []).filter((m) => m.stage === `kr${round}`);
   if (current.length === 0 || current.some((m) => !m.played)) return;
 
@@ -182,15 +182,15 @@ async function autoAdvanceKing(supabaseAdmin, match) {
   // out of the shared placement table rather than being read off here, so
   // the winner the payout records is the winner the results page shows.
   if (rankedGroups.length === 1) {
-    const res = await finishCategory(supabaseAdmin, match.tournament_id);
+    const res = await finishCategory(supabaseAdmin, match.category_id);
     if (!res.ok && !res.alreadyDone) console.error('[score king-finish]:', res.error);
     return;
   }
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('courts')
-    .eq('id', match.tournament_id)
+    .eq('id', match.category_id)
     .single();
   const courts = category?.courts?.length ? category.courts : [1];
 
@@ -211,7 +211,7 @@ async function autoAdvanceKing(supabaseAdmin, match) {
     if (placeholders.some((m) => m.played)) return;
     for (let i = 0; i < nextRows.length; i++) {
       await supabaseAdmin
-        .from('matches')
+        .from('tournament_matches')
         .update({
           team_a_players: nextRows[i].team_a_players,
           team_b_players: nextRows[i].team_b_players,
@@ -220,8 +220,8 @@ async function autoAdvanceKing(supabaseAdmin, match) {
     }
   } else if (placeholders.length === 0) {
     await supabaseAdmin
-      .from('matches')
-      .insert(nextRows.map((m) => ({ ...m, tournament_id: match.tournament_id })));
+      .from('tournament_matches')
+      .insert(nextRows.map((m) => ({ ...m, category_id: match.category_id })));
   }
 }
 
@@ -236,23 +236,23 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
   if ((match.stage || '') !== 'group') return;
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select(
       `bracket_system, courts, scheduled_at, points_to_win,
        tournament_events(points_to_win, points_mode, final_points_to_win)`
     )
-    .eq('id', match.tournament_id)
+    .eq('id', match.category_id)
     .single();
   const buildPlayoff = CROSS_BUILDERS[category?.bracket_system];
   if (!buildPlayoff) return;
 
   const { data: all } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select(
       `id, stage, round_number, group_index, court, scheduled_at,
        team_a_players, team_b_players, set1, set2, set3, played`
     )
-    .eq('tournament_id', match.tournament_id);
+    .eq('category_id', match.category_id);
   const groupMatches = (all || []).filter((m) => m.stage === 'group');
   if (groupMatches.some((m) => !m.played)) return;
 
@@ -263,7 +263,7 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
   if (playoffMatches.some((m) => m.played)) return; // playoff underway — group is locked
   if (playoffMatches.length > 0) {
     const { error: delError } = await supabaseAdmin
-      .from('matches')
+      .from('tournament_matches')
       .delete()
       .in('id', playoffMatches.map((m) => m.id));
     if (delError) {
@@ -274,11 +274,11 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
 
   const { data: teamRows } = await supabaseAdmin
     .from('tournament_teams')
-    .select('id, player1_id, player2_id')
-    .eq('tournament_id', match.tournament_id);
+    .select('id, user1_id, user2_id')
+    .eq('category_id', match.category_id);
   const teams = (teamRows || [])
-    .filter((t) => t.player1_id && t.player2_id)
-    .map((t) => ({ id: t.id, players: [t.player1_id, t.player2_id] }));
+    .filter((t) => t.user1_id && t.user2_id)
+    .map((t) => ({ id: t.id, players: [t.user1_id, t.user2_id] }));
 
   const courts = category.courts?.length ? category.courts : [1];
   const ranked = computeGroupRanking(teams, groupMatches);
@@ -306,8 +306,8 @@ async function autoBuildCrossesPlayoff(supabaseAdmin, match) {
   });
 
   const { error } = await supabaseAdmin
-    .from('matches')
-    .insert(timed.map((m) => ({ ...m, tournament_id: match.tournament_id })));
+    .from('tournament_matches')
+    .insert(timed.map((m) => ({ ...m, category_id: match.category_id })));
   if (error) console.error('[score auto-playoff] insert:', error.message);
 }
 
@@ -318,7 +318,7 @@ async function propagateBracket(supabaseAdmin, match, sets) {
 
   const setSlot = async (matchId, slot, players) => {
     const col = slot === 'a' ? 'team_a_players' : 'team_b_players';
-    await supabaseAdmin.from('matches').update({ [col]: players }).eq('id', matchId);
+    await supabaseAdmin.from('tournament_matches').update({ [col]: players }).eq('id', matchId);
   };
 
   if (match.winner_to_match_id) {
@@ -344,12 +344,12 @@ async function propagateBracket(supabaseAdmin, match, sets) {
   // Finish only once EVERY bracket match is played — the 1-2 final may be
   // decided before the lower-placement matches.
   const { data: all } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select('played')
-    .eq('tournament_id', match.tournament_id);
+    .eq('category_id', match.category_id);
   if (!all || all.some((m) => !m.played)) return;
 
-  const res = await finishCategory(supabaseAdmin, match.tournament_id);
+  const res = await finishCategory(supabaseAdmin, match.category_id);
   if (!res.ok && !res.alreadyDone) console.error('[score bracket-finish]:', res.error);
 }
 
@@ -369,7 +369,7 @@ async function propagateBracket(supabaseAdmin, match, sets) {
 async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
   if (match.played) return;
 
-  const format = match.tournaments?.tournament_events?.format_kind;
+  const format = match.tournament_categories?.tournament_events?.format_kind;
   if (format !== 'americanka') return;
 
   const teamA = match.team_a_players || [];
@@ -377,7 +377,7 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
   if (teamA.length !== 2 || teamB.length !== 2) return; // defensive — americanka is always 2v2
 
   const allIds = [...teamA, ...teamB];
-  const { data: players } = await supabaseAdmin.from('players').select('id, elo').in('id', allIds);
+  const { data: players } = await supabaseAdmin.from('users').select('id, elo').in('id', allIds);
   const eloById = new Map((players || []).map((p) => [p.id, p.elo ?? 1200]));
 
   // Team rating = average of its two players' current Ело — the same
@@ -400,7 +400,7 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
       const before = eloById.get(playerId) ?? 1200;
       const after = before + delta;
       const { error: updateError } = await supabaseAdmin
-        .from('players')
+        .from('users')
         .update({ elo: after, category: categoryForElo(after)?.id })
         .eq('id', playerId);
       if (updateError) {
@@ -408,8 +408,8 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
         continue;
       }
       const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
-        player_id: playerId,
-        tournament_id: match.tournament_id,
+        user_id: playerId,
+        category_id: match.category_id,
         match_id: match.id,
         delta,
         elo_before: before,
@@ -425,7 +425,7 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
 // (none should exist after the rewrite) default to americanka sum-to-31.
 // Americanka is always exactly one set; first-to formats take 1–3 sets.
 function validateForMatch(match, sets) {
-  const category = match.tournaments;
+  const category = match.tournament_categories;
   const event = category?.tournament_events;
   const format = event ? getFormat(event.format_kind) : null;
   const isSum = !format || format.scoring === 'sum31';

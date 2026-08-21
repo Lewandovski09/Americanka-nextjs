@@ -25,7 +25,7 @@ export const AMERICANO_SCHEDULE: ScheduleRoundDef[] = [
 
 /**
  * Turn the fixed schedule + the ordered player IDs into concrete match
- * rows (without tournament_id — the caller attaches that).
+ * rows (without category_id — the caller attaches that).
  *
  * @param playerIdsBySlot - playerIdsBySlot[i] = player ID in slot i
  * @param courts - court numbers in use, e.g. [1] or [1, 2]

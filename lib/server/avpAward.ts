@@ -8,7 +8,7 @@
 // are too. finishCategory() just happens to be the usual caller.
 //
 // Idempotency is by construction: the category's rows are deleted and
-// written again, and `avp_points.unique (tournament_id, player_id)`
+// written again, and `avp_points.unique (category_id, user_id)`
 // makes a partial re-run impossible to leave behind duplicates.
 
 import { placementsFor } from '@/lib/formats/placements';
@@ -27,7 +27,7 @@ export interface RecalcAvpResult {
 /** (Re)compute this category's contribution to the season rating. */
 export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<RecalcAvpResult> {
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, event_id, avp_tier, tournament_events(id, avp_tier, scheduled_at)')
     .eq('id', categoryId)
     .maybeSingle();
@@ -69,22 +69,22 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   }
 
   const [{ data: matches }, { data: tps }, { data: teams }] = await Promise.all([
-    supabaseAdmin.from('matches').select('*').eq('tournament_id', categoryId),
+    supabaseAdmin.from('tournament_matches').select('*').eq('category_id', categoryId),
     supabaseAdmin
       .from('tournament_players')
-      .select('player_id, players(full_name)')
-      .eq('tournament_id', categoryId),
-    supabaseAdmin.from('tournament_teams').select('player1_id, player2_id').eq('tournament_id', categoryId),
+      .select('user_id, users(full_name)')
+      .eq('category_id', categoryId),
+    supabaseAdmin.from('tournament_teams').select('user1_id, user2_id').eq('category_id', categoryId),
   ]);
 
   // Same array-vs-object join-typing note as above: cast the whole
   // fetched array once, through `unknown`, to the shape it actually has
   // at runtime — that's what lets the .map() callback below infer its
   // parameter type correctly instead of colliding with it.
-  const typedTps = (tps || []) as unknown as { player_id: string; players: { full_name: string | null } | null }[];
+  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
   const players = typedTps.map((tp) => ({
-    id: tp.player_id,
-    full_name: tp.players?.full_name,
+    id: tp.user_id,
+    full_name: tp.users?.full_name,
   }));
   const placements = placementsFor({ matches: matches || [], teams: teams || [], players });
 
@@ -97,8 +97,8 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   // cannot distinguish from a result that was never entered.
   const rows: Array<{
     season_id: string;
-    player_id: string;
-    tournament_id: string;
+    user_id: string;
+    category_id: string;
     event_id: unknown;
     tier: number;
     place: number;
@@ -111,8 +111,8 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
       seen.add(playerId);
       rows.push({
         season_id: season.id,
-        player_id: playerId,
-        tournament_id: categoryId,
+        user_id: playerId,
+        category_id: categoryId,
         event_id: category.event_id,
         tier,
         place,
@@ -135,6 +135,6 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
 }
 
 async function clearCategory(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<void> {
-  const { error } = await supabaseAdmin.from('avp_points').delete().eq('tournament_id', categoryId);
+  const { error } = await supabaseAdmin.from('avp_points').delete().eq('category_id', categoryId);
   if (error) console.error('[avp] clear:', error.message);
 }

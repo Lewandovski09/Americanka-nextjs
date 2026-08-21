@@ -28,7 +28,7 @@ export async function POST(request, { params }) {
     }
 
     const supabaseAdmin = createAdminClient();
-    const { data: me } = await supabaseAdmin.from('players').select('is_admin').eq('id', authUser.user.id).maybeSingle();
+    const { data: me } = await supabaseAdmin.from('users').select('is_admin').eq('id', authUser.user.id).maybeSingle();
     if (!me?.is_admin) {
       return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
     }
@@ -38,7 +38,7 @@ export async function POST(request, { params }) {
     const n = Math.max(1, Math.min(32, Number(count) || 4)); // sane bounds, not unlimited
 
     const { data: category, error: categoryError } = await supabaseAdmin
-      .from('tournaments')
+      .from('tournament_categories')
       .select('id, category_label, gender, event_id')
       .eq('id', categoryId)
       .maybeSingle();
@@ -86,7 +86,7 @@ export async function POST(request, { params }) {
         continue;
       }
 
-      const { error: playerError } = await supabaseAdmin.from('players').insert({
+      const { error: playerError } = await supabaseAdmin.from('users').insert({
         id: authCreated.user.id,
         login,
         full_name: fullName,
@@ -103,7 +103,7 @@ export async function POST(request, { params }) {
 
       const { error: appError } = await supabaseAdmin.from('tournament_applications').insert({
         event_id: eventId,
-        player_id: authCreated.user.id,
+        user_id: authCreated.user.id,
         requested_category: category.category_label,
         seeking_partner: format?.registrationType !== 'solo',
         status: 'pending',

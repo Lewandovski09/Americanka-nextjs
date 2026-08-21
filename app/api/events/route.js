@@ -23,7 +23,7 @@ export async function POST(request) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -113,7 +113,7 @@ export async function POST(request) {
     created_by: authUser.user.id,
   }));
 
-  const { error: catError } = await supabaseAdmin.from('tournaments').insert(categoryRows);
+  const { error: catError } = await supabaseAdmin.from('tournament_categories').insert(categoryRows);
   if (catError) {
     console.error('[create-event] categories error:', catError.message);
     // Roll back the event so we don't leave an event with no categories.

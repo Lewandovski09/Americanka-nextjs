@@ -25,7 +25,7 @@ export async function POST(request) {
 
     const supabaseAdmin = createAdminClient();
     const { data: me } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('is_admin')
       .eq('id', authUser.user.id)
       .maybeSingle();
@@ -37,12 +37,12 @@ export async function POST(request) {
     if (categoryId) {
       categoryIds = [categoryId];
     } else if (eventId) {
-      const { data: cats } = await supabaseAdmin.from('tournaments').select('id').eq('event_id', eventId);
+      const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId);
       categoryIds = (cats || []).map((c) => c.id);
     } else {
       // No target given: backfill every finished category at once — the
       // normal case for a one-off run right after this feature ships.
-      const { data: cats } = await supabaseAdmin.from('tournaments').select('id').eq('status', 'done');
+      const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('status', 'done');
       categoryIds = (cats || []).map((c) => c.id);
     }
 

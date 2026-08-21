@@ -49,7 +49,7 @@ export interface PrepareResult {
 
 export async function prepareCategoryStart(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<PrepareResult> {
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('*, tournament_events(id, format_kind, status, points_to_win, points_mode, final_points_to_win)')
     .eq('id', categoryId)
     .single();
@@ -81,7 +81,7 @@ export async function prepareCategoryStart(supabaseAdmin: SupabaseAdmin, categor
   // its court for a slot. An admin can move a single game afterwards.
   const rows = withScheduledTimes(matchRows, category, format).map((m) => ({
     ...m,
-    tournament_id: categoryId,
+    category_id: categoryId,
   }));
   return { category, rows };
 }
@@ -92,14 +92,14 @@ export interface CommitResult {
 }
 
 export async function commitCategoryStart(supabaseAdmin: SupabaseAdmin, category: CategoryRow, rows: Match[]): Promise<CommitResult> {
-  const { error: insErr } = await supabaseAdmin.from('matches').insert(rows);
+  const { error: insErr } = await supabaseAdmin.from('tournament_matches').insert(rows);
   if (insErr) {
     console.error('[start] matches insert:', insErr.message);
     return { error: 'Не вдалося створити матчі' };
   }
 
   await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .update({ status: 'live', started_at: new Date().toISOString() })
     .eq('id', category.id);
 
@@ -141,7 +141,7 @@ function withScheduledTimes(matchRows: Match[], category: CategoryRow, format: {
 interface Seedable {
   slot_index?: number | null;
   created_at?: string | null;
-  player_id?: string;
+  user_id?: string;
   id?: string;
 }
 
@@ -156,27 +156,27 @@ function bySeed(a: Seedable, b: Seedable): number {
   const ac = a.created_at || '';
   const bc = b.created_at || '';
   if (ac !== bc) return ac < bc ? -1 : 1;
-  return String(a.player_id || a.id).localeCompare(String(b.player_id || b.id));
+  return String(a.user_id || a.id).localeCompare(String(b.user_id || b.id));
 }
 
 async function buildAmericankaMatches(supabaseAdmin: SupabaseAdmin, categoryId: string, courts: number[]): Promise<Match[]> {
   const { data: tps } = await supabaseAdmin
     .from('tournament_players')
-    .select('player_id, slot_index, created_at')
-    .eq('tournament_id', categoryId);
+    .select('user_id, slot_index, created_at')
+    .eq('category_id', categoryId);
 
   if (!tps || tps.length !== 8) {
     throw new Error(`Для американки потрібно рівно 8 гравців (зараз ${tps?.length || 0})`);
   }
-  const playerIds = ([...tps] as Seedable[]).sort(bySeed).map((t) => t.player_id as string);
+  const playerIds = ([...tps] as Seedable[]).sort(bySeed).map((t) => t.user_id as string);
   return buildAmericanoMatches(playerIds, courts);
 }
 
 async function buildKingMatches(supabaseAdmin: SupabaseAdmin, categoryId: string, category: CategoryRow, courts: number[]): Promise<Match[]> {
   const { data: tps } = await supabaseAdmin
     .from('tournament_players')
-    .select('player_id, slot_index, created_at')
-    .eq('tournament_id', categoryId);
+    .select('user_id, slot_index, created_at')
+    .eq('category_id', categoryId);
 
   const registered = tps?.length || 0;
   const cap = category.max_participants || registered;
@@ -187,7 +187,7 @@ async function buildKingMatches(supabaseAdmin: SupabaseAdmin, categoryId: string
   const playerIds = ([...(tps || [])] as Seedable[])
     .sort(bySeed)
     .slice(0, usable)
-    .map((t) => t.player_id as string);
+    .map((t) => t.user_id as string);
   const { matches } = buildKingRound1(playerIds, courts);
   // The whole tournament skeleton up front: later rounds are created as
   // placeholders (empty team slots) and filled automatically as each
@@ -198,8 +198,8 @@ async function buildKingMatches(supabaseAdmin: SupabaseAdmin, categoryId: string
 async function buildPairMatches(supabaseAdmin: SupabaseAdmin, categoryId: string, category: CategoryRow, courts: number[]): Promise<Match[]> {
   const { data: teams } = await supabaseAdmin
     .from('tournament_teams')
-    .select('id, player1_id, player2_id, slot_index, created_at')
-    .eq('tournament_id', categoryId);
+    .select('id, user1_id, user2_id, slot_index, created_at')
+    .eq('category_id', categoryId);
 
   // Seed order = seed 1, 2, 3, … top-down. Pairs still looking for a
   // partner hold a place on the «Посів» tab but cannot play, so they
@@ -210,11 +210,11 @@ async function buildPairMatches(supabaseAdmin: SupabaseAdmin, categoryId: string
   // and a narrower annotation here would hide that from the type
   // checker even though the runtime object has it.
   const mapped: (SeedTeam & { slotIndex: number | null })[] = (
-    (teams || []) as (Seedable & { player1_id: string | null; player2_id: string | null })[]
+    (teams || []) as (Seedable & { user1_id: string | null; user2_id: string | null })[]
   )
-    .filter((t) => t.player1_id && t.player2_id)
+    .filter((t) => t.user1_id && t.user2_id)
     .sort(bySeed)
-    .map((t) => ({ id: t.id as string, slotIndex: t.slot_index ?? null, players: [t.player1_id as string, t.player2_id as string] }));
+    .map((t) => ({ id: t.id as string, slotIndex: t.slot_index ?? null, players: [t.user1_id as string, t.user2_id as string] }));
 
   if (category.bracket_system === 'double_elimination') {
     const bracketSize = category.max_participants as number; // 16 or 32

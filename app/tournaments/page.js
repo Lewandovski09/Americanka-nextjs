@@ -39,7 +39,7 @@ export default function EventsPage() {
         .from('tournament_events')
         .select(
           `id, name, format_kind, status, location, scheduled_at, avp_tier,
-           tournaments(id, category, category_label, gender, status, max_participants, avp_tier, bracket_system)`
+           tournament_categories(id, category, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
         .order('scheduled_at', { ascending: tab === 'done' ? false : true });
@@ -52,7 +52,7 @@ export default function EventsPage() {
       const enrichedEvents = await Promise.all(
         (data || []).map(async (ev) => {
           const format = getFormat(ev.format_kind);
-          const cats = await enrichCategoriesWithSlots(supabase, ev.tournaments || [], format, ev.avp_tier);
+          const cats = await enrichCategoriesWithSlots(supabase, ev.tournament_categories || [], format, ev.avp_tier);
           return { ...ev, tournaments: cats, format };
         })
       );
@@ -89,7 +89,7 @@ export default function EventsPage() {
 
       {!loading &&
         events.map((ev) => {
-          const cats = ev.tournaments || [];
+          const cats = ev.tournament_categories || [];
           const meta = (
             <div className={styles.cardMeta}>
               {new Date(ev.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}

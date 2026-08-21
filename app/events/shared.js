@@ -37,17 +37,17 @@ export function seedRoster(category, isPair) {
         key: t.id,
         slotIndex: t.slot_index,
         addedAt: t.created_at || '',
-        name: `${t.p1?.full_name?.split(' ')[0] || t.player1_id?.slice(0, 6)} + ${
-          t.player2_id ? t.p2?.full_name?.split(' ')[0] || t.player2_id.slice(0, 6) : 'шукає напарника'
+        name: `${t.p1?.full_name?.split(' ')[0] || t.user1_id?.slice(0, 6)} + ${
+          t.user2_id ? t.p2?.full_name?.split(' ')[0] || t.user2_id.slice(0, 6) : 'шукає напарника'
         }`,
         player: null,
       }))
     : (category?.tournament_players || []).map((tp) => ({
-        key: tp.player_id,
+        key: tp.user_id,
         slotIndex: tp.slot_index,
         addedAt: tp.created_at || '',
-        name: tp.players?.full_name || '—',
-        player: tp.players || null,
+        name: tp.users?.full_name || '—',
+        player: tp.users || null,
       }));
 
   return rows.sort((a, b) => {
@@ -78,14 +78,14 @@ export function useEventData(id) {
     setEvent(ev);
 
     const { data: cats } = await supabase
-      .from('tournaments')
+      .from('tournament_categories')
       .select(
         `id, category_label, gender, status, max_participants, bracket_system, elo_min, elo_max, points_to_win,
-         tournament_players(player_id, slot_index, created_at, players(full_name, photo_url, gender)),
-         tournament_teams(id, player1_id, player2_id, slot_index, created_at,
-           p1:players!tournament_teams_player1_id_fkey(full_name, gender),
-           p2:players!tournament_teams_player2_id_fkey(full_name, gender)),
-         matches(*)`
+         tournament_players(user_id, slot_index, created_at, users(full_name, photo_url, gender)),
+         tournament_teams(id, user1_id, user2_id, slot_index, created_at,
+           p1:users!tournament_teams_user1_id_fkey(full_name, gender),
+           p2:users!tournament_teams_user2_id_fkey(full_name, gender)),
+         tournament_matches(*)`
       )
       .eq('event_id', id)
       .order('gender', { ascending: true })
@@ -95,9 +95,9 @@ export function useEventData(id) {
     const { data: apps } = await supabase
       .from('tournament_applications')
       .select(
-        `id, player_id, partner_id, seeking_partner, requested_category, status, assigned_tournament_id,
-         applicant:players!tournament_applications_player_id_fkey(full_name, photo_url, elo, gender),
-         partner:players!tournament_applications_partner_id_fkey(full_name, elo, gender)`
+        `id, user_id, partner_id, seeking_partner, requested_category, status, assigned_category_id,
+         applicant:users!tournament_applications_user_id_fkey(full_name, photo_url, elo, gender),
+         partner:users!tournament_applications_partner_id_fkey(full_name, elo, gender)`
       )
       .eq('event_id', id)
       .order('created_at', { ascending: true });
@@ -107,7 +107,7 @@ export function useEventData(id) {
     // added.
     const { data: crew } = await supabase
       .from('tournament_judges')
-      .select('player_id, is_head, created_at, players(full_name, photo_url, login)')
+      .select('user_id, is_head, created_at, users(full_name, photo_url, login)')
       .eq('event_id', id)
       .order('is_head', { ascending: false })
       .order('created_at', { ascending: true });
@@ -297,7 +297,7 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const teams = category.tournament_teams || [];
   const solos = category.tournament_players || [];
-  const matches = category.matches || [];
+  const matches = category.tournament_matches || [];
 
   const registered = isPair ? teams.length : solos.length;
   const capacity = category.max_participants || format?.fixedParticipants || null;
@@ -307,11 +307,11 @@ export function CategoryPanel({ category, format, isAdmin, allCategories, busy, 
   // Name lookup for match sides (works for both pair and solo formats).
   const nameById = {};
   solos.forEach((tp) => {
-    if (tp.players?.full_name) nameById[tp.player_id] = tp.players.full_name;
+    if (tp.users?.full_name) nameById[tp.user_id] = tp.users.full_name;
   });
   teams.forEach((t) => {
-    if (t.p1?.full_name) nameById[t.player1_id] = t.p1.full_name;
-    if (t.p2?.full_name) nameById[t.player2_id] = t.p2.full_name;
+    if (t.p1?.full_name) nameById[t.user1_id] = t.p1.full_name;
+    if (t.p2?.full_name) nameById[t.user2_id] = t.p2.full_name;
   });
 
   const hasStages = matches.some((m) => m.stage);
@@ -407,8 +407,8 @@ function Placements({ matches, teams, nameById }) {
 
 function Standings({ solos, matches }) {
   const players = solos.map((tp) => ({
-    id: tp.player_id,
-    full_name: tp.players?.full_name || '—',
+    id: tp.user_id,
+    full_name: tp.users?.full_name || '—',
   }));
   const rows = computeStandings(players, matches);
   if (rows.length === 0) return <div className={styles.empty}>Немає даних</div>;
@@ -597,10 +597,10 @@ function RegisteredList({ isPair, mix, teams, solos, admin, currentCategory, all
           <PairRow
             key={t.id}
             mix={mix}
-            a={{ name: t.p1?.full_name || t.player1_id?.slice(0, 6), gender: t.p1?.gender }}
+            a={{ name: t.p1?.full_name || t.user1_id?.slice(0, 6), gender: t.p1?.gender }}
             b={
-              t.player2_id
-                ? { name: t.p2?.full_name || t.player2_id.slice(0, 6), gender: t.p2?.gender }
+              t.user2_id
+                ? { name: t.p2?.full_name || t.user2_id.slice(0, 6), gender: t.p2?.gender }
                 : null
             }
           >
@@ -615,13 +615,13 @@ function RegisteredList({ isPair, mix, teams, solos, admin, currentCategory, all
   return (
     <div>
       {solos.map((tp) => (
-        <div key={tp.player_id} className={styles.regRow}>
+        <div key={tp.user_id} className={styles.regRow}>
           <span className={styles.regNames}>
-            <GenderMark gender={tp.players?.gender} />
-            <PlayerAvatar player={tp.players} size={24} />
-            {tp.players?.full_name || '—'}
+            <GenderMark gender={tp.users?.gender} />
+            <PlayerAvatar player={tp.users} size={24} />
+            {tp.users?.full_name || '—'}
           </span>
-          <AdminControls member={{ playerId: tp.player_id }} />
+          <AdminControls member={{ playerId: tp.user_id }} />
         </div>
       ))}
     </div>

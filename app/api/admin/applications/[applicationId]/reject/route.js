@@ -12,7 +12,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -22,7 +22,7 @@ export async function POST(request, { params }) {
 
   const { error } = await supabaseAdmin
     .from('tournament_applications')
-    .update({ status: 'rejected', assigned_tournament_id: null })
+    .update({ status: 'rejected', assigned_category_id: null })
     .eq('id', applicationId);
   if (error) {
     console.error('[reject] error:', error.message);

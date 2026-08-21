@@ -83,7 +83,7 @@ async function handleMembershipChange(supabaseAdmin, membership) {
   if (!userId || (status !== 'kicked' && status !== 'left')) return;
 
   const { error } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({ telegram_linked_at: null })
     .eq('telegram_user_id', userId);
 
@@ -120,7 +120,7 @@ async function confirmPendingRegistration(supabaseAdmin, nonce, from) {
   // unique constraint would catch it at the end anyway, but only after
   // the person filled everything in.
   const { data: taken } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id')
     .eq('telegram_user_id', from.id)
     .limit(1);
@@ -172,7 +172,7 @@ async function confirmPasswordReset(supabaseAdmin, nonce, from) {
   if (new Date(reset.expires_at) < new Date()) return { status: 'expired' };
 
   const { data: owner } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id')
     .eq('telegram_user_id', from.id)
     .maybeSingle();
@@ -210,7 +210,7 @@ async function confirmPasswordReset(supabaseAdmin, nonce, from) {
 async function linkByNonce(supabaseAdmin, nonce, from) {
   const { data: link, error } = await supabaseAdmin
     .from('telegram_links')
-    .select('player_id, expires_at, linked_at')
+    .select('user_id, expires_at, linked_at')
     .eq('nonce', nonce)
     .maybeSingle();
 
@@ -224,13 +224,13 @@ async function linkByNonce(supabaseAdmin, nonce, from) {
   if (new Date(link.expires_at) < new Date()) return { status: 'expired' };
 
   const { error: playerError } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({
       telegram_user_id: from.id,
       telegram_username: from.username ? from.username.toLowerCase() : null,
       telegram_linked_at: new Date().toISOString(),
     })
-    .eq('id', link.player_id);
+    .eq('id', link.user_id);
 
   if (playerError) {
     // telegram_user_id is unique: this Telegram account already belongs
@@ -260,7 +260,7 @@ async function linkByNonce(supabaseAdmin, nonce, from) {
  */
 async function refreshKnownPlayer(supabaseAdmin, from) {
   const { data: player } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id')
     .eq('telegram_user_id', from.id)
     .maybeSingle();
@@ -268,7 +268,7 @@ async function refreshKnownPlayer(supabaseAdmin, from) {
   if (!player) return false;
 
   await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({
       telegram_username: from.username ? from.username.toLowerCase() : null,
       telegram_linked_at: new Date().toISOString(),

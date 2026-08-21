@@ -37,7 +37,7 @@ export async function POST(request) {
     }
 
     const { data: player, error: playerError } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('id, login')
       .eq('telegram_user_id', reset.telegram_user_id)
       .maybeSingle();

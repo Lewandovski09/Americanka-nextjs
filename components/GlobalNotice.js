@@ -28,14 +28,14 @@ export default function GlobalNotice({ player }) {
           title: 'Акаунт успішно створено!',
           text: 'Очікуйте підтвердження рейтингу адміністратором.',
         });
-        await supabase.from('players').update({ just_registered_notified: true }).eq('id', player.id);
+        await supabase.from('users').update({ just_registered_notified: true }).eq('id', player.id);
       } else if (!player.rating_approved_notified && player.approval_status === 'approved') {
         setNotice({
           icon: <IconCheck size={40} color="var(--accent-green)" />,
           title: 'Рейтинг підтверджено!',
           text: `Стартовий рейтинг Ело: ${player.elo}. Категорія: ${categoryForElo(player.elo)?.label}.`,
         });
-        await supabase.from('players').update({ rating_approved_notified: true }).eq('id', player.id);
+        await supabase.from('users').update({ rating_approved_notified: true }).eq('id', player.id);
       }
     }
 

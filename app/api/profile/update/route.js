@@ -27,7 +27,7 @@ export async function POST(request) {
   const supabaseAdmin = createAdminClient();
 
   const { error: updateError } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({
       first_name: firstName.trim(),
       last_name: lastName.trim(),

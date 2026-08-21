@@ -58,7 +58,7 @@ export async function computeEloBands(
 ): Promise<EloBands> {
   const pick = (asc: boolean) =>
     supabaseAdmin
-      .from('players')
+      .from('users')
       .select('elo')
       .eq('approval_status', 'approved')
       .not('elo', 'is', null)

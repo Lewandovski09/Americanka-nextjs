@@ -54,7 +54,7 @@ export default function TournamentDetailPage({ params }) {
     const supabase = createClient();
 
     const { data: t } = await supabase
-      .from('tournaments')
+      .from('tournament_categories')
       .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
       .eq('id', id)
       .single();
@@ -64,7 +64,7 @@ export default function TournamentDetailPage({ params }) {
     // tabs — same order as the admin pages (gender, then label).
     if (t?.event_id) {
       const { data: sibs } = await supabase
-        .from('tournaments')
+        .from('tournament_categories')
         .select('id, category_label, gender, status')
         .eq('event_id', t.event_id)
         .order('gender', { ascending: true })
@@ -76,8 +76,8 @@ export default function TournamentDetailPage({ params }) {
 
     const { data: tps } = await supabase
       .from('tournament_players')
-      .select('player_id, players(full_name, last_name, photo_url)')
-      .eq('tournament_id', id);
+      .select('user_id, users(full_name, last_name, photo_url)')
+      .eq('category_id', id);
     setTournamentPlayers(tps || []);
 
     // Pair formats keep participants in tournament_teams — load them too
@@ -85,14 +85,14 @@ export default function TournamentDetailPage({ params }) {
     const { data: tt } = await supabase
       .from('tournament_teams')
       .select(
-        `player1_id, player2_id,
-         p1:players!tournament_teams_player1_id_fkey(full_name, first_name, last_name, city, photo_url),
-         p2:players!tournament_teams_player2_id_fkey(full_name, first_name, last_name, city, photo_url)`
+        `user1_id, user2_id,
+         p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url),
+         p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url)`
       )
-      .eq('tournament_id', id);
+      .eq('category_id', id);
     setTeams(tt || []);
 
-    const { data: m } = await supabase.from('matches').select('*').eq('tournament_id', id).order('round_number');
+    const { data: m } = await supabase.from('tournament_matches').select('*').eq('category_id', id).order('round_number');
     setMatches(m || []);
 
     // The judging crew belongs to the EVENT — the same people cover
@@ -102,7 +102,7 @@ export default function TournamentDetailPage({ params }) {
     if (t?.event_id) {
       const { data: js } = await supabase
         .from('tournament_judges')
-        .select('player_id, is_head, players(full_name, last_name, photo_url)')
+        .select('user_id, is_head, users(full_name, last_name, photo_url)')
         .eq('event_id', t.event_id)
         .order('is_head', { ascending: false })
         .order('created_at', { ascending: true });
@@ -116,12 +116,12 @@ export default function TournamentDetailPage({ params }) {
     // bare id.
     const info = {};
     crew.forEach((j) => {
-      if (j.players) info[j.player_id] = j.players;
+      if (j.users) info[j.user_id] = j.users;
     });
     const missing = [...new Set((m || []).map((x) => x.judge_id).filter((pid) => pid && !info[pid]))];
     if (missing.length > 0) {
       const { data: extra } = await supabase
-        .from('players')
+        .from('users')
         .select('id, full_name, last_name, photo_url')
         .in('id', missing);
       (extra || []).forEach((p) => {
@@ -141,7 +141,7 @@ export default function TournamentDetailPage({ params }) {
     const supabase = createClient();
     const channel = supabase
       .channel(`tournament-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'matches', filter: `tournament_id=eq.${id}` }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_matches', filter: `category_id=eq.${id}` }, load)
       .subscribe();
 
     return () => {
@@ -162,8 +162,8 @@ export default function TournamentDetailPage({ params }) {
   if (!tournament) return <div className={styles.loading}>Завантаження...</div>;
 
   const playersForEngine = tournamentPlayers.map((tp) => ({
-    id: tp.player_id,
-    full_name: tp.players.full_name,
+    id: tp.user_id,
+    full_name: tp.users.full_name,
   }));
   const standings = computeStandings(playersForEngine, matches);
   const playedCount = matches.filter((m) => m.played).length;
@@ -230,11 +230,11 @@ export default function TournamentDetailPage({ params }) {
   // (tournament_teams) formats.
   const playerInfo = {};
   tournamentPlayers.forEach((tp) => {
-    if (tp.players) playerInfo[tp.player_id] = tp.players;
+    if (tp.users) playerInfo[tp.user_id] = tp.users;
   });
   teams.forEach((tt) => {
-    if (tt.p1) playerInfo[tt.player1_id] = tt.p1;
-    if (tt.p2) playerInfo[tt.player2_id] = tt.p2;
+    if (tt.p1) playerInfo[tt.user1_id] = tt.p1;
+    if (tt.p2) playerInfo[tt.user2_id] = tt.p2;
   });
 
   function playerById(pid) {
@@ -275,8 +275,8 @@ export default function TournamentDetailPage({ params }) {
   // powers with the admin — correcting a score, moving a game to a free
   // court, saying who judges it; the timetable stays the admin's.
   const isAdmin = !!player?.is_admin;
-  const isJudge = judges.some((j) => j.player_id === player?.id);
-  const isHeadJudge = judges.some((j) => j.is_head && j.player_id === player?.id);
+  const isJudge = judges.some((j) => j.user_id === player?.id);
+  const isHeadJudge = judges.some((j) => j.is_head && j.user_id === player?.id);
   const live = tournament.status !== 'done';
   // Entering a score belongs to the crew, same as the server enforces.
   // Everyone else still sees every game and every result — they just
@@ -650,7 +650,7 @@ export default function TournamentDetailPage({ params }) {
                     {teams.map((tt, i) => (
                       <tr
                         key={i}
-                        className={[tt.player1_id, tt.player2_id].includes(player?.id) ? styles.meRow : ''}
+                        className={[tt.user1_id, tt.user2_id].includes(player?.id) ? styles.meRow : ''}
                       >
                         <td>{i + 1}</td>
                         <td className={styles.pairAvatarCell}>
@@ -916,13 +916,13 @@ export default function TournamentDetailPage({ params }) {
                 <div className={styles.judgeQuick}>
                   {judges.map((j) => (
                     <button
-                      key={j.player_id}
+                      key={j.user_id}
                       className={`${styles.subTab} ${
-                        judgeModal.current === j.player_id ? styles.subTabOn : ''
+                        judgeModal.current === j.user_id ? styles.subTabOn : ''
                       }`}
-                      onClick={() => handleSaveJudge(j.player_id)}
+                      onClick={() => handleSaveJudge(j.user_id)}
                     >
-                      {surnameOf(j.players)}
+                      {surnameOf(j.users)}
                       {j.is_head ? ' ★' : ''}
                     </button>
                   ))}

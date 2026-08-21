@@ -97,8 +97,8 @@ export async function POST(request) {
 
     // ── Uniqueness: login and Telegram account ──
     const [{ data: loginTaken }, { data: telegramTaken }] = await Promise.all([
-      supabaseAdmin.from('players').select('id').eq('login', normalizedLogin).limit(1),
-      supabaseAdmin.from('players').select('id').eq('telegram_user_id', pending.telegram_user_id).limit(1),
+      supabaseAdmin.from('users').select('id').eq('login', normalizedLogin).limit(1),
+      supabaseAdmin.from('users').select('id').eq('telegram_user_id', pending.telegram_user_id).limit(1),
     ]);
 
     if (loginTaken && loginTaken.length > 0) {
@@ -143,7 +143,7 @@ export async function POST(request) {
     const photoUrl = await uploadProfilePhoto(supabaseAdmin, createdUserId, photoDataUrl);
 
     // ── Create the player profile, already linked to Telegram ──
-    const { error: profileError } = await supabaseAdmin.from('players').insert({
+    const { error: profileError } = await supabaseAdmin.from('users').insert({
       id: createdUserId,
       login: normalizedLogin,
       first_name: firstName.trim(),

@@ -32,7 +32,7 @@ describe('placementsFor — dispatch by shape', () => {
   });
 
   it('anything else (group/crosses stages) delegates to computePlaces', () => {
-    const teams: Team[] = [{ id: 't1', player1_id: 'a', player2_id: 'b' }];
+    const teams: Team[] = [{ id: 't1', user1_id: 'a', user2_id: 'b' }];
     const matches: Match[] = [{ stage: 'final', played: true, team_a_players: ['a', 'b'], team_b_players: ['c', 'd'], set1: [21, 10] }];
     expect(placementsFor({ matches, teams })).toEqual(computePlaces(matches, teams));
   });
@@ -68,9 +68,9 @@ describe('computePlaces — full-placement crosses (groups_crosses_1_2 shape)', 
 
 describe('computePlaces — file format (play_in/qf present, tie blocks)', () => {
   const teams: Team[] = [
-    { id: 't1', player1_id: 'a1', player2_id: 'a2' },
-    { id: 't2', player1_id: 'b1', player2_id: 'b2' },
-    { id: 't3', player1_id: 'c1', player2_id: 'c2' }, // never reaches play-in/qf -> ties 13th
+    { id: 't1', user1_id: 'a1', user2_id: 'a2' },
+    { id: 't2', user1_id: 'b1', user2_id: 'b2' },
+    { id: 't3', user1_id: 'c1', user2_id: 'c2' }, // never reaches play-in/qf -> ties 13th
   ];
 
   it('final and bronze award unique places 1-4; qf losers tie 5th; play-in losers tie 9th', () => {
@@ -109,7 +109,7 @@ describe('computePlaces — file format (play_in/qf present, tie blocks)', () =>
       // t1 is already assigned a qf pairing, just not played yet.
       { stage: 'qf', played: false, team_a_players: ['a1'], team_b_players: ['x1'], set1: null },
     ];
-    const oneTeam: Team[] = [{ id: 't1', player1_id: 'a1', player2_id: 'a2' }];
+    const oneTeam: Team[] = [{ id: 't1', user1_id: 'a1', user2_id: 'a2' }];
     const places = computePlaces(matches, oneTeam);
     expect(places.some((p) => p.playerIds.includes('a1'))).toBe(false);
   });

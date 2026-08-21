@@ -46,7 +46,7 @@ const teamKey = (ids: (string | null | undefined)[] | null | undefined): string 
 export interface PlacementsForArgs {
   /** rows from `matches` (the whole category) */
   matches: Match[];
-  /** rows from `tournament_teams` ({ player1_id, player2_id }); pair formats only */
+  /** rows from `tournament_teams` ({ user1_id, user2_id }); pair formats only */
   teams?: Team[];
   /** [{ id, full_name }]; solo formats only */
   players?: Player[];
@@ -124,8 +124,8 @@ export function computePlaces(matches: Match[], teams: Team[]): PlacementRow[] {
         advanced.add(teamKey(m.team_b_players));
       });
     (teams || []).forEach((t) => {
-      const key = teamKey([t.player1_id, t.player2_id]);
-      if (key && !advanced.has(key)) out.push({ place: 13, playerIds: [t.player1_id, t.player2_id] });
+      const key = teamKey([t.user1_id, t.user2_id]);
+      if (key && !advanced.has(key)) out.push({ place: 13, playerIds: [t.user1_id, t.user2_id] });
     });
     return out.sort((a, b) => a.place - b.place);
   }

@@ -66,7 +66,7 @@ export async function POST(request) {
   const photoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
   const { error: dbError } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({ photo_url: photoUrl })
     .eq('id', authUser.user.id);
   if (dbError) {

@@ -46,8 +46,8 @@ export interface Player {
 /** A `tournament_teams` table row — a registered pair. */
 export interface Team {
   id?: string;
-  player1_id: string;
-  player2_id: string;
+  user1_id: string;
+  user2_id: string;
   [key: string]: unknown;
 }
 

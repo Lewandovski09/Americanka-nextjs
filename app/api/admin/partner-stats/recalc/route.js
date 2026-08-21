@@ -16,7 +16,7 @@ export async function POST() {
 
     const supabaseAdmin = createAdminClient();
     const { data: me } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('is_admin')
       .eq('id', authUser.user.id)
       .maybeSingle();

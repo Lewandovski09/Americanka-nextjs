@@ -18,7 +18,7 @@ export async function POST(request) {
   const supabaseAdmin = createAdminClient();
 
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -42,7 +42,7 @@ export async function POST(request) {
   // don't fail the request, since the in-app notification feed
   // (admin_notifications table) is the source of truth.
   const { data: allPlayers, error: playersError } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('telegram_user_id, full_name')
     .eq('approval_status', 'approved')
     .not('telegram_user_id', 'is', null)
@@ -67,7 +67,7 @@ export async function POST(request) {
   // who they are, and a fresh /start brings them back.
   if (deadChatIds.length > 0) {
     const { error: unlinkError } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .update({ telegram_linked_at: null })
       .in('telegram_user_id', deadChatIds);
 

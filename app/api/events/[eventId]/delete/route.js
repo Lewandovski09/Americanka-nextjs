@@ -17,7 +17,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -35,7 +35,7 @@ export async function POST(request, { params }) {
   }
 
   const { data: categories } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id')
     .eq('event_id', eventId);
   const categoryIds = (categories || []).map((c) => c.id);
@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
     const { count } = await supabaseAdmin
       .from('elo_history')
       .select('id', { count: 'exact', head: true })
-      .in('tournament_id', categoryIds);
+      .in('category_id', categoryIds);
     if (count > 0) {
       return Response.json(
         { success: false, error: 'За турнір вже нараховано рейтинг — його не можна видалити' },

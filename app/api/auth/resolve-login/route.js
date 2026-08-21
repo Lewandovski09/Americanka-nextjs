@@ -20,7 +20,7 @@ export async function POST(request) {
     const supabaseAdmin = createAdminClient();
 
     const { data: byLogin } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('login')
       .eq('login', normalized)
       .maybeSingle();
@@ -30,7 +30,7 @@ export async function POST(request) {
     }
 
     const { data: byTelegram } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('login')
       .eq('telegram_username', normalized)
       .maybeSingle();

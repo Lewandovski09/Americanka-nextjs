@@ -64,11 +64,11 @@ export default function AdminPage() {
   async function load() {
     const supabase = createClient();
 
-    const { data: p } = await supabase.from('players').select('*').eq('approval_status', 'pending');
+    const { data: p } = await supabase.from('users').select('*').eq('approval_status', 'pending');
     setPending(p || []);
 
     const { data: m } = await supabase
-      .from('players')
+      .from('users')
       .select('*')
       .eq('gender', 'M')
       .neq('approval_status', 'pending')
@@ -76,7 +76,7 @@ export default function AdminPage() {
     setMales(m || []);
 
     const { data: f } = await supabase
-      .from('players')
+      .from('users')
       .select('*')
       .eq('gender', 'F')
       .neq('approval_status', 'pending')
@@ -84,11 +84,11 @@ export default function AdminPage() {
     setFemales(f || []);
 
     const { count: doneCount } = await supabase
-      .from('tournaments')
+      .from('tournament_categories')
       .select('id', { count: 'exact', head: true })
       .eq('status', 'done');
     const { count: matchesPlayed } = await supabase
-      .from('matches')
+      .from('tournament_matches')
       .select('id', { count: 'exact', head: true })
       .eq('played', true);
 
@@ -98,7 +98,7 @@ export default function AdminPage() {
     // is blocked, since we can't tell the difference until we try to
     // send; this is "never linked" specifically).
     const { count: noTelegramCount } = await supabase
-      .from('players')
+      .from('users')
       .select('id', { count: 'exact', head: true })
       .neq('approval_status', 'pending')
       .is('telegram_user_id', null);
@@ -136,22 +136,22 @@ export default function AdminPage() {
     // than a join, since matches store player ids in plain arrays, not
     // foreign keys PostgREST can embed.
     const { data: recentMatches } = await supabase
-      .from('matches')
-      .select('id, tournament_id, team_a_players, team_b_players, set1, set2, set3, played_at')
+      .from('tournament_matches')
+      .select('id, category_id, team_a_players, team_b_players, set1, set2, set3, played_at')
       .eq('played', true)
       .order('played_at', { ascending: false })
       .limit(6);
 
     const involvedIds = [...new Set((recentMatches || []).flatMap((mt) => [...(mt.team_a_players || []), ...(mt.team_b_players || [])]))];
     const { data: involvedPlayers } = involvedIds.length
-      ? await supabase.from('players').select('id, full_name').in('id', involvedIds)
+      ? await supabase.from('users').select('id, full_name').in('id', involvedIds)
       : { data: [] };
     const nameById = new Map((involvedPlayers || []).map((pl) => [pl.id, pl.full_name]));
     const teamNames = (ids) => (ids || []).map((id) => nameById.get(id) || '?').join(' / ');
 
-    const tournamentIds = [...new Set((recentMatches || []).map((mt) => mt.tournament_id).filter(Boolean))];
+    const tournamentIds = [...new Set((recentMatches || []).map((mt) => mt.category_id).filter(Boolean))];
     const { data: involvedTournaments } = tournamentIds.length
-      ? await supabase.from('tournaments').select('id, name').in('id', tournamentIds)
+      ? await supabase.from('tournament_categories').select('id, name').in('id', tournamentIds)
       : { data: [] };
     const tournamentNameById = new Map((involvedTournaments || []).map((t) => [t.id, t.name]));
 
@@ -159,7 +159,7 @@ export default function AdminPage() {
       (recentMatches || []).map((mt) => ({
         id: mt.id,
         playedAt: mt.played_at,
-        tournamentName: tournamentNameById.get(mt.tournament_id) || null,
+        tournamentName: tournamentNameById.get(mt.category_id) || null,
         teamA: teamNames(mt.team_a_players),
         teamB: teamNames(mt.team_b_players),
       }))
@@ -169,7 +169,7 @@ export default function AdminPage() {
   async function loadFormatBreakdown() {
     const supabase = createClient();
     const { data: tournaments } = await supabase
-      .from('tournaments')
+      .from('tournament_categories')
       .select('tournament_events(format_kind)')
       .eq('status', 'done');
 
@@ -312,7 +312,7 @@ export default function AdminPage() {
     if (!eventId) return;
     const supabase = createClient();
     const { data } = await supabase
-      .from('tournaments')
+      .from('tournament_categories')
       .select('id, category_label, gender')
       .eq('event_id', eventId)
       .in('status', ['scheduled', 'live']);

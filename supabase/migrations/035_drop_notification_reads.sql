@@ -1,0 +1,25 @@
+-- ============================================================
+-- AMERICANKA — Migration 035: drop notification_reads
+-- ============================================================
+-- Dead since the day it was created. Migration 004 added it for an
+-- unread/read announcement feed ("newest first, unread highlighted"),
+-- and that feed was never built: no code has ever written a row here,
+-- and nothing has ever read one.
+--
+-- What actually shipped is a different idea, in migration 028:
+-- notification_dismissals records that a player has CLEARED an
+-- announcement from their home page, not that they have seen it. The
+-- two are not interchangeable — a read receipt marks something as
+-- seen while leaving it in the feed; a dismissal takes it out — and
+-- the home page only ever needed the second one.
+--
+-- Keeping an empty table around for a feature that was solved
+-- differently just invites someone to wire the wrong one up later.
+--
+-- Announcements themselves (admin_notifications) and the dismissals
+-- that hide them per-player (notification_dismissals) are untouched
+-- and stay in use.
+--
+-- Safe to run once in the Supabase SQL editor.
+
+drop table if exists notification_reads;

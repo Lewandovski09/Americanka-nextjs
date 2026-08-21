@@ -21,7 +21,7 @@ export async function POST() {
 
   const { error } = await supabaseAdmin.from('telegram_links').insert({
     nonce,
-    player_id: authUser.user.id,
+    user_id: authUser.user.id,
     expires_at: new Date(Date.now() + LINK_TTL_MS).toISOString(),
   });
 

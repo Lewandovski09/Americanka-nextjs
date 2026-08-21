@@ -19,7 +19,7 @@ export async function POST(request, { params }) {
   // also enforces this at the DB level, but we check here too for
   // a clean error message).
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
   // they silently miss everything. This check is where the link is
   // actually enforced — it replaces the old 4-digit code as the gate.
   const { data: target } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('telegram_user_id, telegram_linked_at')
     .eq('id', playerId)
     .maybeSingle();
@@ -49,7 +49,7 @@ export async function POST(request, { params }) {
   const finalCategory = categoryForElo(finalElo)?.id || category;
 
   const { data: player, error } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({
       elo: finalElo,
       category: finalCategory,
@@ -91,7 +91,7 @@ export async function POST(request, { params }) {
 
     if (blocked) {
       // Unreachable — clear reachability but keep the identity.
-      await supabaseAdmin.from('players').update({ telegram_linked_at: null }).eq('id', playerId);
+      await supabaseAdmin.from('users').update({ telegram_linked_at: null }).eq('id', playerId);
     }
   }
 

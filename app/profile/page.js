@@ -57,19 +57,19 @@ export default function ProfilePage() {
     async function load() {
       const supabase = createClient();
 
-      const { data: th } = await supabase.rpc('get_player_tournament_history', { p_player_id: player.id });
+      const { data: th } = await supabase.rpc('get_user_tournament_history', { p_user_id: player.id });
       setTournamentHistory(th || []);
 
-      const { data: elog } = await supabase.rpc('get_player_elo_log', { p_player_id: player.id });
+      const { data: elog } = await supabase.rpc('get_user_elo_log', { p_user_id: player.id });
       setEloGameLog(elog || []);
 
-      const { data: fs } = await supabase.rpc('get_player_format_stats', { p_player_id: player.id });
+      const { data: fs } = await supabase.rpc('get_user_format_stats', { p_user_id: player.id });
       setFormatStats(fs || []);
 
       const { data: p } = await supabase
         .from('partner_stats')
-        .select('*, partner:players!partner_stats_partner_id_fkey(id, full_name, photo_url)')
-        .eq('player_id', player.id)
+        .select('*, partner:users!partner_stats_partner_id_fkey(id, full_name, photo_url)')
+        .eq('user_id', player.id)
         .order('games_together', { ascending: false });
       setPartners(p || []);
 
@@ -86,9 +86,9 @@ export default function ProfilePage() {
     const supabase = createClient();
 
     const { data: allMatches } = await supabase
-      .from('matches')
+      .from('tournament_matches')
       .select('*')
-      .eq('tournament_id', tournamentId)
+      .eq('category_id', tournamentId)
       .eq('played', true)
       .order('round_number');
 
@@ -107,21 +107,21 @@ export default function ProfilePage() {
     // session already fixed at the database function level.
     const { data: tps } = await supabase
       .from('tournament_players')
-      .select('player_id, players(full_name)')
-      .eq('tournament_id', tournamentId);
+      .select('user_id, users(full_name)')
+      .eq('category_id', tournamentId);
     const { data: teams } = await supabase
       .from('tournament_teams')
-      .select('player1_id, player2_id')
-      .eq('tournament_id', tournamentId);
+      .select('user1_id, user2_id')
+      .eq('category_id', tournamentId);
 
     const map = {};
     (tps || []).forEach((tp) => {
-      if (tp.players?.full_name) map[tp.player_id] = tp.players.full_name.split(' ')[0];
+      if (tp.users?.full_name) map[tp.user_id] = tp.users.full_name.split(' ')[0];
     });
 
-    const teamPlayerIds = [...new Set((teams || []).flatMap((t) => [t.player1_id, t.player2_id]).filter(Boolean))];
+    const teamPlayerIds = [...new Set((teams || []).flatMap((t) => [t.user1_id, t.user2_id]).filter(Boolean))];
     if (teamPlayerIds.length > 0) {
-      const { data: teamPlayers } = await supabase.from('players').select('id, full_name').in('id', teamPlayerIds);
+      const { data: teamPlayers } = await supabase.from('users').select('id, full_name').in('id', teamPlayerIds);
       (teamPlayers || []).forEach((p) => {
         map[p.id] = p.full_name.split(' ')[0];
       });
@@ -141,7 +141,7 @@ export default function ProfilePage() {
     const supabase = createClient();
     const fn = mode === 'together' ? 'get_partner_match_history' : 'get_opponent_match_history';
     const paramKey = mode === 'together' ? 'p_partner_id' : 'p_opponent_id';
-    const { data } = await supabase.rpc(fn, { p_player_id: player.id, [paramKey]: partnerId });
+    const { data } = await supabase.rpc(fn, { p_user_id: player.id, [paramKey]: partnerId });
     setPartnerMatches(data || []);
   }
 

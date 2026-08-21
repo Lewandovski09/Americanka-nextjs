@@ -13,7 +13,7 @@ export async function POST(request, { params }) {
   const supabaseAdmin = createAdminClient();
 
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -25,7 +25,7 @@ export async function POST(request, { params }) {
   // The login, read before the row disappears — it goes back in the
   // response so the admin sees who was actually deleted.
   const { data: target } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('login')
     .eq('id', playerId)
     .maybeSingle();

@@ -50,34 +50,34 @@ export default function AvpSeasonCard({ playerId, gender }) {
       const [{ data: standings }, { data: breakdown }] = await Promise.all([
         supabase
           .from('avp_standings')
-          .select('player_id, points, tournaments_counted')
+          .select('user_id, points, tournaments_counted')
           .eq('season_id', current.id)
           .order('points', { ascending: false }),
         supabase
           .from('avp_points')
           .select(
-            `id, place, points, tier, tournament_id,
-             tournaments(category_label, gender),
+            `id, place, points, tier, category_id,
+             tournament_categories(category_label, gender),
              tournament_events(name, scheduled_at)`
           )
-          .eq('player_id', playerId)
+          .eq('user_id', playerId)
           .eq('season_id', current.id),
       ]);
 
-      const mine = (standings || []).find((s) => s.player_id === playerId) || null;
+      const mine = (standings || []).find((s) => s.user_id === playerId) || null;
 
       // Rank inside the same list the AVP leaderboard shows, i.e. among
       // players of the same gender — otherwise the number here and the
       // number there would disagree.
       let place = null;
       if (mine && gender) {
-        const ids = (standings || []).map((s) => s.player_id);
-        const { data: profiles } = await supabase.from('players').select('id, gender').in('id', ids);
+        const ids = (standings || []).map((s) => s.user_id);
+        const { data: profiles } = await supabase.from('users').select('id, gender').in('id', ids);
         const sameGender = new Set(
           (profiles || []).filter((p) => p.gender === gender).map((p) => p.id)
         );
-        place = (standings || []).filter((s) => sameGender.has(s.player_id)).findIndex(
-          (s) => s.player_id === playerId
+        place = (standings || []).filter((s) => sameGender.has(s.user_id)).findIndex(
+          (s) => s.user_id === playerId
         );
         place = place >= 0 ? place + 1 : null;
       }
@@ -130,11 +130,11 @@ export default function AvpSeasonCard({ playerId, gender }) {
 
       {expanded &&
         rows.map((r) => (
-          <Link key={r.id} href={`/tournaments/${r.tournament_id}`} className={styles.row}>
+          <Link key={r.id} href={`/tournaments/${r.category_id}`} className={styles.row}>
             <div className={styles.rowMain}>
               <div className={styles.rowName}>
                 {r.tournament_events?.name || 'Турнір'}
-                {r.tournaments?.category_label ? ` · ${r.tournaments.category_label}` : ''}
+                {r.tournament_categories?.category_label ? ` · ${r.tournament_categories.category_label}` : ''}
               </div>
               <div className={styles.rowMeta}>
                 {r.tournament_events?.scheduled_at

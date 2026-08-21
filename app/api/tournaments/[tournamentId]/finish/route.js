@@ -20,7 +20,7 @@ export async function POST(request, { params }) {
   // Closing a category pays out its results, so it is an admin action —
   // the button was already admin-only, the endpoint behind it was not.
   const { data: me } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -32,9 +32,9 @@ export async function POST(request, { params }) {
   // early finish would pay out nothing at all — refuse it outright
   // instead of silently closing an empty result.
   const { data: matches } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .select('played')
-    .eq('tournament_id', tournamentId);
+    .eq('category_id', tournamentId);
   if (!matches?.length || matches.some((m) => !m.played)) {
     return Response.json(
       { success: false, error: 'Ще зіграні не всі матчі' },
@@ -48,7 +48,7 @@ export async function POST(request, { params }) {
   }
 
   const { data: winner } = res.winnerPlayerId
-    ? await supabaseAdmin.from('players').select('full_name').eq('id', res.winnerPlayerId).maybeSingle()
+    ? await supabaseAdmin.from('users').select('full_name').eq('id', res.winnerPlayerId).maybeSingle()
     : { data: null };
 
   return Response.json({ success: true, winner: winner?.full_name });

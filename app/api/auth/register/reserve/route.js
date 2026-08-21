@@ -26,7 +26,7 @@ export async function POST(request) {
     const supabaseAdmin = createAdminClient();
 
     const { data: existingPlayer, error: lookupError } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('id')
       .eq('login', normalizedLogin)
       .limit(1);

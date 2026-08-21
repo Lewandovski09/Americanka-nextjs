@@ -33,7 +33,7 @@ export async function POST(request, { params }) {
     );
   }
 
-  if (match.tournaments?.status === 'done') {
+  if (match.tournament_categories?.status === 'done') {
     return Response.json(
       { success: false, error: 'Категорію завершено — суддю змінити не можна' },
       { status: 400 }
@@ -44,7 +44,7 @@ export async function POST(request, { params }) {
 
   if (playerId) {
     const { data: judgePlayer } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('id')
       .eq('id', playerId)
       .maybeSingle();
@@ -56,13 +56,13 @@ export async function POST(request, { params }) {
     if (eventId) {
       const { error: crewError } = await supabaseAdmin
         .from('tournament_judges')
-        .upsert({ event_id: eventId, player_id: playerId }, { onConflict: 'event_id,player_id', ignoreDuplicates: true });
+        .upsert({ event_id: eventId, user_id: playerId }, { onConflict: 'event_id,user_id', ignoreDuplicates: true });
       if (crewError) console.error('[match judge] crew upsert:', crewError.message);
     }
   }
 
   const { error } = await supabaseAdmin
-    .from('matches')
+    .from('tournament_matches')
     .update({ judge_id: playerId || null })
     .eq('id', matchId);
   if (error) {

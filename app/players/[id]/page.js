@@ -37,7 +37,7 @@ export default function PlayerProfilePage() {
     let active = true;
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase.from('players').select('*').eq('id', params.id).maybeSingle();
+      const { data } = await supabase.from('users').select('*').eq('id', params.id).maybeSingle();
       if (!active) return;
       if (!data) {
         setNotFound(true);
@@ -48,13 +48,13 @@ export default function PlayerProfilePage() {
       setOpponentElo(data.elo || 1200);
 
       const [{ data: th }, { data: fs }, { data: elog }, { data: p }, headerStats] = await Promise.all([
-        supabase.rpc('get_player_tournament_history', { p_player_id: data.id }),
-        supabase.rpc('get_player_format_stats', { p_player_id: data.id }),
-        supabase.rpc('get_player_elo_log', { p_player_id: data.id }),
+        supabase.rpc('get_user_tournament_history', { p_user_id: data.id }),
+        supabase.rpc('get_user_format_stats', { p_user_id: data.id }),
+        supabase.rpc('get_user_elo_log', { p_user_id: data.id }),
         supabase
           .from('partner_stats')
-          .select('*, partner:players!partner_stats_partner_id_fkey(id, full_name, photo_url)')
-          .eq('player_id', data.id)
+          .select('*, partner:users!partner_stats_partner_id_fkey(id, full_name, photo_url)')
+          .eq('user_id', data.id)
           .order('games_together', { ascending: false }),
         loadPlayerHeaderStats(supabase, data),
       ]);

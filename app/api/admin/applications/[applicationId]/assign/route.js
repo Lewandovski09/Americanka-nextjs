@@ -18,7 +18,7 @@ export async function POST(request, { params }) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -43,7 +43,7 @@ export async function POST(request, { params }) {
   const format = getFormat(event.format_kind);
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('*')
     .eq('id', categoryId)
     .eq('event_id', application.event_id)
@@ -58,7 +58,7 @@ export async function POST(request, { params }) {
   if (asReserve) {
     const { error } = await supabaseAdmin
       .from('tournament_applications')
-      .update({ status: 'reserve', assigned_tournament_id: category.id })
+      .update({ status: 'reserve', assigned_category_id: category.id })
       .eq('id', applicationId);
     if (error) {
       console.error('[assign] reserve error:', error.message);
@@ -68,7 +68,7 @@ export async function POST(request, { params }) {
   }
 
   const placed = await placeMember(supabaseAdmin, category, format, {
-    playerId: application.player_id,
+    playerId: application.user_id,
     partnerId: application.partner_id,
     seekingPartner: application.seeking_partner,
   });
@@ -76,7 +76,7 @@ export async function POST(request, { params }) {
 
   const { error } = await supabaseAdmin
     .from('tournament_applications')
-    .update({ status: 'assigned', assigned_tournament_id: category.id })
+    .update({ status: 'assigned', assigned_category_id: category.id })
     .eq('id', applicationId);
   if (error) {
     console.error('[assign] update error:', error.message);

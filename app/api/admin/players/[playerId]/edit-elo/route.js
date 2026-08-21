@@ -15,7 +15,7 @@ export async function POST(request, { params }) {
   const supabaseAdmin = createAdminClient();
 
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -28,15 +28,15 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Ело має бути від 800 до 2200' }, { status: 400 });
   }
 
-  const { data: before } = await supabaseAdmin.from('players').select('elo').eq('id', playerId).single();
+  const { data: before } = await supabaseAdmin.from('users').select('elo').eq('id', playerId).single();
 
   await supabaseAdmin
-    .from('players')
+    .from('users')
     .update({ elo, category: categoryForElo(elo)?.id })
     .eq('id', playerId);
 
   await supabaseAdmin.from('elo_history').insert({
-    player_id: playerId,
+    user_id: playerId,
     delta: elo - (before?.elo || 0),
     elo_before: before?.elo || 0,
     elo_after: elo,

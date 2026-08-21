@@ -16,7 +16,7 @@ export async function POST(request) {
 
   const supabaseAdmin = createAdminClient();
   const { data: caller } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('is_admin')
     .eq('id', authUser.user.id)
     .maybeSingle();
@@ -26,7 +26,7 @@ export async function POST(request) {
   if (!playerId) return Response.json({ success: false, error: 'Виберіть гравця' }, { status: 400 });
 
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('*, tournament_events(format_kind)')
     .eq('id', categoryId)
     .maybeSingle();
@@ -54,7 +54,7 @@ export async function POST(request) {
 
   const ids = withPartner ? [playerId, partnerId] : [playerId];
   const { data: found } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, approval_status')
     .in('id', ids);
   if ((found || []).length !== ids.length) {
@@ -86,14 +86,14 @@ export async function POST(request) {
   const { error: appError } = await supabaseAdmin.from('tournament_applications').upsert(
     {
       event_id: category.event_id,
-      player_id: playerId,
+      user_id: playerId,
       partner_id: withPartner ? partnerId : null,
       seeking_partner: !!(isPair && seekingPartner),
       requested_category: category.category_label || null,
       status: 'assigned',
-      assigned_tournament_id: category.id,
+      assigned_category_id: category.id,
     },
-    { onConflict: 'event_id,player_id' }
+    { onConflict: 'event_id,user_id' }
   );
   if (appError) console.error('[members/add] application upsert:', appError.message);
 
@@ -102,9 +102,9 @@ export async function POST(request) {
   if (withPartner) {
     await supabaseAdmin
       .from('tournament_applications')
-      .update({ status: 'assigned', assigned_tournament_id: category.id })
+      .update({ status: 'assigned', assigned_category_id: category.id })
       .eq('event_id', category.event_id)
-      .eq('player_id', partnerId);
+      .eq('user_id', partnerId);
   }
 
   return Response.json({ success: true });

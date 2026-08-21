@@ -36,7 +36,7 @@ export async function POST(request, { params }) {
   if (!format) return Response.json({ success: false, error: 'Невідомий формат' }, { status: 400 });
 
   const { data: player } = await supabaseAdmin
-    .from('players')
+    .from('users')
     .select('id, gender, elo, approval_status')
     .eq('id', playerId)
     .maybeSingle();
@@ -49,7 +49,7 @@ export async function POST(request, { params }) {
     .from('tournament_applications')
     .select('id, status')
     .eq('event_id', eventId)
-    .eq('player_id', playerId)
+    .eq('user_id', playerId)
     .maybeSingle();
   if (existing && existing.status !== 'withdrawn' && existing.status !== 'rejected') {
     return Response.json({ success: false, error: 'Ви вже подали заявку на цю подію' }, { status: 400 });
@@ -72,7 +72,7 @@ export async function POST(request, { params }) {
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
   if (isPair && partnerId && !seekingPartner) {
     const { data: p } = await supabaseAdmin
-      .from('players')
+      .from('users')
       .select('id, gender, approval_status')
       .eq('id', partnerId)
       .maybeSingle();
@@ -93,7 +93,7 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Виберіть лігу для заявки' }, { status: 400 });
   }
   const { data: category } = await supabaseAdmin
-    .from('tournaments')
+    .from('tournament_categories')
     .select('id, category_label, status')
     .eq('id', categoryId)
     .eq('event_id', eventId)
@@ -107,12 +107,12 @@ export async function POST(request, { params }) {
   // request; the admin may place the player elsewhere.
   const appRow = {
     event_id: eventId,
-    player_id: playerId,
+    user_id: playerId,
     partner_id: partner?.id || null,
     seeking_partner: !!seekingPartner,
     requested_category: category.category_label || null,
     status: 'pending',
-    assigned_tournament_id: null,
+    assigned_category_id: null,
   };
 
   const { error: appError } = existing
