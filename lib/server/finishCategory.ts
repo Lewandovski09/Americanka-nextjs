@@ -62,7 +62,7 @@ export async function recalcPlacementsForCategory(supabaseAdmin: SupabaseAdmin, 
       .eq('category_id', categoryId),
   ]);
 
-  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
+  const typedTps = (tps || []) as unknown as { user_id: string; users: { full_name: string | null } | null }[];
   const players = typedTps.map((tp) => ({ id: tp.user_id, full_name: tp.users?.full_name }));
   const placements = placementsFor({ matches: (matches as Match[]) || [], teams: teams || [], players });
 
@@ -102,7 +102,7 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   // a to-one foreign key) — the real value at runtime is a single row
   // or null. Casting the whole array once lets .map() below infer its
   // callback parameter correctly instead of colliding with it.
-  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
+  const typedTps = (tps || []) as unknown as { user_id: string; users: { full_name: string | null } | null }[];
   const players = typedTps.map((tp) => ({
     id: tp.user_id,
     full_name: tp.users?.full_name,

@@ -39,7 +39,7 @@ export default function EventsPage() {
         .from('tournament_events')
         .select(
           `id, name, format_kind, status, location, scheduled_at, avp_tier,
-           tournament_categories(id, category, category_label, gender, status, max_participants, avp_tier, bracket_system)`
+           tournament_categories(id, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
         .order('scheduled_at', { ascending: tab === 'done' ? false : true });
@@ -53,7 +53,7 @@ export default function EventsPage() {
         (data || []).map(async (ev) => {
           const format = getFormat(ev.format_kind);
           const cats = await enrichCategoriesWithSlots(supabase, ev.tournament_categories || [], format, ev.avp_tier);
-          return { ...ev, tournaments: cats, format };
+          return { ...ev, tournament_categories: cats, format };
         })
       );
 

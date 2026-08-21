@@ -222,6 +222,79 @@ select _rn_policy('tournament_matches', 'matches_write', 'tournament_matches_wri
 select _rn_policy('tournament_matches', 'matches_admin_insert', 'tournament_matches_admin_insert');
 
 -- ──────────────────────────────────────────────
+-- 5b. CATCH-UP: elo_history.match_id
+-- ──────────────────────────────────────────────
+-- Migration 032 was never applied to this database. Found the hard way:
+-- the first run of this file died on
+--   ERROR: 42703: column eh.match_id does not exist
+-- from the get_user_elo_log body below.
+--
+-- This is not only a problem for this migration. The column has a live
+-- writer: app/api/matches/[matchId]/score/route.js sends match_id with
+-- every auto-Ело row it inserts after an americanka game. That insert
+-- has been failing all along — non-fatally, because the route only
+-- console.errors it — which means players.elo has been moving while
+-- elo_history recorded none of it. The per-game Ело journal
+-- (get_user_elo_log, migration 033, which also never applied because it
+-- reads this column) has therefore been empty by construction, not by
+-- coincidence.
+--
+-- Applied here rather than by re-running 032, because 032 says
+-- `references matches(id)` and that table is called tournament_matches
+-- by the time this line runs. Guarded, like everything else in this
+-- file, so a database that DID get 032 skips it.
+--
+-- NOTE: this backfills the column, not the history. Ело changes that
+-- happened before today are gone — they were never written.
+alter table elo_history
+  add column if not exists match_id uuid references tournament_matches(id) on delete set null;
+
+create index if not exists elo_history_match_idx on elo_history(match_id);
+
+-- ──────────────────────────────────────────────
+-- 5c. CATCH-UP: notification_dismissals
+-- ──────────────────────────────────────────────
+-- Migration 028 is also absent from this database — the pre-flight found
+-- the table missing after every migration in the folder had supposedly
+-- been applied. Third confirmed drift, after tournament_placements
+-- (created by hand, in no migration at all) and 032 above.
+--
+-- Created here instead of by re-running 028, for the same reason as
+-- section 5b and one more:
+--   • 028 says `references players(id)`, and by this line that table is
+--     called users. Applying 028 after this file is impossible, which
+--     made the ordering a one-way door — this removes the door.
+--   • it is guarded, so a database that DID get 028 skips the whole
+--     block and keeps its rows. Section 2 above has already renamed
+--     player_id → user_id there, so both paths land on the same shape.
+--
+-- Definition copied from 028 with the renamed column. What it is for:
+-- an announcement a player has cleared from their own home page, as
+-- opposed to the admin's × which deletes it for the whole club. Until
+-- this exists, app/page.js fails silently at both ends — the read
+-- returns nothing so nothing is ever filtered, and the insert throws
+-- unchecked, so a dismissed announcement comes back on reload.
+create table if not exists notification_dismissals (
+  notification_id uuid not null references admin_notifications(id) on delete cascade,
+  user_id uuid not null references users(id) on delete cascade,
+  dismissed_at timestamptz not null default now(),
+  primary key (notification_id, user_id)
+);
+
+alter table notification_dismissals enable row level security;
+
+-- A player may only ever record their OWN dismissal — never mark an
+-- announcement as read on someone else's behalf, and never read who else
+-- has dismissed what.
+drop policy if exists notification_dismissals_insert_own on notification_dismissals;
+create policy notification_dismissals_insert_own on notification_dismissals
+  for insert with check (user_id = auth.uid());
+
+drop policy if exists notification_dismissals_select_own on notification_dismissals;
+create policy notification_dismissals_select_own on notification_dismissals
+  for select using (user_id = auth.uid());
+
+-- ──────────────────────────────────────────────
 -- 6. FUNCTION BODIES
 -- ──────────────────────────────────────────────
 -- The part that actually breaks without this file. Each of these is the

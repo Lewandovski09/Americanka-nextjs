@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat, FIRST_TO_OPTIONS } from '@/lib/formats';
 import {
   validateCategory,
-  computeEloBands,
   categoryRow,
   resolveScoring,
   resolveAvpTier,
@@ -130,8 +129,6 @@ export async function POST(request, { params }) {
     }
   }
 
-  const bandByKey = await computeEloBands(supabaseAdmin, format, categories);
-
   const { data: updatedEvent, error: eventError } = await supabaseAdmin
     .from('tournament_events')
     .update({
@@ -165,7 +162,7 @@ export async function POST(request, { params }) {
   }
 
   for (const c of categories) {
-    const row = categoryRow(format, updatedEvent, c, bandByKey);
+    const row = categoryRow(format, updatedEvent, c);
     const { error: catError } = c.id
       ? await supabaseAdmin.from('tournament_categories').update(row).eq('id', c.id).eq('event_id', eventId)
       : await supabaseAdmin

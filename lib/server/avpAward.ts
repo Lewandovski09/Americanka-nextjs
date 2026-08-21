@@ -81,7 +81,7 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   // fetched array once, through `unknown`, to the shape it actually has
   // at runtime — that's what lets the .map() callback below infer its
   // parameter type correctly instead of colliding with it.
-  const typedTps = (tps || []) as unknown as { user_id: string; players: { full_name: string | null } | null }[];
+  const typedTps = (tps || []) as unknown as { user_id: string; users: { full_name: string | null } | null }[];
   const players = typedTps.map((tp) => ({
     id: tp.user_id,
     full_name: tp.users?.full_name,

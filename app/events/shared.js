@@ -80,7 +80,7 @@ export function useEventData(id) {
     const { data: cats } = await supabase
       .from('tournament_categories')
       .select(
-        `id, category_label, gender, status, max_participants, bracket_system, elo_min, elo_max, points_to_win,
+        `id, category_label, gender, status, max_participants, bracket_system, points_to_win,
          tournament_players(user_id, slot_index, created_at, users(full_name, photo_url, gender)),
          tournament_teams(id, user1_id, user2_id, slot_index, created_at,
            p1:users!tournament_teams_user1_id_fkey(full_name, gender),

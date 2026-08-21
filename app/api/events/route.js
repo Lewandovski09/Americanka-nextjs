@@ -3,7 +3,6 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat, FIRST_TO_OPTIONS } from '@/lib/formats';
 import {
   validateCategory,
-  computeEloBands,
   categoryRow,
   resolveScoring,
   resolveAvpTier,
@@ -75,12 +74,6 @@ export async function POST(request) {
     seen.add(key);
   }
 
-  // Auto-derive per-league Elo bands: split the real rating spread
-  // (min→max across approved players) evenly among the selected leagues,
-  // Light (lowest) → Pro (highest). Purely a guideline for the admin — no
-  // manual entry. Falls back to no band when there's no usable spread.
-  const bandByKey = await computeEloBands(supabaseAdmin, format, categories);
-
   const { data: event, error: eventError } = await supabaseAdmin
     .from('tournament_events')
     .insert({
@@ -93,9 +86,6 @@ export async function POST(request) {
       points_mode: scoring.mode,
       final_points_to_win: scoring.finalPoints,
       avp_tier: avp.tier,
-      // Single registration flow: everyone applies to a chosen league and
-      // the admin distributes. The column is kept for schema stability.
-      registration_mode: 'admin_assign',
       status: 'scheduled',
       created_by: authUser.user.id,
     })
@@ -108,7 +98,7 @@ export async function POST(request) {
   }
 
   const categoryRows = categories.map((c) => ({
-    ...categoryRow(format, event, c, bandByKey),
+    ...categoryRow(format, event, c),
     status: 'scheduled',
     created_by: authUser.user.id,
   }));

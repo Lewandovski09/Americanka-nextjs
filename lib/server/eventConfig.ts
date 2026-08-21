@@ -2,7 +2,6 @@
 
 import { CATEGORY_LABELS, getBracketSystem, type FormatKind } from '@/lib/formats';
 import { AVP_TIER_IDS } from '@/lib/avp/tiers';
-import type { SupabaseAdmin } from './types';
 
 /** A category as submitted by the create/update event form — loosely
  * typed since it's raw request-body JSON; only the fields these
@@ -27,8 +26,6 @@ export interface EventInput {
   [key: string]: unknown;
 }
 
-export type EloBands = Record<string, { eloMin: number; eloMax: number }>;
-
 // What the event is worth in the season rating. Null (or an omitted
 // field) means the event is outside it — a friendly, a practice day —
 // and that is the default, so an event only ever awards points because
@@ -40,56 +37,6 @@ export function resolveAvpTier(avpTier: unknown): { tier: number | null; error?:
     return { error: `Рівень AVP має бути одним з: ${AVP_TIER_IDS.join(', ')}` };
   }
   return { tier };
-}
-
-// Group key: gendered formats split leagues by gender (Men Light and
-// Women Light are independent bands); non-gendered formats share one.
-export function bandKey(format: FormatKind, c: CategoryInput): string {
-  const g = format.hasGender ? c.gender || 'X' : 'X';
-  return `${g}:${c.categoryLabel}`;
-}
-
-// Evenly split [min, max] into one band per selected label, ordered
-// Light → Pro. Returns { 'M:Pro': { eloMin, eloMax }, ... }.
-export async function computeEloBands(
-  supabaseAdmin: SupabaseAdmin,
-  format: FormatKind,
-  categories: CategoryInput[]
-): Promise<EloBands> {
-  const pick = (asc: boolean) =>
-    supabaseAdmin
-      .from('users')
-      .select('elo')
-      .eq('approval_status', 'approved')
-      .not('elo', 'is', null)
-      .order('elo', { ascending: asc })
-      .limit(1)
-      .maybeSingle();
-
-  const [{ data: lo }, { data: hi }] = await Promise.all([pick(true), pick(false)]);
-  const min = lo?.elo;
-  const max = hi?.elo;
-  if (min == null || max == null || max <= min) return {}; // no usable spread
-
-  // Selected labels per gender group, in ascending tier order.
-  const byGroup: Record<string, Set<string>> = {};
-  for (const c of categories) {
-    const g = format.hasGender ? c.gender || 'X' : 'X';
-    (byGroup[g] ||= new Set()).add(c.categoryLabel as string);
-  }
-
-  const bands: EloBands = {};
-  for (const [g, set] of Object.entries(byGroup)) {
-    const labels = CATEGORY_LABELS.filter((l) => set.has(l));
-    const n = labels.length;
-    labels.forEach((label, i) => {
-      bands[`${g}:${label}`] = {
-        eloMin: Math.round(min + ((max - min) * i) / n),
-        eloMax: Math.round(min + ((max - min) * (i + 1)) / n),
-      };
-    });
-  }
-  return bands;
 }
 
 // Stored capacity: fixed formats use their fixed count; double-elim uses
@@ -130,7 +77,7 @@ export function validateCategory(format: FormatKind, c: CategoryInput): string |
 }
 
 // Row for the `tournaments` table from a validated category config.
-export function categoryRow(format: FormatKind, event: EventInput, c: CategoryInput, bandByKey: EloBands): Record<string, unknown> {
+export function categoryRow(format: FormatKind, event: EventInput, c: CategoryInput): Record<string, unknown> {
   return {
     event_id: event.id,
     name: `${event.name} · ${c.categoryLabel}${c.gender ? (c.gender === 'M' ? ' (Ч)' : ' (Ж)') : ''}`,
@@ -138,9 +85,6 @@ export function categoryRow(format: FormatKind, event: EventInput, c: CategoryIn
     gender: format.hasGender ? c.gender : null,
     bracket_system: format.needsBracketSystem ? c.bracketSystem : null,
     max_participants: capacityFor(format, c),
-    // Auto-computed guideline shown to the admin when distributing (not a gate).
-    elo_min: bandByKey[bandKey(format, c)]?.eloMin ?? null,
-    elo_max: bandByKey[bandKey(format, c)]?.eloMax ?? null,
     points_to_win: format.scoring === 'first_to' ? event.points_to_win : 31,
     final_points_to_win: event.final_points_to_win,
     location: event.location,

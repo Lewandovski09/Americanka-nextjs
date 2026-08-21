@@ -7,7 +7,7 @@ export default function CategoryRow({ category: c, href, showGender }) {
   return (
     <a href={href} className={styles.row}>
       <div className={styles.top}>
-        <span className={styles.label}>{c.category_label || c.category}</span>
+        <span className={styles.label}>{c.category_label}</span>
         {showGender && (
           <span className={styles.badge}>{c.gender === 'M' ? 'Чоловіки' : c.gender === 'F' ? 'Жінки' : 'Мікс'}</span>
         )}

@@ -97,7 +97,7 @@ export default function HomePage() {
         supabase.from('tournament_events').select('id, format_kind, avp_tier').eq('id', nearest.event_id).maybeSingle(),
         supabase
           .from('tournament_categories')
-          .select('id, status, name, scheduled_at, location, category, category_label, gender, max_participants, avp_tier, bracket_system')
+          .select('id, status, name, scheduled_at, location, category_label, gender, max_participants, avp_tier, bracket_system')
           .eq('event_id', nearest.event_id)
           .in('status', ['scheduled', 'live'])
           .order('category_label', { ascending: true }),
