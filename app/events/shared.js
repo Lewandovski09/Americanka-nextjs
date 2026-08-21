@@ -177,18 +177,51 @@ export function useEventPost(load) {
 // already awarded rating. Shared by both admin settings pages.
 export function DeleteEventButton({ event, busy, post }) {
   const router = useRouter();
+
+  // Two calls, one dialog. The dry run asks the server what deleting
+  // would undo, so the confirmation can quote real numbers instead of a
+  // vague warning — deleting a played americanka rolls Ело back on every
+  // player who took part, and that is not something to agree to blind.
+  // The second call carries the flag the route requires before it will
+  // touch a rating.
+  async function handleDelete() {
+    const url = `/api/events/${event.id}/delete`;
+
+    let willUndo = null;
+    try {
+      const res = await fetch(url, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ dryRun: true }),
+      });
+      const data = await res.json();
+      if (!data.success) {
+        window.alert(data.error || 'Не вдалося перевірити турнір');
+        return;
+      }
+      willUndo = data.willUndo;
+    } catch {
+      window.alert('Не вдалося зв’язатися з сервером');
+      return;
+    }
+
+    let text = `Видалити турнір «${event.name}»? Всі категорії, матчі та заявки буде видалено без можливості відновлення.`;
+    if (willUndo?.eloRows > 0 || willUndo?.avpRows > 0) {
+      text += '\n\nРазом з ним буде СКАСОВАНО нарахований рейтинг:';
+      if (willUndo.eloRows > 0) {
+        text += `\n• Ело — ${willUndo.eloRows} змін у ${willUndo.eloPlayers} гравців; рейтинги повернуться до значень до турніру`;
+      }
+      if (willUndo.avpRows > 0) {
+        text += `\n• AVP — ${willUndo.avpPoints} очок сезону в ${willUndo.avpRows} записах`;
+      }
+    }
+
+    if (!window.confirm(text)) return;
+    if (await post(url, { confirmRatingRollback: true })) router.push('/tournaments');
+  }
+
   return (
-    <button
-      className={styles.deleteBtn}
-      disabled={busy}
-      onClick={async () => {
-        const ok = window.confirm(
-          `Видалити турнір «${event.name}»? Всі категорії, матчі та заявки буде видалено без можливості відновлення.`
-        );
-        if (!ok) return;
-        if (await post(`/api/events/${event.id}/delete`)) router.push('/tournaments');
-      }}
-    >
+    <button className={styles.deleteBtn} disabled={busy} onClick={handleDelete}>
       Видалити турнір
     </button>
   );
