@@ -19,10 +19,13 @@ import { categoryForElo } from '@/lib/elo';
 //          back before the rows go.
 //
 // That asymmetry is why this used to refuse outright: elo_history
-// references the category with no cascade, so Postgres blocked the
+// referenced the category with no cascade, so Postgres blocked the
 // delete and the route turned that into «вже нараховано рейтинг». The
 // refusal was honest but terminal — an americanka started by mistake
-// could never be removed through the UI at all.
+// could never be removed through the UI at all. Migration 042 moved
+// that reference onto the match with ON DELETE CASCADE, so the rows now
+// clear themselves; what stays here is the part a cascade cannot do —
+// putting the numbers back on the players.
 //
 // Now it rolls back instead, behind an explicit confirmation:
 //   { dryRun: true }               → what would be undone, changes nothing
@@ -69,15 +72,26 @@ export async function POST(request, { params }) {
   // What this event has paid out. Both lists are read in full rather
   // than counted: the Ело rollback needs the deltas themselves, and the
   // dry run quotes real numbers so the confirmation is not a guess.
+  //
+  // Ело history is reached through the matches (migration 042): a row
+  // names the GAME it came from, and the category only through it.
   let eloRows = [];
   let avpRows = [];
   if (categoryIds.length > 0) {
-    const [{ data: eh }, { data: ap }] = await Promise.all([
-      supabaseAdmin.from('elo_history').select('id, user_id, delta').in('category_id', categoryIds),
+    const [{ data: matchRows }, { data: ap }] = await Promise.all([
+      supabaseAdmin.from('tournament_matches').select('id').in('category_id', categoryIds),
       supabaseAdmin.from('avp_points').select('id, points').in('category_id', categoryIds),
     ]);
-    eloRows = eh || [];
     avpRows = ap || [];
+
+    const matchIds = (matchRows || []).map((m) => m.id);
+    if (matchIds.length > 0) {
+      const { data: eh } = await supabaseAdmin
+        .from('elo_history')
+        .select('id, user_id, delta')
+        .in('match_id', matchIds);
+      eloRows = eh || [];
+    }
   }
 
   // Sum per player: Ело is additive, so one subtraction per player
@@ -144,21 +158,11 @@ export async function POST(request, { params }) {
     }
   }
 
-  // The history goes explicitly — it has no cascade, and leaving it
-  // would block the delete below.
-  if (eloRows.length > 0) {
-    const { error: histErr } = await supabaseAdmin
-      .from('elo_history')
-      .delete()
-      .in('category_id', categoryIds);
-    if (histErr) {
-      console.error('[event delete] elo_history:', histErr.message);
-      return Response.json({ success: false, error: 'Не вдалося очистити історію Ело' }, { status: 500 });
-    }
-  }
-
-  // avp_points needs no such step — it cascades, and the standings view
-  // recomputes itself from what is left.
+  // elo_history needs no explicit step any more: since migration 042 it
+  // hangs off the match with ON DELETE CASCADE, so it goes down the same
+  // chain as everything else — event → category → match → history. Same
+  // for avp_points, and the standings view recomputes itself from what
+  // is left.
   const { error } = await supabaseAdmin.from('tournament_events').delete().eq('id', eventId);
   if (error) {
     console.error('[event delete] error:', error.message);

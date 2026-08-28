@@ -3,7 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { validateSumTo, validateSetsFirstTo, pointsTargetForStage } from '@/lib/formats/scoring';
 import { teamAWon } from '@/lib/formats/sets';
-import { categoryForElo } from '@/lib/elo';
+import { categoryForElo, matchDeltas } from '@/lib/elo';
 import { buildKingRound, rankGroupDetailed, kingAdvancers } from '@/lib/formats/kingOfBeach';
 import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from '@/lib/formats/brackets';
 import { stageWeight } from '@/lib/formats/stages';
@@ -380,44 +380,43 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
   const { data: players } = await supabaseAdmin.from('users').select('id, elo').in('id', allIds);
   const eloById = new Map((players || []).map((p) => [p.id, p.elo ?? 1200]));
 
-  // Team rating = average of its two players' current Ело — the same
-  // "what-if" math the calculator on a player's own profile already
-  // shows them (K=32), just applied to the team average instead of one
-  // player's Ело against a slider.
-  const teamAElo = (eloById.get(teamA[0]) + eloById.get(teamA[1])) / 2;
-  const teamBElo = (eloById.get(teamB[0]) + eloById.get(teamB[1])) / 2;
+  // The math lives in lib/elo.ts (and is unit-tested there): each team
+  // plays at the average of its two players' Ело, the team delta comes
+  // out of the standard formula at K=32, and the pair then splits that
+  // delta — the weaker partner taking the larger share of a win and the
+  // smaller share of a loss. The four deltas always sum to zero.
   const aWon = teamAWon({ set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null });
-  const K = 32;
-  const expectedA = 1 / (1 + Math.pow(10, (teamBElo - teamAElo) / 400));
-  const deltaA = Math.round(K * ((aWon ? 1 : 0) - expectedA));
-  const deltaB = -deltaA;
+  const deltas = matchDeltas(
+    [eloById.get(teamA[0]), eloById.get(teamA[1])],
+    [eloById.get(teamB[0]), eloById.get(teamB[1])],
+    aWon
+  );
 
-  for (const [side, delta] of [
-    [teamA, deltaA],
-    [teamB, deltaB],
-  ]) {
-    for (const playerId of side) {
-      const before = eloById.get(playerId) ?? 1200;
-      const after = before + delta;
-      const { error: updateError } = await supabaseAdmin
-        .from('users')
-        .update({ elo: after, category: categoryForElo(after)?.id })
-        .eq('id', playerId);
-      if (updateError) {
-        console.error('[auto-elo] players update:', updateError.message);
-        continue;
-      }
-      const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
-        user_id: playerId,
-        category_id: match.category_id,
-        match_id: match.id,
-        delta,
-        elo_before: before,
-        elo_after: after,
-        reason: 'tournament_result',
-      });
-      if (historyError) console.error('[auto-elo] elo_history insert:', historyError.message);
+  const playerIds = [...teamA, ...teamB];
+  for (let i = 0; i < playerIds.length; i++) {
+    const playerId = playerIds[i];
+    const delta = deltas[i];
+    const before = eloById.get(playerId) ?? 1200;
+    const after = before + delta;
+    const { error: updateError } = await supabaseAdmin
+      .from('users')
+      .update({ elo: after, category: categoryForElo(after)?.id })
+      .eq('id', playerId);
+    if (updateError) {
+      console.error('[auto-elo] players update:', updateError.message);
+      continue;
     }
+    // No category_id: since migration 042 the row names only the game,
+    // and the category is reached through it.
+    const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
+      user_id: playerId,
+      match_id: match.id,
+      delta,
+      elo_before: before,
+      elo_after: after,
+      reason: 'tournament_result',
+    });
+    if (historyError) console.error('[auto-elo] elo_history insert:', historyError.message);
   }
 }
 

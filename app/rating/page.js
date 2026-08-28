@@ -306,11 +306,10 @@ export default function RatingPage() {
 
       // ── Biggest Ело gain, last 3 months ──
       // reason='tournament_result' only — elo_history also holds
-      // 'initial_approval' (a standard starting value logged when a
-      // player is approved, the same round number for everyone,
-      // nothing to do with playing) and 'admin_adjustment' (manual
-      // corrections). Neither reflects "gained from playing", which is
-      // the whole point of this leaderboard.
+      // 'admin_adjustment' (a manual correction by the admin), which is
+      // not "gained from playing" and would distort the leaderboard.
+      // Approval logs nothing: a new player's starting rating is written
+      // straight to users.elo, so it never reaches this query either.
       const { data: eloRows } = await supabase
         .from('elo_history')
         .select('user_id, delta')
