@@ -208,3 +208,28 @@
   text-decoration: none;
   cursor: pointer;
 }
+
+/* City filter — shown only once the club runs events in more than one
+   city (cities come from the venues table, migration 043). */
+.cityFilter {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin: 0 0 12px;
+}
+
+.cityChip {
+  font-size: 12px;
+  font-weight: 700;
+  padding: 6px 12px;
+  border-radius: var(--r-lg);
+  border: none;
+  cursor: pointer;
+  background: var(--bg-light);
+  color: var(--text2);
+}
+
+.cityChipOn {
+  background: var(--text);
+  color: var(--bg-light);
+}

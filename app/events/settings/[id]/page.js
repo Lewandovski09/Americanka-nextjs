@@ -16,7 +16,6 @@ import Link from 'next/link';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import {
-  LOCATION_LABEL,
   useEventData,
   useEventPost,
   CategoryTabs,
@@ -31,6 +30,7 @@ import JudgesTab from '../../JudgesTab';
 import EventConfigForm from './EventConfigForm';
 import ManualEntry from './ManualEntry';
 import styles from '../../event.module.css';
+import VenueName from '@/components/VenueName';
 
 const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
 
@@ -108,7 +108,7 @@ export default function EventSettingsPage({ params }) {
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
         {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-        {LOCATION_LABEL[event.location] || event.location}
+        <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>{regClosed ? '🔒 Реєстрацію закрито' : '🟢 Реєстрація відкрита'}</div>
 

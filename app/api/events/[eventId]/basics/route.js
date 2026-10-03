@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { resolveAvpTier } from '@/lib/server/eventConfig';
+import { resolveAvpTier, resolveVenue } from '@/lib/server/eventConfig';
 import { recalcAvpForCategory } from '@/lib/server/avpAward';
 
 // Basic settings of a RUNNING event: name, date/time, venue, AVP tier.
@@ -10,8 +10,10 @@ import { recalcAvpForCategory } from '@/lib/server/avpAward';
 // here. The tier belongs on this list precisely because it changes
 // nothing about how the event is played: an event that started before
 // anyone decided what it was worth can still be put into the rating.
-const LOCATIONS = ['beach13', 'dynamo_sc'];
-
+//
+// The venue is checked against the `venues` table (migration 043). The
+// event's courts are already baked into its matches, so a move is only
+// allowed to a venue that has every one of those courts.
 export async function POST(request, { params }) {
   const { eventId } = params;
 
@@ -33,7 +35,7 @@ export async function POST(request, { params }) {
 
   const { data: event } = await supabaseAdmin
     .from('tournament_events')
-    .select('id, name')
+    .select('id, name, location, sport_id, courts')
     .eq('id', eventId)
     .maybeSingle();
   if (!event) {
@@ -49,11 +51,12 @@ export async function POST(request, { params }) {
     if (!trimmed) return Response.json({ success: false, error: 'Вкажіть назву' }, { status: 400 });
     patch.name = trimmed;
   }
-  if (location !== undefined) {
-    if (!LOCATIONS.includes(location)) {
-      return Response.json({ success: false, error: 'Невідоме місце проведення' }, { status: 400 });
+  if (location !== undefined && location !== event.location) {
+    const venueCheck = await resolveVenue(supabaseAdmin, location, event.sport_id, event.courts || []);
+    if (venueCheck.error) {
+      return Response.json({ success: false, error: venueCheck.error }, { status: 400 });
     }
-    patch.location = location;
+    patch.location = venueCheck.venue.code;
   }
   if (scheduledAt !== undefined) {
     const d = new Date(scheduledAt);
@@ -80,12 +83,13 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Не вдалося зберегти' }, { status: 500 });
   }
 
-  // Changing the tier (or the date, which is what picks the season)
+  // Changing the tier (or the date / venue, which pick the season)
   // changes what every finished category of this event was worth. Repay
   // them straight away instead of leaving the standings stale until
   // somebody notices — recalcAvpForCategory rewrites from scratch, so
   // this is safe to run over categories that never earned anything.
-  if ('avpTier' in body || scheduledAt !== undefined) {
+  // A venue move can change the CITY, and a city may run its own season.
+  if ('avpTier' in body || scheduledAt !== undefined || patch.location !== undefined) {
     const { data: finished } = await supabaseAdmin
       .from('tournament_categories')
       .select('id')

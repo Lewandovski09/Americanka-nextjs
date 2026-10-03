@@ -11,8 +11,9 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
-import { LOCATION_LABEL, useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
+import { useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
 import styles from '../../event.module.css';
+import VenueName from '@/components/VenueName';
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -98,7 +99,7 @@ export default function EventRegisterPage({ params, searchParams }) {
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
         {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-        {LOCATION_LABEL[event.location] || event.location}
+        <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>
         {regClosed ? '🔒 Реєстрацію закрито' : '🟢 Реєстрація відкрита'}

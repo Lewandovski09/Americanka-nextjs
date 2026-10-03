@@ -36,9 +36,16 @@ export default function AvpSeasonCard({ playerId, gender }) {
       const { data: seasons } = await supabase
         .from('avp_seasons')
         .select('id, name, starts_on, ends_on')
+        // The club-wide season of the primary sport (043 scopes seasons by
+        // sport and city; a city or another sport has its own list).
+        .eq('kind', 'avp')
+        .eq('sport_id', PRIMARY_SPORT_ID)
+        .is('city_id', null)
         .order('starts_on', { ascending: false });
       const current =
-        (seasons || []).find((s) => s.starts_on <= today && s.ends_on >= today) || seasons?.[0] || null;
+        (seasons || []).find((s) => s.starts_on <= today && (s.ends_on === null || s.ends_on >= today)) ||
+        seasons?.[0] ||
+        null;
 
       if (cancelled) return;
       setSeason(current);

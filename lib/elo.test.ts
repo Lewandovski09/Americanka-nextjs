@@ -8,6 +8,7 @@ import {
   weakerShare,
   pairDeltas,
   matchDeltas,
+  AUTO_K,
 } from './elo';
 
 describe('expectedScore', () => {
@@ -136,12 +137,13 @@ describe('pairDeltas', () => {
 describe('matchDeltas', () => {
   it('reproduces the worked example from the spec', () => {
     // A = 1200 + 1500 → 1350, B = 1500 + 1400 → 1450.
-    // E_A = 0.36 → team delta on an A win = round(32 * 0.64) = 20.
+    // E_A = 0.36 → team delta on an A win = round(55 * 0.64) = round(35.2) = 35.
+    expect(AUTO_K).toBe(55);
     const [a1, a2, b1, b2] = matchDeltas([1200, 1500], [1500, 1400], true);
-    expect(a1).toBe(12); // 1200 — weaker of A, takes 61.1% of the +20
-    expect(a2).toBe(8); // 1500 — stronger of A
-    expect(b1).toBe(-11); // 1500 — stronger of B, carries the larger share of the loss
-    expect(b2).toBe(-9); // 1400 — weaker of B, 46.6% of the -20
+    expect(a1).toBe(21); // 1200 — weaker of A, takes 61.1% of the +35 (21.4)
+    expect(a2).toBe(14); // 1500 — stronger of A
+    expect(b1).toBe(-19); // 1500 — stronger of B, carries the larger share of the loss
+    expect(b2).toBe(-16); // 1400 — weaker of B, 46.6% of the -35 (-16.3)
   });
 
   it('always sums to zero across the four players', () => {
@@ -174,10 +176,20 @@ describe('matchDeltas', () => {
   it('mirrors itself when the result flips', () => {
     // Losing the same match costs the team exactly what winning it paid,
     // because the expected score is the same either way.
+    // Equal teams: 55 * 0.5 = 27.5 → 28 either way (half away from zero),
+    // split 14/14 inside each pair.
     const win = matchDeltas([1500, 1500], [1500, 1500], true);
     const loss = matchDeltas([1500, 1500], [1500, 1500], false);
-    expect(win).toEqual([8, 8, -8, -8]);
-    expect(loss).toEqual([-8, -8, 8, 8]);
+    expect(win).toEqual([14, 14, -14, -14]);
+    expect(loss).toEqual([-14, -14, 14, 14]);
+  });
+
+  it('pays the same amount whichever side is listed as team A', () => {
+    // With an odd K, plain Math.round would give 28 one way and 27 the other.
+    const aWins = matchDeltas([1300, 1400], [1350, 1350], true);
+    const bWins = matchDeltas([1350, 1350], [1300, 1400], false);
+    expect(aWins[0] + aWins[1]).toBe(bWins[2] + bWins[3]);
+    expect(aWins[2] + aWins[3]).toBe(bWins[0] + bWins[1]);
   });
 
   it('pays an underdog team more than a favourite for the same win', () => {

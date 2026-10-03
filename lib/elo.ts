@@ -56,8 +56,10 @@ export function categoryForElo(elo: number | null | undefined): SkillCategory | 
 
 /** K-factor for the automatic payout. It applies to the TEAM's delta,
  *  which the two partners then split — so a player in an even pair
- *  moves by about K/2. */
-export const AUTO_K = 32;
+ *  moves by about K/2. Raised from 32 to 55: most games are between
+ *  neighbouring categories (rating gaps up to ~400), where 32 moved a
+ *  player through a 300-point category too slowly. */
+export const AUTO_K = 55;
 
 /** Widest split allowed inside a pair. The share is clamped to
  *  [1 - MAX, MAX]; the two shares always sum to 1, so clamping one end
@@ -125,7 +127,10 @@ export function pairDeltas(elo1: number, elo2: number, teamDelta: number): [numb
   const weak = firstIsWeaker ? elo1 : elo2;
   const strong = firstIsWeaker ? elo2 : elo1;
 
-  const weakDelta = Math.round(teamDelta * weakerShare(weak, strong, won));
+  // Half away from zero, as in matchDeltas, so a win and the mirrored
+  // loss split the same way (Math.round sends 11.5 up but -11.5 up too).
+  const rawWeak = teamDelta * weakerShare(weak, strong, won);
+  const weakDelta = Math.sign(rawWeak) * Math.round(Math.abs(rawWeak));
   const strongDelta = teamDelta - weakDelta;
   return firstIsWeaker ? [weakDelta, strongDelta] : [strongDelta, weakDelta];
 }
@@ -142,7 +147,11 @@ export function matchDeltas(
 ): [number, number, number, number] {
   const ratingA = teamElo(teamAElos[0], teamAElos[1]);
   const ratingB = teamElo(teamBElos[0], teamBElos[1]);
-  const deltaA = Math.round(AUTO_K * ((teamAWon ? 1 : 0) - expectedScore(ratingA, ratingB)));
+  // Rounded half AWAY from zero: Math.round rounds -22.5 to -22 but 22.5
+  // to 23, so with an odd K two equal teams would pay a different amount
+  // depending only on which side was listed as team A.
+  const raw = AUTO_K * ((teamAWon ? 1 : 0) - expectedScore(ratingA, ratingB));
+  const deltaA = Math.sign(raw) * Math.round(Math.abs(raw));
 
   const [a1, a2] = pairDeltas(teamAElos[0], teamAElos[1], deltaA);
   const [b1, b2] = pairDeltas(teamBElos[0], teamBElos[1], -deltaA);

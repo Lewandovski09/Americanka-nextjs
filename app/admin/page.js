@@ -7,6 +7,8 @@ import { getFormat } from '@/lib/formats';
 import { CATEGORY_STARTING_ELO } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './admin.module.css';
+import SeasonAdminPanel from '@/components/SeasonAdminPanel';
+import TelegramWebhookPanel from '@/components/TelegramWebhookPanel';
 
 const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
 
@@ -464,6 +466,11 @@ export default function AdminPage() {
           ))}
         </div>
       )}
+
+      {/* AVP and Ело run independent seasons — each closed and started on its own. */}
+      <SeasonAdminPanel styles={styles} kind="avp" />
+      <SeasonAdminPanel styles={styles} kind="elo" />
+      <TelegramWebhookPanel styles={styles} />
 
       <div className={styles.sectionLabel}>Надіслати оголошення</div>
       <div className={styles.notifCard}>

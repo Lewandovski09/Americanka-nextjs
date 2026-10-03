@@ -177,7 +177,7 @@ export function kingResults(matches: Match[]): PlacementRow[] {
     // group of 4) or the next round has been dealt without them.
     const complete = rm.length > 0 && rm.every((m) => m.played);
     const isFinal = new Set(rm.map((m) => m.group_index ?? 0)).size === 1;
-    const nextDealt = matches.some((m) => m.stage === `kr${r + 1}` && m.team_a_players.length > 0);
+    const nextDealt = matches.some((m) => m.stage === `kr${r + 1}` && (m.team_a_players?.length ?? 0) > 0);
     if (!complete || !(isFinal || nextDealt)) {
       place += stayedIds.length; // keep their places reserved
       continue;

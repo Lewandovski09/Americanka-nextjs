@@ -224,3 +224,11 @@ export async function broadcastTelegramMessage(chatIds: (string | number)[], tex
 
   return { sent, failed, deadChatIds };
 }
+
+/**
+ * Raw Bot API call for admin plumbing (setWebhook / getWebhookInfo).
+ * Same transport as everything else — timeouts and retries included.
+ */
+export async function telegramApi(method: string, payload: Record<string, unknown> = {}): Promise<TelegramCallResult> {
+  return callTelegram(method, payload);
+}

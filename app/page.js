@@ -11,6 +11,7 @@ import CategoryRow from '@/components/CategoryRow';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
+import VenueName from '@/components/VenueName';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp } from '@/components/Icons';
 import styles from './page.module.css';
@@ -94,10 +95,10 @@ export default function HomePage() {
       }
 
       const [{ data: event }, { data: cats }] = await Promise.all([
-        supabase.from('tournament_events').select('id, format_kind, avp_tier').eq('id', nearest.event_id).maybeSingle(),
+        supabase.from('tournament_events').select('id, format_kind, avp_tier, location').eq('id', nearest.event_id).maybeSingle(),
         supabase
           .from('tournament_categories')
-          .select('id, status, name, scheduled_at, location, category_label, gender, max_participants, avp_tier, bracket_system')
+          .select('id, status, name, scheduled_at, category_label, gender, max_participants, avp_tier, bracket_system')
           .eq('event_id', nearest.event_id)
           .in('status', ['scheduled', 'live'])
           .order('category_label', { ascending: true }),
@@ -112,7 +113,8 @@ export default function HomePage() {
         format,
         isPairFormat,
         avpTier: event?.avp_tier ?? null,
-        location: cats?.[0]?.location,
+        // The venue is the EVENT's (043) — the category copy could drift.
+        location: event?.location,
         scheduled_at: nearest.scheduled_at,
         status: cats?.[0]?.status,
       });
@@ -348,7 +350,7 @@ export default function HomePage() {
             {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
           </div>
           <div className={styles.nextTournamentMeta}>
-            {nextEvent.location === 'beach13' ? 'Beach 13' : 'Dynamo SC'}
+            <VenueName code={nextEvent.location} />
             {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
           </div>
 

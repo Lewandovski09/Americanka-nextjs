@@ -5,7 +5,6 @@ import { useRouter } from 'next/navigation';
 import {
   listFormats,
   getFormat,
-  CATEGORY_LABELS,
   BRACKET_SYSTEMS,
   FIRST_TO_OPTIONS,
   getBracketSystem,
@@ -14,8 +13,9 @@ import {
 import AvpTierPicker from '@/components/AvpTierPicker';
 import styles from './create.module.css';
 import OptionBtn from '@/components/OptionBtn';
+import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
+import { listSports, getSport, divisionsFor, PRIMARY_SPORT_ID } from '@/lib/sports';
 
-const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
 const GENDERS = [
   { id: 'M', label: 'Чоловіки' },
   { id: 'F', label: 'Жінки' },
@@ -27,15 +27,26 @@ function catKey(gender, label) {
 
 export default function CreateEventPage() {
   const router = useRouter();
-  const formats = useMemo(() => listFormats(), []);
+  const sports = useMemo(() => listSports(), []);
+  const [sportId, setSportId] = useState(PRIMARY_SPORT_ID);
+  // Only the formats this sport offers (lib/sports), in its own order.
+  const formats = useMemo(() => {
+    const allowed = getSport(sportId)?.formats || [];
+    return listFormats().filter((f) => allowed.includes(f.kind));
+  }, [sportId]);
+  const divisions = divisionsFor(sportId);
 
   const [formatKind, setFormatKind] = useState('americanka');
   const format = getFormat(formatKind);
 
   const [name, setName] = useState('');
   const [scheduledAt, setScheduledAt] = useState('');
-  const [location, setLocation] = useState('beach13');
-  const [courts, setCourts] = useState([1]);
+  // Venues are rows in the `venues` table (migration 043) — the list,
+  // the labels and each venue's courts all come from there.
+  const allVenues = useVenues();
+  const venues = useMemo(() => selectableVenues(allVenues, sportId), [allVenues, sportId]);
+  const [location, setLocation] = useState(null);
+  const [courts, setCourts] = useState([]);
 
   const [pointsToWin, setPointsToWin] = useState(21);
   const [useFinalPoints, setUseFinalPoints] = useState(false);
@@ -50,13 +61,29 @@ export default function CreateEventPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const courtRange = COURT_RANGES[location] || [1, 2];
+  const venue = findVenue(venues, location);
+  const courtRange = venue?.courts || [];
   const gendersToShow = format.hasGender ? GENDERS.map((g) => g.id) : [null];
+
+  // Default to the first venue once they load, and again whenever the
+  // chosen one is not available for the selected sport.
+  useEffect(() => {
+    if (venues.length > 0 && !venues.some((v) => v.code === location)) setLocation(venues[0].code);
+  }, [venues, location]);
+
+  // A sport that does not offer the chosen format resets it.
+  useEffect(() => {
+    if (formats.length > 0 && !formats.some((f) => f.kind === formatKind)) setFormatKind(formats[0].kind);
+  }, [formats, formatKind]);
 
   // Reset location-dependent courts and format-dependent categories.
   useEffect(() => {
-    setCourts([1]);
-  }, [location]);
+    setCourts(venue ? [venue.courts[0]] : []);
+  }, [location, venue?.id]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  useEffect(() => {
+    setCategories([]);
+  }, [sportId]);
 
   useEffect(() => {
     setCategories([]);
@@ -65,8 +92,8 @@ export default function CreateEventPage() {
   function toggleCourt(n) {
     setCourts((prev) => {
       if (prev.includes(n)) return prev.length > 1 ? prev.filter((c) => c !== n) : prev;
-      // Cap at however many courts the venue actually has (Beach 1–6,
-      // Dynamo 1–2). Americanka only ever uses 2 in parallel, but King
+      // Cap at however many courts the venue actually has (venues.courts in the DB).
+      // Americanka only ever uses 2 in parallel, but King
       // of the Beach / group stages can run on all of them at once.
       return prev.length < courtRange.length ? [...prev, n].sort((a, b) => a - b) : prev;
     });
@@ -109,6 +136,8 @@ export default function CreateEventPage() {
   async function handleCreate() {
     setError('');
     if (!scheduledAt) return setError('Вкажіть дату та час');
+    if (!location) return setError('Виберіть місце проведення');
+    if (courts.length === 0) return setError('Виберіть щонайменше один корт');
     if (categories.length === 0) return setError('Додайте щонайменше одну категорію');
 
     if (format.needsBracketSystem && categories.some((c) => !c.bracketSystem)) {
@@ -119,6 +148,7 @@ export default function CreateEventPage() {
     }
 
     const payload = {
+      sportId,
       formatKind,
       name,
       location,
@@ -147,6 +177,19 @@ export default function CreateEventPage() {
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>Нова подія</h2>
+
+      {sports.length > 1 && (
+        <>
+          <label className={styles.label}>Вид спорту</label>
+          <div className={styles.row}>
+            {sports.map((sp) => (
+              <OptionBtn key={sp.id} styles={styles} active={sportId === sp.id} onClick={() => setSportId(sp.id)}>
+                {sp.displayName}
+              </OptionBtn>
+            ))}
+          </div>
+        </>
+      )}
 
       <label className={styles.label}>Формат</label>
       <div className={styles.formatGrid}>
@@ -183,12 +226,12 @@ export default function CreateEventPage() {
 
       <label className={styles.label}>Місце проведення</label>
       <div className={styles.row}>
-        <OptionBtn styles={styles} active={location === 'beach13'} onClick={() => setLocation('beach13')}>
-          Beach 13
-        </OptionBtn>
-        <OptionBtn styles={styles} active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
-          Dynamo SC
-        </OptionBtn>
+        {venues.map((v) => (
+          <OptionBtn key={v.code} styles={styles} active={location === v.code} onClick={() => setLocation(v.code)}>
+            {venueLabel(allVenues, v.code)}
+          </OptionBtn>
+        ))}
+        {allVenues.length > 0 && venues.length === 0 && <div className={styles.infoBox}>Немає жодного майданчика для цього виду спорту</div>}
       </div>
 
       <label className={styles.label}>Корти</label>
@@ -256,7 +299,7 @@ export default function CreateEventPage() {
             <div className={styles.catGroupTitle}>{gender === 'M' ? 'Чоловіки' : 'Жінки'}</div>
           )}
           <div className={styles.chipsRow}>
-            {CATEGORY_LABELS.map((label) => (
+            {divisions.map((label) => (
               <button
                 key={label}
                 className={`${styles.chip} ${isCatOn(gender, label) ? styles.chipOn : ''}`}

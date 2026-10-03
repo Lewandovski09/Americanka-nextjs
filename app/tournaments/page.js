@@ -9,9 +9,10 @@ import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
 import CategoryRow from '@/components/CategoryRow';
 import styles from './tournaments.module.css';
 import TabBtn from '@/components/TabBtn';
+import VenueName from '@/components/VenueName';
+import { useVenues, findVenue } from '@/hooks/useVenues';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
-const LOCATION_LABEL = { beach13: 'Beach 13', dynamo_sc: 'Dynamo SC' };
 
 export default function EventsPage() {
   const { player } = useCurrentPlayer();
@@ -23,6 +24,14 @@ export default function EventsPage() {
   // which is what made the switch itself feel slow. Cache per tab,
   // show it instantly, refresh quietly underneath.
   const eventsCacheRef = useRef({}); // tab -> events[]
+
+  // City filter: an event's city is its venue's (migration 043). The
+  // chips only appear once there is more than one city to choose from.
+  const venues = useVenues();
+  const cities = [...new Map(venues.filter((v) => v.city).map((v) => [v.city.id, v.city])).values()];
+  const [cityId, setCityId] = useState('all');
+  const visibleEvents =
+    cityId === 'all' ? events : events.filter((ev) => findVenue(venues, ev.location)?.city?.id === cityId);
 
   useEffect(() => {
     const cached = eventsCacheRef.current[tab];
@@ -84,16 +93,31 @@ export default function EventsPage() {
         </Link>
       )}
 
+      {cities.length > 1 && (
+        <div className={styles.cityFilter}>
+          {[{ id: 'all', name: 'Усі міста' }, ...cities].map((c) => (
+            <button
+              key={c.id}
+              className={`${styles.cityChip} ${cityId === c.id ? styles.cityChipOn : ''}`}
+              aria-pressed={cityId === c.id}
+              onClick={() => setCityId(c.id)}
+            >
+              {c.name}
+            </button>
+          ))}
+        </div>
+      )}
+
       {loading && <div className={styles.empty}>Завантаження...</div>}
-      {!loading && events.length === 0 && <div className={styles.empty}>Немає подій</div>}
+      {!loading && visibleEvents.length === 0 && <div className={styles.empty}>Немає подій</div>}
 
       {!loading &&
-        events.map((ev) => {
+        visibleEvents.map((ev) => {
           const cats = ev.tournament_categories || [];
           const meta = (
             <div className={styles.cardMeta}>
               {new Date(ev.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-              {LOCATION_LABEL[ev.location] || ev.location}
+              <VenueName code={ev.location} />
             </div>
           );
           const badge = (

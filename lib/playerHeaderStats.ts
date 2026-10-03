@@ -8,6 +8,7 @@
 
 import { teamAWon } from '@/lib/formats/sets';
 import type { createClient } from '@/lib/supabase/client';
+import { PRIMARY_SPORT_ID } from './sports';
 
 export interface HeaderStats {
   eloRank: number | null;
@@ -44,6 +45,10 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   const { data: season } = await supabase
     .from('avp_seasons')
     .select('id')
+    // Same scope as AvpSeasonCard: the primary sport's club-wide season.
+    .eq('kind', 'avp')
+    .eq('sport_id', PRIMARY_SPORT_ID)
+    .is('city_id', null)
     .order('starts_on', { ascending: false })
     .limit(1)
     .maybeSingle();

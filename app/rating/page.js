@@ -6,6 +6,16 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
 import { teamAWon } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { PRIMARY_SPORT_ID, getSport } from '@/lib/sports';
+
+// Seasons are scoped by sport and optionally by city (migration 043), so
+// the chip says which one it is whenever that is not the default.
+function seasonLabel(s) {
+  const parts = [s.ends_on === null ? `${s.name} · зараз` : s.name];
+  if (s.city?.name) parts.push(s.city.name);
+  if (s.sport_id && s.sport_id !== PRIMARY_SPORT_ID) parts.push(getSport(s.sport_id)?.displayName || s.sport_id);
+  return parts.join(' · ');
+}
 import styles from './rating.module.css';
 
 export default function RatingPage() {
@@ -13,12 +23,16 @@ export default function RatingPage() {
   const [tab, setTab] = useState('rating'); // 'rating' | 'avp' | 'stats'
   const [gender, setGender] = useState('M');
   const [category, setCategory] = useState('all');
+  const [showScale, setShowScale] = useState(false);
   const [players, setPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
   // ── AVP season standings ──
   const [seasons, setSeasons] = useState([]);
   const [seasonId, setSeasonId] = useState(null);
+  // Ело tab: null = the current season (live ratings); a closed season's
+  // id = its frozen final table from season_ratings (migration 045).
+  const [eloSeasonId, setEloSeasonId] = useState(null);
   const [avpRows, setAvpRows] = useState([]);
   const [avpLoading, setAvpLoading] = useState(false);
 
@@ -52,11 +66,42 @@ export default function RatingPage() {
 
   useEffect(() => {
     if (tab !== 'rating') return;
-    const cacheKey = `${gender}:${category}`;
+    const cacheKey = `${eloSeasonId || 'current'}:${gender}:${category}`;
     const cached = ratingCacheRef.current[cacheKey];
     if (cached) setPlayers(cached); // show the last-known list instantly
 
+    const catDefFor = (id) => SKILL_CATEGORIES.find((c) => c.id === id);
+    const inCategory = (elo) => {
+      if (category === 'all') return true;
+      const d = catDefFor(category);
+      return elo != null && elo >= d.range[0] && elo < d.range[1];
+    };
+
+    // A closed season: its frozen table — final Ело, change over the
+    // season and games played, exactly as they stood when it was closed.
+    async function loadArchived() {
+      const supabase = createClient();
+      const { data: rows } = await supabase
+        .from('season_ratings')
+        .select('user_id, elo_start, elo_end, games_played, games_won, users(id, full_name, login, photo_url, gender, approval_status)')
+        .eq('season_id', eloSeasonId)
+        .not('elo_end', 'is', null)
+        .order('elo_end', { ascending: false });
+      const list = (rows || [])
+        .filter((r) => r.users && r.users.gender === gender && inCategory(r.elo_end))
+        .map((r) => ({
+          ...r.users,
+          elo: r.elo_end,
+          seasonDelta: r.elo_start != null ? r.elo_end - r.elo_start : null,
+          games: r.games_played,
+          archived: true,
+        }));
+      ratingCacheRef.current[cacheKey] = list;
+      setPlayers(list);
+    }
+
     async function load() {
+      if (eloSeasonId) return loadArchived();
       const supabase = createClient();
       let query = supabase
         .from('users')
@@ -108,26 +153,48 @@ export default function RatingPage() {
         if (formatByTournament.get(tp.category_id) !== 'americanka') return;
         countByPlayer.set(tp.user_id, (countByPlayer.get(tp.user_id) || 0) + 1);
       });
-      const withCounts = (data || []).map((p) => ({ ...p, tournaments_played: countByPlayer.get(p.id) || 0 }));
+      // How far each player has moved THIS season: today's Ело against
+      // the starting value recorded when the season opened (045).
+      const { data: openSeason } = await supabase
+        .from('avp_seasons')
+        .select('id')
+        .eq('kind', 'elo')
+        .eq('sport_id', PRIMARY_SPORT_ID)
+        .is('city_id', null)
+        .is('ends_on', null)
+        .maybeSingle();
+      const { data: starts } = openSeason && ids.length
+        ? await supabase.from('season_ratings').select('user_id, elo_start').eq('season_id', openSeason.id).in('user_id', ids)
+        : { data: [] };
+      const startById = new Map((starts || []).map((r) => [r.user_id, r.elo_start]));
+
+      const withCounts = (data || []).map((p) => {
+        const start = startById.get(p.id);
+        return {
+          ...p,
+          tournaments_played: countByPlayer.get(p.id) || 0,
+          seasonDelta: start != null && p.elo != null ? p.elo - start : null,
+        };
+      });
 
       ratingCacheRef.current[cacheKey] = withCounts;
       setPlayers(withCounts);
     }
     load();
-  }, [gender, category, tab]);
+  }, [gender, category, tab, eloSeasonId]);
 
   // Seasons are loaded once — the newest first, and the newest is what
   // the tab opens on.
   useEffect(() => {
-    if (tab !== 'avp' || seasons.length > 0) return;
+    if ((tab !== 'avp' && tab !== 'rating') || seasons.length > 0) return;
     async function load() {
       const supabase = createClient();
       const { data } = await supabase
         .from('avp_seasons')
-        .select('id, name, starts_on, ends_on')
+        .select('id, name, kind, starts_on, ends_on, sport_id, city:cities(name)')
         .order('starts_on', { ascending: false });
       setSeasons(data || []);
-      setSeasonId((prev) => prev || data?.[0]?.id || null);
+      setSeasonId((prev) => prev || (data || []).find((s) => (s.kind || 'avp') === 'avp')?.id || null);
     }
     load();
   }, [tab, seasons.length]);
@@ -349,6 +416,13 @@ export default function RatingPage() {
       return r.player.login?.toLowerCase().includes(q) || r.player.full_name?.toLowerCase().includes(q);
     });
 
+  // AVP and Ело seasons are two independent tracks (migration 045).
+  const avpSeasons = seasons.filter((s) => (s.kind || 'avp') === 'avp');
+  // Club-wide Ело seasons of the primary sport — the ones the Ело table has.
+  const eloSeasons = seasons.filter(
+    (s) => s.kind === 'elo' && (s.sport_id || PRIMARY_SPORT_ID) === PRIMARY_SPORT_ID && !s.city
+  );
+
   const filteredPlayers = searchTerm.trim()
     ? players.filter(
         (p) =>
@@ -439,6 +513,25 @@ export default function RatingPage() {
             </button>
           </div>
 
+          {eloSeasons.length > 1 && (
+            <div className={styles.chipsRow}>
+              {eloSeasons.map((s) => {
+                const id = s.ends_on === null ? null : s.id;
+                return (
+                  <button
+                    key={s.id}
+                    className={`${styles.chip} ${eloSeasonId === id ? styles.chipOn : ''}`}
+                    onClick={() => setEloSeasonId(id)}
+                    aria-pressed={eloSeasonId === id}
+                  >
+                    {s.name}
+                    {s.ends_on === null ? ' · зараз' : ''}
+                  </button>
+                );
+              })}
+            </div>
+          )}
+
           <div className={styles.chipsRow}>
             <button className={`${styles.chip} ${category === 'all' ? styles.chipOn : ''}`} onClick={() => setCategory('all')} aria-pressed={category === 'all'}>
               Всі
@@ -448,7 +541,35 @@ export default function RatingPage() {
                 {c}
               </button>
             ))}
+            {/* The scale used to sit under the whole list — the more players,
+                the further down it was. Now it opens right here on demand. */}
+            <button
+              className={`${styles.chip} ${showScale ? styles.chipOn : ''}`}
+              onClick={() => setShowScale((v) => !v)}
+              aria-expanded={showScale}
+            >
+              Шкала рівнів {showScale ? '▲' : '▼'}
+            </button>
           </div>
+
+          {showScale && (
+            <div className={`${styles.scaleCard} riseIn`}>
+              {SKILL_CATEGORIES.map((c) => (
+                <div key={c.id} className={styles.scaleRow}>
+                  <div className={styles.scaleHeader}>
+                    <span>{c.id}</span>
+                    <span>{c.range[0]}–{c.range[1]}</span>
+                  </div>
+                  <div className={styles.scaleBar}>
+                    <div
+                      className={styles.scaleFill}
+                      style={{ width: `${Math.round(((c.range[1] - 800) / (2200 - 800)) * 100)}%`, background: c.color }}
+                    />
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
 
           {filteredPlayers.length === 0 && <div className={styles.empty}>Немає гравців</div>}
 
@@ -462,7 +583,13 @@ export default function RatingPage() {
               <PlayerAvatar player={p} size={36} />
               <div className={styles.playerInfo}>
                 <div className={styles.playerName}>{highlightMatch(p.full_name, searchTerm.trim())}</div>
-                <div className={styles.playerMeta}>@{highlightMatch(p.login, searchTerm.trim())} · {p.tournaments_played} турн.</div>
+                <div className={styles.playerMeta}>
+                  @{highlightMatch(p.login, searchTerm.trim())} ·{' '}
+                  {p.archived ? `${p.games} ігор` : `${p.tournaments_played} турн.`}
+                  {p.seasonDelta != null && p.seasonDelta !== 0 && (
+                    <> · {p.seasonDelta > 0 ? `+${p.seasonDelta}` : p.seasonDelta} за сезон</>
+                  )}
+                </div>
               </div>
               <div className={styles.playerEloBox}>
                 <div className={styles.playerElo}>{p.elo}</div>
@@ -471,23 +598,6 @@ export default function RatingPage() {
             </a>
           ))}
 
-          <div className={styles.sectionLabel}>Шкала рівнів</div>
-          <div className={`${styles.scaleCard} riseIn`}>
-            {SKILL_CATEGORIES.map((c) => (
-              <div key={c.id} className={styles.scaleRow}>
-                <div className={styles.scaleHeader}>
-                  <span>{c.id}</span>
-                  <span>{c.range[0]}–{c.range[1]}</span>
-                </div>
-                <div className={styles.scaleBar}>
-                  <div
-                    className={styles.scaleFill}
-                    style={{ width: `${Math.round(((c.range[1] - 800) / (2200 - 800)) * 100)}%`, background: c.color }}
-                  />
-                </div>
-              </div>
-            ))}
-          </div>
         </>
       )}
 
@@ -510,26 +620,26 @@ export default function RatingPage() {
             </button>
           </div>
 
-          {seasons.length > 1 && (
+          {avpSeasons.length > 1 && (
             <div className={styles.chipsRow}>
-              {seasons.map((s) => (
+              {avpSeasons.map((s) => (
                 <button
                   key={s.id}
                   className={`${styles.chip} ${seasonId === s.id ? styles.chipOn : ''}`}
                   onClick={() => setSeasonId(s.id)}
                   aria-pressed={seasonId === s.id}
                 >
-                  {s.name}
+                  {seasonLabel(s)}
                 </button>
               ))}
             </div>
           )}
 
-          {seasons.length === 0 && !avpLoading && (
+          {avpSeasons.length === 0 && !avpLoading && (
             <div className={styles.empty}>Сезон ще не створено</div>
           )}
           {avpLoading && <div className={styles.empty}>Завантаження...</div>}
-          {!avpLoading && seasons.length > 0 && filteredAvp.length === 0 && (
+          {!avpLoading && avpSeasons.length > 0 && filteredAvp.length === 0 && (
             <div className={styles.empty}>У цьому сезоні ще немає нарахованих очок</div>
           )}
 

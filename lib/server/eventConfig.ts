@@ -1,7 +1,9 @@
 // Shared validation/derivation for event create + update APIs.
 
-import { CATEGORY_LABELS, getBracketSystem, type FormatKind } from '@/lib/formats';
+import { getBracketSystem, type FormatKind } from '@/lib/formats';
 import { AVP_TIER_IDS } from '@/lib/avp/tiers';
+import { divisionsFor, getSport, sportOffersFormat, PRIMARY_SPORT_ID } from '@/lib/sports';
+import type { SupabaseAdmin } from './types';
 
 /** A category as submitted by the create/update event form — loosely
  * typed since it's raw request-body JSON; only the fields these
@@ -21,9 +23,70 @@ export interface EventInput {
   points_to_win?: number;
   final_points_to_win?: number | null;
   location?: string | null;
+  sport_id?: string | null;
   courts?: number[];
   scheduled_at?: string | null;
   [key: string]: unknown;
+}
+
+export interface VenueRow {
+  id: string;
+  code: string;
+  name: string;
+  courts: number[];
+  is_active: boolean;
+  city_id: string;
+  venue_sports?: { sport_id: string }[] | null;
+}
+
+export type VenueCheck = { venue: VenueRow; error?: undefined } | { error: string; venue?: undefined };
+
+/**
+ * The venue an event is being put at, checked against the `venues` table
+ * (migration 043) instead of a hardcoded list: it must exist, be active
+ * for new events, host the event's sport, and actually have the courts
+ * asked for. `courts` may be omitted when only the venue changes and the
+ * caller checks the event's existing courts itself.
+ */
+export async function resolveVenue(
+  supabaseAdmin: SupabaseAdmin,
+  code: unknown,
+  sportId: string | null | undefined,
+  courts?: unknown,
+  { allowInactive = false }: { allowInactive?: boolean } = {}
+): Promise<VenueCheck> {
+  if (typeof code !== 'string' || !code) return { error: 'Виберіть місце проведення' };
+  const { data } = await supabaseAdmin
+    .from('venues')
+    .select('id, code, name, courts, is_active, city_id, venue_sports(sport_id)')
+    .eq('code', code)
+    .maybeSingle();
+  const venue = data as unknown as VenueRow | null;
+  if (!venue) return { error: 'Невідоме місце проведення' };
+  if (!venue.is_active && !allowInactive) return { error: `«${venue.name}» зараз не приймає турніри` };
+
+  const sport = sportId || PRIMARY_SPORT_ID;
+  const hosted = (venue.venue_sports || []).map((s) => s.sport_id);
+  if (hosted.length > 0 && !hosted.includes(sport)) {
+    return { error: `На «${venue.name}» не проводяться турніри з цього виду спорту` };
+  }
+
+  if (courts !== undefined) {
+    if (!Array.isArray(courts) || courts.length === 0) return { error: 'Виберіть щонайменше один корт' };
+    const missing = courts.filter((c) => !venue.courts.includes(Number(c)));
+    if (missing.length > 0) {
+      return { error: `На «${venue.name}» немає корту ${missing.join(', ')}` };
+    }
+  }
+  return { venue };
+}
+
+/** The sport an event is created in: known to the registry, offering the format. */
+export function resolveSport(sportId: unknown, formatKind: string): { sportId: string; error?: undefined } | { error: string; sportId?: undefined } {
+  const id = typeof sportId === 'string' && sportId ? sportId : PRIMARY_SPORT_ID;
+  if (!getSport(id)) return { error: 'Невідомий вид спорту' };
+  if (!sportOffersFormat(id, formatKind)) return { error: 'Цей формат недоступний для обраного виду спорту' };
+  return { sportId: id };
 }
 
 // What the event is worth in the season rating. Null (or an omitted
@@ -50,8 +113,8 @@ export function capacityFor(format: FormatKind, c: CategoryInput): number | null
   return c.maxParticipants || null;
 }
 
-export function validateCategory(format: FormatKind, c: CategoryInput): string | null {
-  if (!c || !CATEGORY_LABELS.includes(c.categoryLabel as string)) {
+export function validateCategory(format: FormatKind, c: CategoryInput, sportId?: string | null): string | null {
+  if (!c || !divisionsFor(sportId).includes(c.categoryLabel as string)) {
     return 'Невідома категорія';
   }
   if (format.hasGender && c.gender !== 'M' && c.gender !== 'F') {
@@ -76,7 +139,9 @@ export function validateCategory(format: FormatKind, c: CategoryInput): string |
   return null;
 }
 
-// Row for the `tournaments` table from a validated category config.
+// Row for `tournament_categories` from a validated category config.
+// The venue is NOT copied onto the category any more (043/044): it is
+// the event's, and a copy only drifted when the event moved.
 export function categoryRow(format: FormatKind, event: EventInput, c: CategoryInput): Record<string, unknown> {
   return {
     event_id: event.id,
@@ -87,7 +152,6 @@ export function categoryRow(format: FormatKind, event: EventInput, c: CategoryIn
     max_participants: capacityFor(format, c),
     points_to_win: format.scoring === 'first_to' ? event.points_to_win : 31,
     final_points_to_win: event.final_points_to_win,
-    location: event.location,
     courts: event.courts,
     scheduled_at: event.scheduled_at,
   };

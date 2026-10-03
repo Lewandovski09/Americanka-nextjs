@@ -5,7 +5,12 @@
 //
 // format_kind (stored on tournament_events) is the key into this map.
 
-export const CATEGORY_LABELS = ['Light', 'Medium', 'Pro'];
+import { SPORTS, PRIMARY_SPORT_ID } from '../sports';
+
+// Division names of the PRIMARY sport. Kept for the callers that predate
+// sports; anything that knows its event's sport should call
+// divisionsFor(sportId) from lib/sports instead.
+export const CATEGORY_LABELS: string[] = SPORTS[PRIMARY_SPORT_ID].divisions;
 
 export type BracketSystemId =
   | 'double_elimination'

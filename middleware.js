@@ -32,7 +32,7 @@ export async function middleware(request) {
     const bucket = RATE_LIMITS.find((r) => pathname.startsWith(r.prefix));
     const limit = bucket?.limit ?? DEFAULT_API_LIMIT;
     const key = `${clientIp(request)}:${bucket?.prefix ?? 'default'}`;
-    const { limited, resetAt } = checkRateLimit(key, limit);
+    const { limited, resetAt } = await checkRateLimit(key, limit);
 
     if (limited) {
       return NextResponse.json(

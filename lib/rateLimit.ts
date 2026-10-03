@@ -1,46 +1,26 @@
-// Minimal in-process rate limiter for the API routes middleware.js
-// already runs on. It's deliberately simple:
+// Rate limiter for the API routes middleware.js runs on — built for
+// Vercel, where the app runs as MANY short-lived instances at once.
 //
-//  - In-memory Map, no Redis. This is correct for a single Railway
-//    instance (which is what this app runs on) and WRONG the moment
-//    the app scales to more than one instance, since each instance
-//    would count independently, giving N * limit real capacity. If
-//    Railway autoscaling is ever turned on for this service, swap
-//    this for Upstash Redis (a few lines using @upstash/ratelimit) —
-//    the call site in middleware.js won't need to change shape.
-//  - Fixed window, not sliding/token-bucket. Simpler to reason about;
-//    the tradeoff is a burst of up to 2x the limit right at a window
-//    boundary. Fine for "stop obvious abuse", not built for precision.
-//  - Keyed by IP + route bucket. Behind Railway's proxy the real
-//    client IP arrives via x-forwarded-for.
+// Two backends, picked by environment:
+//
+//  - Upstash Redis (when UPSTASH_REDIS_REST_URL / UPSTASH_REDIS_REST_TOKEN
+//    are set — Vercel → Storage / Marketplace → Upstash, free tier is
+//    plenty). One shared counter for every instance, so the limit is the
+//    real limit. Spoken to over its REST API with plain fetch(): no
+//    package, works on the Edge runtime middleware uses.
+//  - In-memory fallback (no Upstash configured, or Upstash unreachable).
+//    Each Vercel instance counts on its own, so the effective limit is
+//    looser than the number says — still stops a single client
+//    hammering one instance, and never blocks the site.
+//
+// Fixed one-minute windows: the counter key carries the window number,
+// so it expires on its own. Fails OPEN — a rate limiter that is down
+// must not take the login form down with it.
 
 import type { NextRequest } from 'next/server';
 
 const WINDOW_MS = 60_000;
-
-interface Bucket {
-  count: number;
-  resetAt: number;
-}
-
-const buckets = new Map<string, Bucket>();
-
-// Periodic cleanup so the Map doesn't grow forever across a long
-// server lifetime — Vercel/serverless wouldn't need this (fresh
-// process per request), but Railway keeps one process running.
-//
-// middleware.js runs on the Edge runtime, where setInterval returns a
-// plain number with no .unref() — only Node's timer objects have it.
-// The cast (rather than relying on whichever global `setInterval`
-// overload TypeScript's "dom" + "node" lib merge happens to pick) is
-// what keeps this correct under both runtimes without guessing.
-const cleanupTimer = setInterval(() => {
-  const now = Date.now();
-  for (const [key, entry] of buckets) {
-    if (entry.resetAt < now) buckets.delete(key);
-  }
-}, WINDOW_MS);
-(cleanupTimer as unknown as { unref?: () => void }).unref?.();
+const UPSTASH_TIMEOUT_MS = 800;
 
 export interface RateLimitResult {
   limited: boolean;
@@ -48,28 +28,84 @@ export interface RateLimitResult {
   resetAt: number;
 }
 
-/**
- * @param key - unique per (client, route-bucket)
- * @param limit - max requests allowed per WINDOW_MS
- */
-export function checkRateLimit(key: string, limit: number): RateLimitResult {
-  const now = Date.now();
-  let entry = buckets.get(key);
+// ── In-memory fallback ──
+interface Bucket {
+  count: number;
+  resetAt: number;
+}
+const buckets = new Map<string, Bucket>();
 
+function checkInMemory(key: string, limit: number, now: number): RateLimitResult {
+  // Opportunistic cleanup instead of a timer: serverless instances are
+  // frozen between requests, so a setInterval would never fire anyway.
+  if (buckets.size > 5000) {
+    for (const [k, b] of buckets) if (b.resetAt < now) buckets.delete(k);
+  }
+  let entry = buckets.get(key);
   if (!entry || entry.resetAt < now) {
     entry = { count: 0, resetAt: now + WINDOW_MS };
     buckets.set(key, entry);
   }
-
   entry.count += 1;
-  const limited = entry.count > limit;
-  return { limited, remaining: Math.max(0, limit - entry.count), resetAt: entry.resetAt };
+  return { limited: entry.count > limit, remaining: Math.max(0, limit - entry.count), resetAt: entry.resetAt };
 }
 
+// ── Upstash (shared across all instances) ──
+async function checkUpstash(url: string, token: string, key: string, limit: number, now: number): Promise<RateLimitResult> {
+  const windowNo = Math.floor(now / WINDOW_MS);
+  const resetAt = (windowNo + 1) * WINDOW_MS;
+  const redisKey = `rl:${key}:${windowNo}`;
+
+  const controller = new AbortController();
+  const timer = setTimeout(() => controller.abort(), UPSTASH_TIMEOUT_MS);
+  try {
+    const res = await fetch(`${url.replace(/\/$/, '')}/pipeline`, {
+      method: 'POST',
+      headers: { Authorization: `Bearer ${token}`, 'Content-Type': 'application/json' },
+      body: JSON.stringify([
+        ['INCR', redisKey],
+        ['EXPIRE', redisKey, String(Math.ceil(WINDOW_MS / 1000) + 5)],
+      ]),
+      signal: controller.signal,
+      cache: 'no-store',
+    });
+    if (!res.ok) throw new Error(`Upstash HTTP ${res.status}`);
+    const data = (await res.json()) as Array<{ result?: number; error?: string }>;
+    const count = Number(data?.[0]?.result);
+    if (!Number.isFinite(count)) throw new Error(data?.[0]?.error || 'Upstash: bad reply');
+    return { limited: count > limit, remaining: Math.max(0, limit - count), resetAt };
+  } finally {
+    clearTimeout(timer);
+  }
+}
+
+/**
+ * @param key - unique per (client, route-bucket)
+ * @param limit - max requests allowed per minute
+ */
+export async function checkRateLimit(key: string, limit: number): Promise<RateLimitResult> {
+  const now = Date.now();
+  // Vercel's Upstash integration names them KV_REST_API_*; a database
+  // made on upstash.com directly gives UPSTASH_REDIS_REST_*. Either works.
+  const url = process.env.UPSTASH_REDIS_REST_URL || process.env.KV_REST_API_URL;
+  const token = process.env.UPSTASH_REDIS_REST_TOKEN || process.env.KV_REST_API_TOKEN;
+  if (url && token) {
+    try {
+      return await checkUpstash(url, token, key, limit, now);
+    } catch (err) {
+      console.error('[rateLimit] Upstash unavailable, using in-memory fallback:', (err as Error).message);
+    }
+  }
+  return checkInMemory(key, limit, now);
+}
+
+/** The visitor's IP. On Vercel both headers are set by the platform itself. */
 export function clientIp(request: NextRequest): string {
+  const real = request.headers.get('x-real-ip');
+  if (real) return real.trim();
   const fwd = request.headers.get('x-forwarded-for');
   if (fwd) return fwd.split(',')[0].trim();
-  return request.headers.get('x-real-ip') || 'unknown';
+  return 'unknown';
 }
 
 export interface RateLimitRule {

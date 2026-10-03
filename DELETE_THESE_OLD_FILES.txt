@@ -1,14 +1,10 @@
-После распаковки этого патча ОБЯЗАТЕЛЬНО удалите старые .js-версии
-(иначе получится дубль модулей):
+Патч 44: после распаковки ОБЯЗАТЕЛЬНО удалите старые .js-дубли
+(у каждого есть .ts-версия; при двух файлах Next.js берёт .js, и
+.ts-версия молча расходится с тем, что реально работает):
 
-lib/server/judges.js
-lib/server/registration.js
-lib/server/avpAward.js
-lib/server/eventConfig.js
-lib/server/finishCategory.js
-lib/server/startCategory.js
-lib/telegram.js
+lib/tournamentEngine.js
+lib/formats/placements.js
 
-В PowerShell, находясь в корне проекта (Americanka-clean):
+В PowerShell, находясь в корне проекта:
 
-Remove-Item lib\server\judges.js, lib\server\registration.js, lib\server\avpAward.js, lib\server\eventConfig.js, lib\server\finishCategory.js, lib\server\startCategory.js, lib\telegram.js
+Remove-Item lib\tournamentEngine.js, lib\formats\placements.js

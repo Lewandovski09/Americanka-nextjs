@@ -6,6 +6,8 @@ import {
   categoryRow,
   resolveScoring,
   resolveAvpTier,
+  resolveVenue,
+  resolveSport,
 } from '@/lib/server/eventConfig';
 
 // Create an EVENT (tournament_events) plus its CATEGORIES (one
@@ -47,6 +49,18 @@ export async function POST(request) {
     return Response.json({ success: false, error: 'Додайте щонайменше одну категорію' }, { status: 400 });
   }
 
+  // Sport first (it decides which formats and divisions are valid), then
+  // the venue against the `venues` table: exists, hosts this sport, has
+  // these courts. Replaces the old hardcoded beach13 / dynamo_sc list.
+  const sport = resolveSport(body.sportId, format.kind);
+  if (sport.error) {
+    return Response.json({ success: false, error: sport.error }, { status: 400 });
+  }
+  const venueCheck = await resolveVenue(supabaseAdmin, location, sport.sportId, courts);
+  if (venueCheck.error) {
+    return Response.json({ success: false, error: venueCheck.error }, { status: 400 });
+  }
+
   const scoring = resolveScoring(format, body, FIRST_TO_OPTIONS);
   if (scoring.error) {
     return Response.json({ success: false, error: scoring.error }, { status: 400 });
@@ -61,7 +75,7 @@ export async function POST(request) {
   // anything, so a bad category can't leave a half-created event.
   const seen = new Set();
   for (const c of categories) {
-    const err = validateCategory(format, c);
+    const err = validateCategory(format, c, sport.sportId);
     if (err) return Response.json({ success: false, error: err }, { status: 400 });
 
     const key = `${c.gender || 'X'}:${c.categoryLabel}`;
@@ -79,7 +93,8 @@ export async function POST(request) {
     .insert({
       name: name?.trim() || format.displayName,
       format_kind: format.kind,
-      location,
+      sport_id: sport.sportId,
+      location: venueCheck.venue.code,
       courts,
       scheduled_at: scheduledAt,
       points_to_win: scoring.points,

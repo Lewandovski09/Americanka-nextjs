@@ -8,7 +8,6 @@
 
 import { useEffect, useState } from 'react';
 import {
-  CATEGORY_LABELS,
   BRACKET_SYSTEMS,
   FIRST_TO_OPTIONS,
   getBracketSystem,
@@ -17,8 +16,8 @@ import {
 import AvpTierPicker from '@/components/AvpTierPicker';
 import styles from '@/app/tournaments/create/create.module.css';
 import OptionBtn from '@/components/OptionBtn';
-
-const COURT_RANGES = { beach13: [1, 2, 3, 4, 5, 6], dynamo_sc: [1, 2] };
+import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
+import { divisionsFor } from '@/lib/sports';
 
 function catKey(gender, label) {
   return `${gender || 'X'}:${label}`;
@@ -35,7 +34,13 @@ function toLocalInput(iso) {
 export default function EventConfigForm({ event, categories: categoryRows, format, isPair, busy, post }) {
   const [name, setName] = useState(event.name || '');
   const [scheduledAt, setScheduledAt] = useState(toLocalInput(event.scheduled_at));
-  const [location, setLocation] = useState(event.location || 'beach13');
+  // Venues and their courts come from the `venues` table (migration 043).
+  // The event's current venue stays selectable even if it has since been
+  // deactivated; the sport is fixed at creation, like the format.
+  const allVenues = useVenues();
+  const venues = selectableVenues(allVenues, event.sport_id, event.location);
+  const divisions = divisionsFor(event.sport_id);
+  const [location, setLocation] = useState(event.location);
   const [courts, setCourts] = useState(event.courts?.length ? event.courts : [1]);
 
   const [pointsToWin, setPointsToWin] = useState(event.points_to_win ?? 21);
@@ -55,7 +60,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   useEffect(() => {
     setName(event.name || '');
     setScheduledAt(toLocalInput(event.scheduled_at));
-    setLocation(event.location || 'beach13');
+    setLocation(event.location);
     setCourts(event.courts?.length ? event.courts : [1]);
     setPointsToWin(event.points_to_win ?? 21);
     setUseFinalPoints(event.points_mode === 'from_semifinal');
@@ -63,7 +68,16 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
     setAvpTier(event.avp_tier ?? null);
   }, [event]);
 
-  const courtRange = COURT_RANGES[location] || [1, 2];
+  const courtRange = findVenue(allVenues, location)?.courts || [];
+
+  // Moving to another venue keeps only the courts it actually has.
+  function chooseVenue(v) {
+    setLocation(v.code);
+    setCourts((prev) => {
+      const kept = prev.filter((c) => v.courts.includes(c));
+      return kept.length > 0 ? kept : [v.courts[0]];
+    });
+  }
   const gendersToShow = format.hasGender ? ['M', 'F'] : [null];
 
   function toggleCourt(n) {
@@ -161,12 +175,11 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
 
       <label className={styles.label}>Місце проведення</label>
       <div className={styles.row}>
-        <OptionBtn styles={styles} active={location === 'beach13'} onClick={() => setLocation('beach13')}>
-          Beach 13
-        </OptionBtn>
-        <OptionBtn styles={styles} active={location === 'dynamo_sc'} onClick={() => setLocation('dynamo_sc')}>
-          Dynamo SC
-        </OptionBtn>
+        {venues.map((v) => (
+          <OptionBtn key={v.code} styles={styles} active={location === v.code} onClick={() => chooseVenue(v)}>
+            {venueLabel(allVenues, v.code)}
+          </OptionBtn>
+        ))}
       </div>
 
       <label className={styles.label}>Корти</label>
@@ -229,7 +242,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
             <div className={styles.catGroupTitle}>{gender === 'M' ? 'Чоловіки' : 'Жінки'}</div>
           )}
           <div className={styles.chipsRow}>
-            {CATEGORY_LABELS.map((label) => {
+            {divisions.map((label) => {
               const cat = findCat(gender, label);
               return (
                 <button

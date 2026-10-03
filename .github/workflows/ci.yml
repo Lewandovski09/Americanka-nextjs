@@ -27,7 +27,7 @@ jobs:
 
       # The build needs *a* Supabase URL/key to satisfy env checks at
       # build time even though nothing actually connects during a
-      # static build — real secrets live in Railway's env, not here.
+      # static build — real secrets live in Vercel's env, not here.
       - run: npm run build
         env:
           NEXT_PUBLIC_SUPABASE_URL: https://placeholder.supabase.co

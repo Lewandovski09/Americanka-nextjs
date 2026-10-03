@@ -13,6 +13,7 @@
 
 import { placementsFor } from '@/lib/formats/placements';
 import { effectiveTier, pointsForPlace } from '@/lib/avp/tiers';
+import { PRIMARY_SPORT_ID } from '@/lib/sports';
 import type { SupabaseAdmin } from './types';
 
 export interface RecalcAvpResult {
@@ -28,7 +29,7 @@ export interface RecalcAvpResult {
 export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categoryId: string): Promise<RecalcAvpResult> {
   const { data: category } = await supabaseAdmin
     .from('tournament_categories')
-    .select('id, event_id, avp_tier, tournament_events(id, avp_tier, scheduled_at)')
+    .select('id, event_id, avp_tier, tournament_events(id, avp_tier, scheduled_at, sport_id, venue:venues(city_id))')
     .eq('id', categoryId)
     .maybeSingle();
 
@@ -39,7 +40,13 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   // array (it can't see this is a to-one foreign key), even though the
   // real value at runtime is a single row or null — same reason every
   // other `as unknown as ...` in this file exists.
-  const event = category.tournament_events as unknown as { id: string; avp_tier: number | null; scheduled_at: string | null } | null;
+  const event = category.tournament_events as unknown as {
+    id: string;
+    avp_tier: number | null;
+    scheduled_at: string | null;
+    sport_id: string | null;
+    venue: { city_id: string | null } | null;
+  } | null;
   const tier = effectiveTier(category, event);
 
   // No tier at either level = the event is outside the rating. Clear
@@ -56,12 +63,27 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   const playedOn = (event?.scheduled_at || '').slice(0, 10);
   if (!playedOn) return { ok: false, error: 'У події немає дати' };
 
-  const { data: season } = await supabaseAdmin
+  //
+  // Seasons are scoped (migration 043): per SPORT, and optionally per
+  // CITY. A city that runs its own season gets its events counted there;
+  // otherwise the sport's city-less season takes them. Both may cover the
+  // same date — the city's own one wins.
+  const sportId = event?.sport_id || PRIMARY_SPORT_ID;
+  const cityId = event?.venue?.city_id || null;
+  //
+  // ends_on NULL = the open, current season (045): it covers every date
+  // from its start until an admin starts the next one. The date and city
+  // filters are applied here rather than as two PostgREST `or` clauses.
+  const { data: candidates } = await supabaseAdmin
     .from('avp_seasons')
-    .select('id')
-    .lte('starts_on', playedOn)
-    .gte('ends_on', playedOn)
-    .maybeSingle();
+    .select('id, city_id, ends_on')
+    .eq('kind', 'avp') // AVP seasons only — Ело seasons are a separate track (045)
+    .eq('sport_id', sportId)
+    .lte('starts_on', playedOn);
+  const typedCandidates = ((candidates || []) as { id: string; city_id: string | null; ends_on: string | null }[]).filter(
+    (c) => (c.ends_on === null || c.ends_on >= playedOn) && (c.city_id === null || c.city_id === cityId)
+  );
+  const season = typedCandidates.find((c) => c.city_id) || typedCandidates[0] || null;
 
   if (!season) {
     await clearCategory(supabaseAdmin, categoryId);

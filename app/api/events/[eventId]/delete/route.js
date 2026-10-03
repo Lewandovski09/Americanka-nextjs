@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { categoryForElo } from '@/lib/elo';
+import { readRatings, writeRating } from '@/lib/server/ratings';
+import { PRIMARY_SPORT_ID } from '@/lib/sports';
 
 // Delete a whole event with everything under it: categories, matches,
 // rosters, teams and applications all go via ON DELETE CASCADE.
@@ -88,7 +89,7 @@ export async function POST(request, { params }) {
     if (matchIds.length > 0) {
       const { data: eh } = await supabaseAdmin
         .from('elo_history')
-        .select('id, user_id, delta')
+        .select('id, user_id, delta, sport_id')
         .in('match_id', matchIds);
       eloRows = eh || [];
     }
@@ -100,15 +101,23 @@ export async function POST(request, { params }) {
   // — but it is the same approximation the score route already accepts
   // when a score is corrected, and it returns the club's ratings to
   // where they stood before this event.)
-  const deltaByUser = new Map();
+  //
+  // Keyed per SPORT as well (migration 043): each sport's Ело is a
+  // separate number, so each is rolled back on its own.
+  const deltaBySport = new Map(); // sportId -> Map(userId -> delta)
+  const players = new Set();
   for (const r of eloRows) {
     if (!r.user_id) continue;
-    deltaByUser.set(r.user_id, (deltaByUser.get(r.user_id) || 0) + (r.delta || 0));
+    const sport = r.sport_id || PRIMARY_SPORT_ID;
+    if (!deltaBySport.has(sport)) deltaBySport.set(sport, new Map());
+    const m = deltaBySport.get(sport);
+    m.set(r.user_id, (m.get(r.user_id) || 0) + (r.delta || 0));
+    players.add(r.user_id);
   }
 
   const willUndo = {
     eloRows: eloRows.length,
-    eloPlayers: deltaByUser.size,
+    eloPlayers: players.size,
     avpRows: avpRows.length,
     avpPoints: avpRows.reduce((sum, r) => sum + (r.points || 0), 0),
   };
@@ -134,22 +143,15 @@ export async function POST(request, { params }) {
   // Before the rows are deleted: if an update fails we stop with the
   // history intact, so the event stays deletable and nothing is left
   // half-undone.
-  if (deltaByUser.size > 0) {
-    const { data: affected } = await supabaseAdmin
-      .from('users')
-      .select('id, elo')
-      .in('id', [...deltaByUser.keys()]);
-
-    for (const u of affected || []) {
-      // 1200 mirrors the default the score route itself assumed when it
-      // moved a player who had no rating yet.
-      const restored = (u.elo ?? 1200) - deltaByUser.get(u.id);
-      const { error: updErr } = await supabaseAdmin
-        .from('users')
-        .update({ elo: restored, category: categoryForElo(restored)?.id })
-        .eq('id', u.id);
+  for (const [sportId, deltaByUser] of deltaBySport) {
+    // readRatings falls back to the same start value the score route
+    // assumed when it moved a player who had no rating yet.
+    const current = await readRatings(supabaseAdmin, [...deltaByUser.keys()], sportId);
+    for (const [userId, delta] of deltaByUser) {
+      const restored = current.get(userId) - delta;
+      const updErr = await writeRating(supabaseAdmin, userId, sportId, restored);
       if (updErr) {
-        console.error('[event delete] elo rollback:', updErr.message);
+        console.error('[event delete] elo rollback:', updErr);
         return Response.json(
           { success: false, error: 'Не вдалося скасувати нараховане Ело — турнір не видалено' },
           { status: 500 }

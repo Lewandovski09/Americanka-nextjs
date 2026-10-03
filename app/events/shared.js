@@ -19,7 +19,6 @@ export { stageWeight, stageLabel, computePlaces };
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './event.module.css';
 
-export const LOCATION_LABEL = { beach13: 'Beach 13', dynamo_sc: 'Dynamo SC' };
 
 export function bracketLabel(id) {
   return BRACKET_SYSTEMS.find((b) => b.id === id)?.label || id;

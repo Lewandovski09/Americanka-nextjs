@@ -1,47 +1,67 @@
 // AVP season points — how a place in a category turns into points.
 //
-// Modelled on the ATP ranking, with one deliberate translation. ATP pays
-// for the ROUND a player reached, because every ATP draw is a single
-// elimination bracket. Ours are not: a Double Elimination, a group stage
-// with crosses, a King of the Beach and an eight-player americanka have
-// no common notion of "the quarterfinal" — but every one of them ends
-// with a place. So the tables below are indexed by PLACE, and the
-// correspondence to the ATP round table is exact, because in a single
-// elimination draw "lost in the quarterfinal" and "finished 5th-8th" are
-// the same statement:
+// The club's own payout table (set by the organiser, October 2026). It
+// pays by PLACE, because every format we run — Double Elimination,
+// groups with crosses, King of the Beach, an eight-player americanka —
+// ends with a place, while they share no common notion of "a round".
 //
-//   step 0 → place 1        winner
-//   step 1 → place 2        finalist
-//   step 2 → places 3-4     semifinal
-//   step 3 → places 5-8     quarterfinal
-//   step 4 → places 9-16    1/8
-//   step 5 → places 17-32   1/16
-//   step 6 → places 33-64   1/32
-//   past the end → 0        early exit
+// Places are paid in BLOCKS. Single places for the podium and 4th, then
+// pairs and fours:
 //
-// The tier is the only scaling knob and it is the admin's to turn: an
-// eight-player league can be run as a 2000 if the club wants those eight
-// places to be worth that. Draw size is deliberately NOT part of the
-// formula — a rule that quietly paid less for the same place would be
-// impossible to explain to the player it happened to.
+//   place      1    2    3    4   5-6  7-8  9-12  13-16   17+
+//   AVP 250   250  200  175  150  125  100   75    50      0
+//   AVP 500   500  400  350  300  275  250  150   100      0
+//   AVP 1000  ×2 of AVP 500
+//   AVP 2000  ×4 of AVP 500
 //
-// Our brackets report places more finely than the steps do (a Double
-// Elimination separates 5-6 from 7-8), which costs nothing: both land in
-// step 3 and are paid the same. Coarsening only goes this way.
+// A tie is reported as the first place of its block (placements.ts: four
+// pairs out together in 13-16 are all `place: 13`), so tied players get
+// that place's points — e.g. two pairs sharing 3-4 both get 3rd-place
+// points. The tier is the only scaling knob; draw size is deliberately
+// NOT part of the formula.
 
 export type AvpTierId = 250 | 500 | 1000 | 2000;
+
+/** One payout block: every place from `from` to `to` (inclusive) earns `points`. */
+export interface AvpBlock {
+  from: number;
+  to: number;
+  points: number;
+}
 
 export interface AvpTier {
   id: AvpTierId;
   label: string;
-  steps: number[];
+  blocks: AvpBlock[];
 }
 
+/** The place ranges every tier pays, top to bottom. */
+const PLACE_BLOCKS: Array<[number, number]> = [
+  [1, 1],
+  [2, 2],
+  [3, 3],
+  [4, 4],
+  [5, 6],
+  [7, 8],
+  [9, 12],
+  [13, 16],
+];
+
+function tier(id: AvpTierId, points: number[]): AvpTier {
+  return {
+    id,
+    label: `AVP ${id}`,
+    blocks: PLACE_BLOCKS.map(([from, to], i) => ({ from, to, points: points[i] })),
+  };
+}
+
+const AVP_500_POINTS = [500, 400, 350, 300, 275, 250, 150, 100];
+
 export const AVP_TIERS: Record<AvpTierId, AvpTier> = {
-  250: { id: 250, label: 'AVP 250', steps: [250, 165, 100, 50, 25, 13] },
-  500: { id: 500, label: 'AVP 500', steps: [500, 330, 200, 100, 50] },
-  1000: { id: 1000, label: 'AVP 1000', steps: [1000, 650, 400, 200, 100, 50] },
-  2000: { id: 2000, label: 'AVP 2000', steps: [2000, 1300, 800, 400, 200, 100, 50] },
+  250: tier(250, [250, 200, 175, 150, 125, 100, 75, 50]),
+  500: tier(500, AVP_500_POINTS),
+  1000: tier(1000, AVP_500_POINTS.map((p) => p * 2)),
+  2000: tier(2000, AVP_500_POINTS.map((p) => p * 4)),
 };
 
 /** Tier ids, ascending — for pickers. */
@@ -51,27 +71,19 @@ export function getTier(tier: AvpTierId | number | string | null | undefined): A
   return AVP_TIERS[Number(tier) as AvpTierId] || null;
 }
 
-/**
- * Which step (0-based) a place falls into: 1 → 0, 2 → 1, 3-4 → 2,
- * 5-8 → 3, 9-16 → 4, …  The block a place belongs to is the round of a
- * single-elimination draw it would have gone out in, so the boundary is
- * the smallest power of two that is not below the place — NOT
- * floor(log2), which lands 3rd place in the finalist's block.
- *
- * Counted rather than derived from a logarithm: the inputs are tiny
- * (a place is at most a couple of dozen) and this cannot drift on a
- * float that comes back as 2.9999999999999996.
- */
-export function stepForPlace(place: number): number {
-  if (!Number.isFinite(place) || place < 1) return -1;
-  let step = 0;
-  while (2 ** step < place) step++;
-  return step;
+/** The payout block a place falls into, or null past the table (17th and lower). */
+export function blockForPlace(
+  tier: AvpTierId | number | string | null | undefined,
+  place: number
+): AvpBlock | null {
+  const t = getTier(tier);
+  if (!t || !Number.isFinite(place) || place < 1) return null;
+  return t.blocks.find((b) => place >= b.from && place <= b.to) || null;
 }
 
 /**
  * Points a place is worth at a tier. Unknown tier, or a place past the
- * table's last step, is worth nothing.
+ * table's last block, is worth nothing.
  *
  * @param tier - 250 | 500 | 1000 | 2000
  * @param place - 1-based finishing place
@@ -80,11 +92,7 @@ export function pointsForPlace(
   tier: AvpTierId | number | string | null | undefined,
   place: number
 ): number {
-  const t = getTier(tier);
-  if (!t) return 0;
-  const step = stepForPlace(place);
-  if (step < 0) return 0;
-  return t.steps[step] ?? 0;
+  return blockForPlace(tier, place)?.points ?? 0;
 }
 
 export interface AvpTierable {
@@ -118,11 +126,10 @@ export function tierBreakdown(
 ): TierBreakdownRow[] {
   const t = getTier(tier);
   if (!t) return [];
-  return t.steps.map((points, step) => {
-    // Step 0 is the winner alone; every later step spans from just past
-    // the previous power of two up to its own.
-    const from = step === 0 ? 1 : 2 ** (step - 1) + 1;
-    const to = 2 ** step;
-    return { from, to, label: from === to ? `${from}` : `${from}-${to}`, points };
-  });
+  return t.blocks.map(({ from, to, points }) => ({
+    from,
+    to,
+    label: from === to ? `${from}` : `${from}-${to}`,
+    points,
+  }));
 }

@@ -16,7 +16,6 @@ import Link from 'next/link';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import {
-  LOCATION_LABEL,
   bracketLabel,
   useEventData,
   useEventPost,
@@ -25,9 +24,11 @@ import {
   DeleteEventButton,
 } from '@/app/events/shared';
 import JudgesTab from '@/app/events/JudgesTab';
+import { useVenues, selectableVenues, venueLabel } from '@/hooks/useVenues';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import createStyles from '@/app/tournaments/create/create.module.css';
 import styles from '@/app/events/event.module.css';
+import VenueName from '@/components/VenueName';
 
 const TABS = { MAIN: 'main', JUDGES: 'judges' };
 
@@ -66,7 +67,7 @@ export default function TournamentSettingsPage({ params }) {
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
         {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
-        {LOCATION_LABEL[event.location] || event.location}
+        <VenueName code={event.location} />
       </div>
 
       <div className={styles.tabs}>
@@ -132,8 +133,14 @@ const STATUS_LABEL = { scheduled: 'Не розпочато', live: 'Триває
 function MainTab({ event, category, format, isPair, busy, post }) {
   const [name, setName] = useState(event.name || '');
   const [scheduledAt, setScheduledAt] = useState(toLocalInput(event.scheduled_at));
-  const [location, setLocation] = useState(event.location || 'beach13');
+  const [location, setLocation] = useState(event.location);
   const [avpTier, setAvpTier] = useState(event.avp_tier ?? null);
+  // A running event's courts are baked into its matches, so it can only
+  // move to a venue that has every one of them (the server checks too).
+  const allVenues = useVenues();
+  const venues = selectableVenues(allVenues, event.sport_id, event.location).filter((v) =>
+    (event.courts || []).every((c) => v.courts.includes(c))
+  );
   const [saved, setSaved] = useState(false);
 
   const members = isPair ? (category.tournament_teams || []).length : (category.tournament_players || []).length;
@@ -146,7 +153,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
   const dirty =
     name !== (event.name || '') ||
     scheduledAt !== toLocalInput(event.scheduled_at) ||
-    location !== (event.location || 'beach13') ||
+    location !== event.location ||
     (avpTier ?? null) !== (event.avp_tier ?? null);
 
   async function saveBasics() {
@@ -188,17 +195,17 @@ function MainTab({ event, category, format, isPair, busy, post }) {
 
       <label className={styles.fieldLabel}>Місце проведення</label>
       <div className={styles.row}>
-        {['beach13', 'dynamo_sc'].map((loc) => (
+        {venues.map((v) => (
           <button
-            key={loc}
-            className={`${styles.catTab} ${location === loc ? styles.catTabOn : ''}`}
-            aria-pressed={location === loc}
+            key={v.code}
+            className={`${styles.catTab} ${location === v.code ? styles.catTabOn : ''}`}
+            aria-pressed={location === v.code}
             onClick={() => {
-              setLocation(loc);
+              setLocation(v.code);
               setSaved(false);
             }}
           >
-            {LOCATION_LABEL[loc]}
+            {venueLabel(allVenues, v.code)}
           </button>
         ))}
       </div>

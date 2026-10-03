@@ -3,7 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { validateSumTo, validateSetsFirstTo, pointsTargetForStage } from '@/lib/formats/scoring';
 import { teamAWon } from '@/lib/formats/sets';
-import { categoryForElo, matchDeltas } from '@/lib/elo';
+import { matchDeltas } from '@/lib/elo';
+import { readRatings, writeRating } from '@/lib/server/ratings';
 import { buildKingRound, rankGroupDetailed, kingAdvancers } from '@/lib/formats/kingOfBeach';
 import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from '@/lib/formats/brackets';
 import { stageWeight } from '@/lib/formats/stages';
@@ -33,7 +34,7 @@ export async function POST(request, { params }) {
     .from('tournament_matches')
     .select(
       `*, tournament_categories(status, points_to_win, event_id,
-        tournament_events(format_kind, points_to_win, points_mode, final_points_to_win))`
+        tournament_events(format_kind, sport_id, points_to_win, points_mode, final_points_to_win))`
     )
     .eq('id', matchId)
     .single();
@@ -376,9 +377,11 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
   const teamB = match.team_b_players || [];
   if (teamA.length !== 2 || teamB.length !== 2) return; // defensive — americanka is always 2v2
 
+  // Ело is per SPORT (migration 043): a padel game must never move the
+  // volleyball rating. ratings.ts hides where each sport's number lives.
+  const sportId = match.tournament_categories?.tournament_events?.sport_id || null;
   const allIds = [...teamA, ...teamB];
-  const { data: players } = await supabaseAdmin.from('users').select('id, elo').in('id', allIds);
-  const eloById = new Map((players || []).map((p) => [p.id, p.elo ?? 1200]));
+  const eloById = await readRatings(supabaseAdmin, allIds, sportId);
 
   // The math lives in lib/elo.ts (and is unit-tested there): each team
   // plays at the average of its two players' Ело, the team delta comes
@@ -392,30 +395,28 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
     aWon
   );
 
-  const playerIds = [...teamA, ...teamB];
-  for (let i = 0; i < playerIds.length; i++) {
-    const playerId = playerIds[i];
+  for (let i = 0; i < allIds.length; i++) {
+    const playerId = allIds[i];
     const delta = deltas[i];
-    const before = eloById.get(playerId) ?? 1200;
+    const before = eloById.get(playerId);
     const after = before + delta;
-    const { error: updateError } = await supabaseAdmin
-      .from('users')
-      .update({ elo: after, category: categoryForElo(after)?.id })
-      .eq('id', playerId);
+    const updateError = await writeRating(supabaseAdmin, playerId, sportId, after);
     if (updateError) {
-      console.error('[auto-elo] players update:', updateError.message);
+      console.error('[auto-elo] rating update:', updateError);
       continue;
     }
     // No category_id: since migration 042 the row names only the game,
-    // and the category is reached through it.
-    const { error: historyError } = await supabaseAdmin.from('elo_history').insert({
+    // and the category is reached through it. sport_id: since 043.
+    const historyRow = {
       user_id: playerId,
       match_id: match.id,
       delta,
       elo_before: before,
       elo_after: after,
       reason: 'tournament_result',
-    });
+    };
+    if (sportId) historyRow.sport_id = sportId;
+    const { error: historyError } = await supabaseAdmin.from('elo_history').insert(historyRow);
     if (historyError) console.error('[auto-elo] elo_history insert:', historyError.message);
   }
 }

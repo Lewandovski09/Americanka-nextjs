@@ -102,7 +102,12 @@ export default function PlayerHistoryAccordion({ partners, tournamentHistory, el
                               : '—'}
                           </div>
                           <div className={styles.eloLogName}>
-                            {h.tournament_name || 'Турнір'}
+                            {h.tournament_name ||
+                              (h.reason === 'season_reset'
+                                ? 'Новий сезон'
+                                : h.reason === 'admin_adjustment'
+                                ? 'Корекція адміном'
+                                : 'Турнір')}
                             {h.opponent_names ? ` · проти ${h.opponent_names}` : ''}
                           </div>
                         </div>
