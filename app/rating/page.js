@@ -7,6 +7,7 @@ import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
 import { teamAWon } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { PRIMARY_SPORT_ID, getSport } from '@/lib/sports';
+import { getFormat } from '@/lib/formats';
 
 // Seasons are scoped by sport and optionally by city (migration 043), so
 // the chip says which one it is whenever that is not the default.
@@ -810,11 +811,16 @@ export default function RatingPage() {
   );
 }
 
-function CompareResult({ playerA, playerB, statsA, statsB }) {
-  const allFormats = Array.from(new Set([...statsA.map((s) => s.format_name), ...statsB.map((s) => s.format_name)]));
+// get_user_format_stats returns the format CODE since migration 049; the
+// label comes from lib/formats (before 049 it was a ready-made name).
+const statFormat = (s) => s.format_kind || s.format_name;
+const formatTitle = (f) => getFormat(f)?.displayName || f;
 
-  function findStat(stats, formatName) {
-    return stats.find((s) => s.format_name === formatName);
+function CompareResult({ playerA, playerB, statsA, statsB }) {
+  const allFormats = Array.from(new Set([...statsA.map(statFormat), ...statsB.map(statFormat)]));
+
+  function findStat(stats, format) {
+    return stats.find((s) => statFormat(s) === format);
   }
 
   return (
@@ -843,7 +849,7 @@ function CompareResult({ playerA, playerB, statsA, statsB }) {
 
         return (
           <div key={format} className={styles.compareFormatRow}>
-            <div className={styles.compareFormatName}>{format}</div>
+            <div className={styles.compareFormatName}>{formatTitle(format)}</div>
             <div className={styles.compareStatsGrid}>
               <div className={styles.compareStatCol}>
                 <div className={styles.compareStatBig}>{winRateA}%</div>

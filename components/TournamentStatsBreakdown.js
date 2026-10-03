@@ -22,6 +22,15 @@ function normalize(s) {
   return (s || '').trim().toLowerCase().replace(/\s*\/\s*/g, '/');
 }
 
+// The database returns the format's CODE (migration 049): the label is
+// lib/formats' business, never SQL's.
+const KIND_TO_KEY = { americanka: 'americanka', single_gender: 'gendered', mix: 'mix', king_of_beach: 'king' };
+
+function formatKeyOf(h) {
+  if (h.format_kind) return KIND_TO_KEY[h.format_kind] || 'americanka';
+  return matchFormatKey(h.format_name); // before 049: a display name
+}
+
 function matchFormatKey(formatName) {
   const n = normalize(formatName);
   for (const f of FORMATS) {
@@ -67,7 +76,7 @@ export default function TournamentStatsBreakdown({ history, gender, totalGames, 
 
   function buildSections(list) {
     return FORMATS.map((f) => {
-      const matches = list.filter((h) => matchFormatKey(h.format_name) === f.key);
+      const matches = list.filter((h) => formatKeyOf(h) === f.key);
       const cats = groupBy(matches, (h) => h.category);
       return { key: f.key, label: formatLabel(f), count: matches.length, cats };
     });
