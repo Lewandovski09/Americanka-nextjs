@@ -3,8 +3,7 @@
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
-import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import { categoryForElo, expectedScore, SKILL_CATEGORIES } from '@/lib/elo';
+import { categoryForElo, eloForecast, SKILL_CATEGORIES } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
@@ -18,7 +17,6 @@ import styles from './player.module.css';
 export default function PlayerProfilePage() {
   const params = useParams();
   const router = useRouter();
-  const { player: viewer } = useCurrentPlayer();
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
@@ -106,11 +104,14 @@ export default function PlayerProfilePage() {
   const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
 
-  const showCalculator = viewer && viewer.id !== player.id;
-  const myElo = viewer?.elo || 1200;
-  const e = expectedScore(myElo, opponentElo);
-  const winGain = Math.round(32 * (1 - e));
-  const lossDelta = Math.round(32 * (0 - e));
+  // The calculator is about THIS profile's player: their own rating
+  // against a pair of the chosen average, paid exactly like a real game
+  // (lib/elo eloForecast). It used to compute the VIEWER's rating instead.
+  const showCalculator = player.elo != null;
+  const forecast = eloForecast(player.elo || 1200, opponentElo);
+  const e = forecast.chance;
+  const winGain = forecast.win;
+  const lossDelta = forecast.loss;
 
   const playerCategory = categoryForElo(player.elo);
   const categoryIndex = playerCategory ? SKILL_CATEGORIES.findIndex((c) => c.id === playerCategory.id) : -1;
@@ -223,7 +224,7 @@ export default function PlayerProfilePage() {
           </div>
           <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
             <div className={styles.sliderLabel}>
-              Ело суперника: <b>{opponentElo}</b>
+              Середнє Ело суперників: <b>{opponentElo}</b>
             </div>
             <input
               type="range"
@@ -233,14 +234,14 @@ export default function PlayerProfilePage() {
               value={opponentElo}
               onChange={(ev) => setOpponentElo(Number(ev.target.value))}
               className={styles.slider}
-              aria-label="Ело суперника"
+              aria-label="Середнє Ело суперників"
             />
             <div className={styles.calcGrid}>
               <div className={styles.calcBox}>
                 <div className={styles.calcValue} style={{ color: 'var(--navy)' }}>
                   {Math.round(e * 100)}%
                 </div>
-                <div className={styles.calcLabel}>ваш шанс</div>
+                <div className={styles.calcLabel}>шанс</div>
               </div>
               <div className={styles.calcBox}>
                 <div className={styles.calcIcon}>
@@ -296,15 +297,18 @@ export default function PlayerProfilePage() {
             </div>
             <div className={styles.calcInfoText}>
               <p>
-                Повзунок задає рейтинг Ело — за замовчуванням це поточний рейтинг {player.full_name.split(' ')[0]}, але
-                можна посунути на будь-яке значення.
+                Розрахунок — для {player.full_name.split(' ')[0]}, за {player.gender === 'F' ? 'її' : 'його'} поточним рейтингом ({player.elo}), так
+                само, як рахується справжня гра американки, якщо партнер приблизно того ж рівня.
               </p>
               <p>
-                <b>Ваш шанс</b> — ймовірність вашої перемоги, з огляду на різницю рейтингів.
+                Повзунок задає <b>середнє Ело пари суперників</b> — (Ело першого + Ело другого) / 2. За замовчуванням
+                воно дорівнює рейтингу гравця, тобто рівна гра.
               </p>
               <p>
-                <b>Перемога</b> / <b>поразка</b> — скільки очок Ело ви отримаєте чи втратите за результатом проти
-                суперника з таким рейтингом.
+                <b>Шанс</b> — ймовірність перемоги пари гравця.
+              </p>
+              <p>
+                <b>Перемога</b> / <b>поразка</b> — скільки очок Ело гравець отримає чи втратить за таким результатом.
               </p>
             </div>
             <button className={styles.saveBtn} onClick={() => setCalcInfoOpen(false)} style={{ marginTop: 4 }}>

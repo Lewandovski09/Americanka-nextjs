@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import { categoryForElo, expectedScore, SKILL_CATEGORIES } from '@/lib/elo';
+import { categoryForElo, eloForecast, SKILL_CATEGORIES } from '@/lib/elo';
 import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -251,9 +251,12 @@ export default function ProfilePage() {
   const shownPhoto = photoUrl || player.photo_url;
   const me = shownPhoto === player.photo_url ? player : { ...player, photo_url: shownPhoto };
 
-  const e = expectedScore(player.elo || 1200, opponentElo);
-  const winGain = Math.round(32 * (1 - e));
-  const lossDelta = Math.round(32 * (0 - e));
+  // The calculator uses the real payout (lib/elo eloForecast — same K
+  // and pair split as a real game), for this player's own rating.
+  const forecast = eloForecast(player.elo || 1200, opponentElo);
+  const e = forecast.chance;
+  const winGain = forecast.win;
+  const lossDelta = forecast.loss;
   const totalGames = formatStats.reduce((s, r) => s + (r.games_played || 0), 0);
   const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
   const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
@@ -373,7 +376,7 @@ export default function ProfilePage() {
       </div>
       <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
         <div className={styles.sliderLabel}>
-          Ело суперника: <b>{opponentElo}</b>
+          Середнє Ело суперників: <b>{opponentElo}</b>
         </div>
         <input
           type="range"
@@ -383,7 +386,7 @@ export default function ProfilePage() {
           value={opponentElo}
           onChange={(e) => setOpponentElo(Number(e.target.value))}
           className={styles.slider}
-          aria-label="Ело суперника"
+          aria-label="Середнє Ело суперників"
         />
         <div className={styles.calcGrid}>
           <CalcBox value={`${Math.round(e * 100)}%`} label="шанс" color="var(--navy)" />
@@ -441,15 +444,18 @@ export default function ProfilePage() {
             </div>
             <div className={styles.calcInfoText}>
               <p>
-                Пересуньте повзунок, щоб задати рейтинг Ело уявного суперника — це може бути будь-яке число від 800 до
-                2000, не обов&apos;язково реального гравця.
+                Повзунок задає <b>середнє Ело пари суперників</b> — (Ело першого + Ело другого) / 2. Це може бути
+                будь-яке число від 800 до 2000.
               </p>
               <p>
-                <b>Ваш шанс</b> — ймовірність вашої перемоги над суперником із заданим рейтингом, з огляду на різницю
-                рейтингів.
+                Розрахунок — за вашим поточним рейтингом ({player.elo ?? '—'}), так само, як рахується справжня гра
+                американки, якщо ваш партнер приблизно вашого рівня.
               </p>
               <p>
-                <b>Перемога</b> — скільки очок Ело ви отримаєте, якщо переможете саме цього суперника.{' '}
+                <b>Шанс</b> — ймовірність перемоги вашої пари.
+              </p>
+              <p>
+                <b>Перемога</b> — скільки очок Ело отримаєте саме ви, якщо пара переможе.{' '}
                 <b>Поразка</b> — скільки втратите, якщо програєте.
               </p>
               <p>

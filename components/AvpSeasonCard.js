@@ -12,6 +12,7 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { IconChevronDown } from '@/components/Icons';
+import { PRIMARY_SPORT_ID } from '@/lib/sports';
 import styles from './AvpSeasonCard.module.css';
 
 export default function AvpSeasonCard({ playerId, gender }) {

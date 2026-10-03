@@ -157,3 +157,28 @@ export function matchDeltas(
   const [b1, b2] = pairDeltas(teamBElos[0], teamBElos[1], -deltaA);
   return [a1, a2, b1, b2];
 }
+
+export interface EloForecast {
+  /** Win probability of the player's pair, 0..1. */
+  chance: number;
+  /** The player's OWN Ело change for a win / a loss. */
+  win: number;
+  loss: number;
+}
+
+/**
+ * What one americanka game would do to THIS player's Ело, for the
+ * profile calculator: the player against a pair whose AVERAGE Ело is
+ * `opponentsAverage`, partnered with someone of the player's own rating.
+ *
+ * Runs the exact payout the score route uses (matchDeltas — K, rounding,
+ * the pair split), so the calculator can never disagree with what a real
+ * game pays. With an equal partner the pair split is 50/50, so the
+ * player's change is half of the team's.
+ */
+export function eloForecast(playerElo: number, opponentsAverage: number): EloForecast {
+  const chance = expectedScore(playerElo, opponentsAverage);
+  const win = matchDeltas([playerElo, playerElo], [opponentsAverage, opponentsAverage], true)[0];
+  const loss = matchDeltas([playerElo, playerElo], [opponentsAverage, opponentsAverage], false)[0];
+  return { chance, win, loss };
+}
