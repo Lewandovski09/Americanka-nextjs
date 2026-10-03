@@ -123,13 +123,10 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
     ...new Set((matches || []).flatMap((m: Match) => [...(m.team_a_players || []), ...(m.team_b_players || [])])),
   ].filter(Boolean) as string[];
 
-  // A pair wins together: both halves get the win, as they do everywhere
-  // else results are counted.
-  const winners = new Set(placements.find((p) => p.place === 1)?.playerIds || []);
-
-  await bumpTournamentCounters(supabaseAdmin, participants, winners);
   await updatePartnerStats(supabaseAdmin, (matches as Match[]) || []);
   await recordPlacements(supabaseAdmin, categoryId, placements);
+  // After the places are written: the counters are re-derived from them.
+  await syncTournamentCounters(supabaseAdmin, participants);
 
   const winnerPlayerId = placements.find((p) => p.place === 1)?.playerIds?.[0] || null;
 
@@ -158,25 +155,33 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   return { ok: true, winnerPlayerId, placements, avp };
 }
 
-// tournaments_played for everyone, tournaments_won for the winners. One
-// read for the whole roster, then a write each — Supabase has no bulk
-// increment, and a category is at most 32 rows.
-async function bumpTournamentCounters(supabaseAdmin: SupabaseAdmin, participants: string[], winners: Set<string>): Promise<void> {
+// users.tournaments_played / tournaments_won, RE-DERIVED from
+// tournament_placements for this roster — never incremented. A +1 here
+// used to be bumped again whenever a category was finished twice (a
+// re-entered final score, a retry), which is how 50 players' counters
+// had drifted by 2026-10. Recounting is idempotent: finishing the same
+// category any number of times leaves the same numbers.
+async function syncTournamentCounters(supabaseAdmin: SupabaseAdmin, participants: string[]): Promise<void> {
   if (participants.length === 0) return;
 
-  const { data: rows } = await supabaseAdmin
-    .from('users')
-    .select('id, tournaments_played, tournaments_won')
-    .in('id', participants);
+  const { data: places } = await supabaseAdmin
+    .from('tournament_placements')
+    .select('user_id, place')
+    .in('user_id', participants);
 
-  for (const row of (rows || []) as { id: string; tournaments_played: number | null; tournaments_won: number | null }[]) {
-    await supabaseAdmin
+  const played = new Map<string, number>();
+  const won = new Map<string, number>();
+  for (const p of (places || []) as { user_id: string; place: number }[]) {
+    played.set(p.user_id, (played.get(p.user_id) || 0) + 1);
+    if (p.place === 1) won.set(p.user_id, (won.get(p.user_id) || 0) + 1);
+  }
+
+  for (const id of participants) {
+    const { error } = await supabaseAdmin
       .from('users')
-      .update({
-        tournaments_played: (row.tournaments_played || 0) + 1,
-        tournaments_won: (row.tournaments_won || 0) + (winners.has(row.id) ? 1 : 0),
-      })
-      .eq('id', row.id);
+      .update({ tournaments_played: played.get(id) || 0, tournaments_won: won.get(id) || 0 })
+      .eq('id', id);
+    if (error) console.error('[finishCategory] counters:', error.message);
   }
 }
 
