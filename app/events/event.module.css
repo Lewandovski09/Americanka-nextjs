@@ -17,7 +17,7 @@
   text-align: center;
   padding: 22px;
   color: var(--text2);
-  font-size: 14.5px;
+  font-size: 13.75px;
 }
 
 .title {
@@ -37,7 +37,7 @@
 
 .manageLink {
   flex-shrink: 0;
-  font-size: 17px;
+  font-size: 16.5px;
   line-height: 1;
   text-decoration: none;
   padding: 6px 10px;
@@ -47,7 +47,7 @@
 }
 
 .meta {
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: var(--text2);
   margin-bottom: 4px;
 }
@@ -68,7 +68,7 @@
   border: none;
   border-radius: 11px;
   background: transparent;
-  font-size: 14.5px;
+  font-size: 13.75px;
   cursor: pointer;
   color: var(--text2);
   font-weight: 600;
@@ -93,7 +93,7 @@
   border: 1.5px solid var(--border-light);
   background: var(--surface);
   color: var(--text2);
-  font-size: 13.5px;
+  font-size: 12.75px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -115,7 +115,7 @@
   display: flex;
   flex-wrap: wrap;
   gap: 12px;
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: var(--text2);
   margin-bottom: 12px;
 }
@@ -128,13 +128,13 @@
 }
 
 .progressLabel {
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   color: var(--text);
 }
 
 .statusBadge {
-  font-size: 11.5px;
+  font-size: 10.75px;
   font-weight: 700;
   padding: 3px 9px;
   border-radius: var(--r-lg);
@@ -145,7 +145,7 @@
 /* «Головний» marker next to a judge's name. */
 .judgeBadge {
   flex-shrink: 0;
-  font-size: 11.5px;
+  font-size: 10.75px;
   font-weight: 700;
   padding: 3px 9px;
   border-radius: var(--r-lg);
@@ -174,7 +174,7 @@
   gap: 8px;
   padding: 9px 4px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text);
 }
 
@@ -202,7 +202,7 @@
   align-items: center;
   gap: 8px;
   padding: 9px 4px;
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text);
 }
 
@@ -248,7 +248,7 @@
 
 .genderMark {
   flex-shrink: 0;
-  font-size: 15.5px;
+  font-size: 14.75px;
   line-height: 1;
 }
 
@@ -285,7 +285,7 @@
   padding: 5px 8px;
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
-  font-size: 13.5px;
+  font-size: 12.75px;
   background: var(--surface);
   color: var(--text);
 }
@@ -295,7 +295,7 @@
   background: var(--surface);
   color: #b91c1c;
   border-radius: var(--r-sm);
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   padding: 4px 9px;
   cursor: pointer;
@@ -308,13 +308,13 @@
 .table {
   width: 100%;
   border-collapse: collapse;
-  font-size: 14.5px;
+  font-size: 13.75px;
   margin-bottom: 6px;
 }
 
 .table th {
   text-align: left;
-  font-size: 11.5px;
+  font-size: 10.75px;
   text-transform: uppercase;
   color: var(--text2);
   padding: 6px 8px;
@@ -330,7 +330,7 @@
 .openLink {
   display: inline-block;
   margin-top: 14px;
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   color: var(--rust);
   text-decoration: none;
@@ -338,7 +338,7 @@
 
 /* ── Registration / apply ─────────────────────── */
 .errMsg {
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: #b91c1c;
   margin: 10px 0;
   padding: 10px 12px;
@@ -355,7 +355,7 @@
 }
 
 .myStatus {
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   color: var(--text);
   margin-bottom: 10px;
@@ -377,7 +377,7 @@
   padding: 10px 12px;
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
-  font-size: 15.5px;
+  font-size: 14.75px;
   background: var(--surface);
   color: var(--text);
   margin-bottom: 8px;
@@ -391,7 +391,7 @@
   display: flex;
   align-items: center;
   gap: 8px;
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text);
   margin: 4px 0 8px;
   cursor: pointer;
@@ -404,7 +404,7 @@
   color: #fff;
   border: none;
   border-radius: var(--r-sm);
-  font-size: 15.5px;
+  font-size: 14.75px;
   font-weight: 800;
   cursor: pointer;
 }
@@ -420,7 +420,7 @@
   color: var(--text);
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   cursor: pointer;
   white-space: nowrap;
@@ -441,7 +441,7 @@
 }
 
 .poolTitle {
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 800;
   color: var(--text);
   margin-bottom: 10px;
@@ -475,14 +475,14 @@
    names rather than under them. */
 .appPref {
   font-weight: 500;
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: var(--text2);
   text-align: right;
   white-space: nowrap;
 }
 
 .hint {
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: var(--text2);
   margin-bottom: 8px;
 }
@@ -493,7 +493,7 @@
 }
 
 .stageTitle {
-  font-size: 13.5px;
+  font-size: 12.75px;
   font-weight: 800;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -502,7 +502,7 @@
 }
 
 .groupTitle {
-  font-size: 12.5px;
+  font-size: 11.75px;
   font-weight: 700;
   color: var(--text2);
   margin: 8px 0 4px;
@@ -515,7 +515,7 @@
   gap: 8px;
   padding: 8px 4px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 14.5px;
+  font-size: 13.75px;
 }
 
 .matchTeams {
@@ -556,7 +556,7 @@
   padding: 5px 4px;
   border: 1.5px solid var(--border-light);
   border-radius: var(--r-sm);
-  font-size: 14.5px;
+  font-size: 13.75px;
   text-align: center;
   background: var(--surface);
   color: var(--text);
@@ -567,7 +567,7 @@
   background: var(--rust);
   color: #fff;
   border-radius: var(--r-sm);
-  font-size: 13.5px;
+  font-size: 12.75px;
   font-weight: 700;
   padding: 5px 9px;
   cursor: pointer;
@@ -596,7 +596,7 @@
   color: #b91c1c;
   border: 1.5px solid #fca5a5;
   border-radius: var(--r-sm);
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   cursor: pointer;
 }
@@ -608,7 +608,7 @@
 /* ── Running-event settings: «Головна» fields ──── */
 .fieldLabel {
   display: block;
-  font-size: 12.5px;
+  font-size: 11.75px;
   font-weight: 700;
   text-transform: uppercase;
   letter-spacing: 0.3px;
@@ -623,7 +623,7 @@
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 15.5px;
+  font-size: 14.75px;
 }
 
 /* ── Running-event settings: «Посів» list ───────── */
@@ -632,7 +632,7 @@
   grid-template-columns: 30px 40px 1fr 34px;
   gap: 8px;
   padding: 6px 4px;
-  font-size: 11.5px;
+  font-size: 10.75px;
   text-transform: uppercase;
   letter-spacing: 0.3px;
   color: var(--text2);
@@ -646,7 +646,7 @@
   align-items: center;
   padding: 8px 4px;
   border-bottom: 1px solid var(--border-light);
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text);
   background: var(--surface);
   /* Rows step aside during a drag; the moved one is positioned so it can
@@ -693,7 +693,7 @@
   border: none;
   background: transparent;
   color: var(--text2);
-  font-size: 16px;
+  font-size: 15.5px;
   line-height: 1;
   padding: 6px 4px;
   border-radius: var(--r-sm);
@@ -765,7 +765,7 @@
   border: none;
   background: transparent;
   color: var(--text);
-  font-size: 14.5px;
+  font-size: 13.75px;
   text-align: left;
   padding: 9px 10px;
   border-radius: var(--r-sm);
@@ -785,7 +785,7 @@
 .seedDirty,
 .seedOk {
   display: block;
-  font-size: 13.5px;
+  font-size: 12.75px;
   font-weight: 700;
   margin-bottom: 8px;
 }
@@ -820,7 +820,7 @@
 }
 
 .modalTitle {
-  font-size: 15.5px;
+  font-size: 14.75px;
   font-weight: 800;
   color: var(--text);
   margin-bottom: 6px;
@@ -833,7 +833,7 @@
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 700;
   text-align: center;
 }

@@ -34,7 +34,7 @@
 }
 
 .noticeText {
-  font-size: 15.5px;
+  font-size: 14.75px;
   color: #6b6b6b;
   line-height: 1.5;
   margin-bottom: 20px;
@@ -47,7 +47,7 @@
   color: #fff;
   border: none;
   border-radius: var(--r-sm);
-  font-size: 15.5px;
+  font-size: 14.75px;
   font-weight: 700;
   cursor: pointer;
 }

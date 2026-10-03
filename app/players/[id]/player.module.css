@@ -18,7 +18,7 @@
   background: none;
   border: none;
   color: var(--text2);
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 700;
   padding: 6px 2px;
   margin-bottom: 10px;
@@ -58,7 +58,7 @@
 }
 
 .cat {
-  font-size: 13.5px;
+  font-size: 12.75px;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 700;
   margin-top: 2px;
@@ -79,7 +79,7 @@
 }
 
 .heroEloLabel {
-  font-size: 11.5px;
+  font-size: 10.75px;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: rgba(255, 255, 255, 0.4);
@@ -106,7 +106,7 @@
 
 .headerStatLabel,
 .headerStatLabelAvp {
-  font-size: 11.5px;
+  font-size: 10.75px;
   font-weight: 800;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -148,14 +148,14 @@
 }
 
 .headerStatMeta {
-  font-size: 11.5px;
+  font-size: 10.75px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 4px;
   min-height: 12px;
 }
 
 .headerStatMetaAvp {
-  font-size: 11.5px;
+  font-size: 10.75px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 22px;
 }
@@ -171,7 +171,7 @@
 }
 
 .streakText {
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 800;
   color: var(--rust-dark);
 }
@@ -217,7 +217,7 @@
 }
 
 .statSquareLabel {
-  font-size: 12.5px;
+  font-size: 11.75px;
   color: var(--text2);
   text-transform: uppercase;
   font-weight: 700;
@@ -235,7 +235,7 @@
   margin-bottom: 4px;
   text-decoration: none;
   color: var(--text);
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 600;
 }
 
@@ -245,7 +245,7 @@
 }
 
 .sectionLabel {
-  font-size: 12.5px;
+  font-size: 11.75px;
   font-weight: 800;
   color: var(--text2);
   text-transform: uppercase;
@@ -254,7 +254,7 @@
 }
 
 .empty {
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text2);
 }
 
@@ -267,7 +267,7 @@
 }
 
 .sliderLabel {
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text2);
   margin-bottom: 10px;
 }
@@ -298,12 +298,12 @@
 }
 
 .calcValue {
-  font-size: 16px;
+  font-size: 15.5px;
   font-weight: 800;
 }
 
 .calcLabel {
-  font-size: 11.5px;
+  font-size: 10.75px;
   color: var(--text2);
 }
 
@@ -319,30 +319,30 @@
 }
 
 .historyName {
-  font-size: 15.5px;
+  font-size: 14.75px;
   font-weight: 700;
   color: var(--text);
 }
 
 .historyMeta {
-  font-size: 12.5px;
+  font-size: 11.75px;
   color: var(--text2);
   margin-top: 2px;
 }
 
 .historyPlace {
-  font-size: 12.5px;
+  font-size: 11.75px;
   color: var(--text2);
 }
 
 .positive {
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 800;
   color: var(--accent-green);
 }
 
 .negative {
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 800;
   color: var(--danger);
 }
@@ -359,14 +359,14 @@
 }
 
 .eloLogDate {
-  font-size: 12.5px;
+  font-size: 11.75px;
   color: var(--text2);
   width: 56px;
   flex-shrink: 0;
 }
 
 .eloLogName {
-  font-size: 14.5px;
+  font-size: 13.75px;
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -377,7 +377,7 @@
 
 .eloLogRow .positive,
 .eloLogRow .negative {
-  font-size: 15.5px;
+  font-size: 14.75px;
 }
 
 .skeletonHeroHeader {
@@ -486,7 +486,7 @@
 }
 
 .calcInfoText {
-  font-size: 14.5px;
+  font-size: 13.75px;
   color: var(--text2);
   line-height: 1.55;
 }
@@ -522,7 +522,7 @@
 }
 
 .modalTitle {
-  font-size: 17px;
+  font-size: 16.5px;
   font-weight: 800;
   color: var(--text);
 }

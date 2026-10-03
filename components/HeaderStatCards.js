@@ -41,7 +41,7 @@ export default function HeaderStatCards({ styles, player, stats }) {
           {delta != null && delta !== 0 && (
             <span
               title="Зміна за поточний сезон"
-              style={{ fontSize: 12.5, fontWeight: 700, marginLeft: 6, color: delta > 0 ? '#5fd38d' : '#ff8a7a' }}
+              style={{ fontSize: 11.75, fontWeight: 700, marginLeft: 6, color: delta > 0 ? '#5fd38d' : '#ff8a7a' }}
             >
               {delta > 0 ? `+${delta}` : delta} за сезон
             </span>

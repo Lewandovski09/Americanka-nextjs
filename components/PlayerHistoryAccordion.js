@@ -54,7 +54,7 @@ export default function PlayerHistoryAccordion({ partners, tournamentHistory, el
       {/* Which season these three lists are for — the switch at the top
           of the page picks it. */}
       {scopeLabel && (
-        <div style={{ padding: '10px 16px 0', fontSize: 12.5, fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+        <div style={{ padding: '10px 16px 0', fontSize: 11.75, fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
           {scopeLabel}
         </div>
       )}

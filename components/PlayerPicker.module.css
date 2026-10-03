@@ -11,7 +11,7 @@
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 15.5px;
+  font-size: 14.75px;
 }
 
 .input:focus {
@@ -38,7 +38,7 @@
   background: none;
   cursor: pointer;
   text-align: left;
-  font-size: 15.5px;
+  font-size: 14.75px;
   color: var(--text);
 }
 
@@ -58,7 +58,7 @@
 .gender {
   flex-shrink: 0;
   width: 10px;
-  font-size: 15.5px;
+  font-size: 14.75px;
   line-height: 1;
 }
 
@@ -79,12 +79,12 @@
 
 .login {
   color: var(--text2);
-  font-size: 13.5px;
+  font-size: 12.75px;
 }
 
 .empty {
   padding: 10px;
   color: var(--text2);
-  font-size: 14.5px;
+  font-size: 13.75px;
   text-align: center;
 }

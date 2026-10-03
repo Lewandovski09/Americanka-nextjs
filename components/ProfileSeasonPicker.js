@@ -41,7 +41,7 @@ export default function ProfileSeasonPicker({ seasons, value, onChange }) {
               color: on ? '#fff' : 'var(--text2)',
               borderRadius: 999,
               padding: '7px 14px',
-              fontSize: 13.5,
+              fontSize: 12.75,
               fontWeight: 700,
               cursor: 'pointer',
               whiteSpace: 'nowrap',
