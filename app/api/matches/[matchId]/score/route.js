@@ -10,7 +10,7 @@ import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from
 import { stageWeight } from '@/lib/formats/stages';
 import { assignScheduledTimes, cursorsFromMatches } from '@/lib/schedule';
 import { getJudgeRole } from '@/lib/server/judges';
-import { finishCategory } from '@/lib/server/finishCategory';
+import { finishCategory, refreshFinishedCategory } from '@/lib/server/finishCategory';
 
 export async function POST(request, { params }) {
   const { matchId } = params;
@@ -23,36 +23,33 @@ export async function POST(request, { params }) {
       : [[Number(body.scoreA), Number(body.scoreB)]];
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const supabaseAdmin = createAdminClient();
+
+  // Who is asking and which match — independent, so fetched together
+  // (every step here used to wait for the previous one).
+  const [{ data: authUser }, { data: match }] = await Promise.all([
+    supabase.auth.getUser(),
+    supabaseAdmin
+      .from('tournament_matches')
+      .select(
+        `*, tournament_categories(status, points_to_win, event_id,
+          tournament_events(format_kind, sport_id, points_to_win, points_mode, final_points_to_win))`
+      )
+      .eq('id', matchId)
+      .maybeSingle(),
+  ]);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
-
-  const supabaseAdmin = createAdminClient();
-
-  const { data: match } = await supabaseAdmin
-    .from('tournament_matches')
-    .select(
-      `*, tournament_categories(status, points_to_win, event_id,
-        tournament_events(format_kind, sport_id, points_to_win, points_mode, final_points_to_win))`
-    )
-    .eq('id', matchId)
-    .single();
-
   if (!match) {
     return Response.json({ success: false, error: 'Матч не знайдено' }, { status: 404 });
   }
 
   // A score is entered by the crew running the day — an admin or a judge
-  // of this event. It used to be open to anyone signed in, which was
-  // survivable while a score was just a number on a page and stopped
-  // being so once results pay out tournament counters, partner stats and
-  // AVP season points. Any judge of the event may enter any of its
-  // games: `matches.judge_id` pins who is expected at a court, it is not
-  // a permission (a crew swaps courts all day).
-  //
-  // Legacy categories that predate events have no crew, so only an admin
-  // can score them.
+  // of this event. Any judge of the event may enter any of its games:
+  // `matches.judge_id` pins who is expected at a court, it is not a
+  // permission. Legacy categories that predate events have no crew, so
+  // only an admin can score them.
   const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournament_categories?.event_id || null);
   if (!role.isAdmin && !role.isJudge) {
     return Response.json(
@@ -61,27 +58,54 @@ export async function POST(request, { params }) {
     );
   }
 
-  // Re-entering a score is a correction, and that is narrower: an
-  // ordinary judge enters the game in front of them, but unpicking a
-  // result the bracket has already built on is the head judge's call —
-  // and only while the match's stage is still current. A finished
-  // category is locked outright.
-  if (match.played) {
-    if (match.tournament_categories?.status === 'done') {
+  const categoryDone = match.tournament_categories?.status === 'done';
+  const newSets = { set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null };
+  const winnerChanged = match.played && teamAWon(match) !== teamAWon(newSets);
+
+  // ── Who may change what ──
+  // • A judge enters the game in front of them while the category runs.
+  // • The head judge may also correct a played game, while its stage is
+  //   still the current one.
+  // • The ADMIN may correct any game of any tournament, finished or not
+  //   (everything that depends on the result is recalculated below). The
+  //   one thing refused: flipping the winner of a bracket game whose next
+  //   game has already been played with the old winner in it — fix that
+  //   next game first (from the top of the bracket down).
+  let warning = null;
+  if (!role.isAdmin) {
+    if (categoryDone) {
       return Response.json(
-        { success: false, error: 'Категорію завершено — рахунок змінити не можна' },
-        { status: 400 }
-      );
-    }
-    if (!role.isAdmin && !role.isHeadJudge) {
-      return Response.json(
-        { success: false, error: 'Рахунок вже введено — змінити його може адмін або головний суддя' },
+        { success: false, error: 'Категорію завершено — змінити рахунок може лише адміністратор' },
         { status: 403 }
       );
     }
-    const lock = await checkStillCurrentStage(supabaseAdmin, match);
-    if (!lock.ok) {
-      return Response.json({ success: false, error: lock.error }, { status: 400 });
+    if (match.played) {
+      if (!role.isHeadJudge) {
+        return Response.json(
+          { success: false, error: 'Рахунок вже введено — змінити його може адмін або головний суддя' },
+          { status: 403 }
+        );
+      }
+      const lock = await checkStillCurrentStage(supabaseAdmin, match);
+      if (!lock.ok) return Response.json({ success: false, error: lock.error }, { status: 400 });
+    }
+  } else if (winnerChanged) {
+    const downstream = [match.winner_to_match_id, match.loser_to_match_id].filter(Boolean);
+    if (downstream.length > 0) {
+      const { data: next } = await supabaseAdmin.from('tournament_matches').select('played').in('id', downstream);
+      if ((next || []).some((m) => m.played)) {
+        return Response.json(
+          {
+            success: false,
+            error:
+              'Переможець змінюється, а наступний матч сітки вже зіграно з попереднім переможцем. Спочатку виправте або очистьте наступний матч.',
+          },
+          { status: 400 }
+        );
+      }
+    } else if (match.stage) {
+      const lock = await checkStillCurrentStage(supabaseAdmin, match);
+      if (!lock.ok) warning = 'Рахунок збережено. Наступний етап уже зіграно — його склад не перебудовувався.';
     }
   }
 
@@ -90,39 +114,69 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: validation.error }, { status: 400 });
   }
 
-  const { error } = await supabaseAdmin
-    .from('tournament_matches')
-    .update({
-      set1: sets[0],
-      set2: sets[1] ?? null,
-      set3: sets[2] ?? null,
-      played: true,
-      played_at: new Date().toISOString(),
-    })
-    .eq('id', matchId);
-
-  if (error) {
-    console.error('[submit-score] error:', error.message);
-    return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
+  // First entry is CLAIMED atomically (`played = false` in the filter):
+  // a double tap or two judges at once used to both pass as «first» and
+  // pay the Ело twice. Only one request can flip played → true; the other
+  // becomes an ordinary correction. A correction keeps the original
+  // played_at — it is when the game was played, not when it was fixed.
+  let firstEntry = false;
+  if (!match.played) {
+    const { data: claimed, error } = await supabaseAdmin
+      .from('tournament_matches')
+      .update({ ...newSets, played: true, played_at: new Date().toISOString() })
+      .eq('id', matchId)
+      .eq('played', false)
+      .select('id');
+    if (error) {
+      console.error('[submit-score] error:', error.message);
+      return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
+    }
+    firstEntry = (claimed || []).length === 1;
+  }
+  if (!firstEntry) {
+    const { error } = await supabaseAdmin
+      .from('tournament_matches')
+      .update({ ...newSets, played: true })
+      .eq('id', matchId);
+    if (error) {
+      console.error('[submit-score] error:', error.message);
+      return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
+    }
   }
 
-  // Event-driven brackets (Double Elimination): push the winner and
-  // loser into their next match slots, and finish the category when the
-  // deciding match is played.
-  await propagateBracket(supabaseAdmin, match, sets);
-
-  // Americanka: Ело recalculates itself after this game — see the
-  // function below for the scoping and why every other format stays
-  // admin-set instead.
-  await autoUpdateEloForAmericanka(supabaseAdmin, match, sets);
+  // Ело (Americanka) and the bracket do not depend on each other — both
+  // at once. A first entry pays the game; a correction that changes the
+  // winner re-pays it (see correctEloForAmericanka).
+  await Promise.all([
+    propagateBracket(supabaseAdmin, match, sets),
+    firstEntry
+      ? autoUpdateEloForAmericanka(supabaseAdmin, match, sets)
+      : winnerChanged
+      ? correctEloForAmericanka(supabaseAdmin, match, sets)
+      : null,
+  ]);
 
   // Stages advance themselves: once the last game of a King round or of
   // the group stage is entered, the next phase's teams are filled in —
   // there is no manual "next stage" step.
-  await autoAdvanceKing(supabaseAdmin, match);
-  await autoBuildCrossesPlayoff(supabaseAdmin, match);
+  if (!categoryDone) {
+    await autoAdvanceKing(supabaseAdmin, match);
+    await autoBuildCrossesPlayoff(supabaseAdmin, match);
+  }
 
-  return Response.json({ success: true });
+  // A finished tournament: everything that was paid out from its results
+  // is recomputed from the corrected games — places, the winner,
+  // tournament counters, AVP points, and (if the winner changed) the
+  // partner statistics.
+  if (categoryDone) {
+    const res = await refreshFinishedCategory(supabaseAdmin, match.category_id, { winnerChanged });
+    if (!res.ok) {
+      console.error('[submit-score] refresh finished category:', res.error);
+      warning = 'Рахунок збережено, але перерахунок результатів не вдався — натисніть «Перерахувати» в адмінці.';
+    }
+  }
+
+  return Response.json({ success: true, warning });
 }
 
 // Is the match still in the "current" stage, i.e. safe to correct?
@@ -395,30 +449,86 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
     aWon
   );
 
-  for (let i = 0; i < allIds.length; i++) {
-    const playerId = allIds[i];
-    const delta = deltas[i];
-    const before = eloById.get(playerId);
-    const after = before + delta;
-    const updateError = await writeRating(supabaseAdmin, playerId, sportId, after);
-    if (updateError) {
-      console.error('[auto-elo] rating update:', updateError);
-      continue;
-    }
-    // No category_id: since migration 042 the row names only the game,
-    // and the category is reached through it. sport_id: since 043.
-    const historyRow = {
-      user_id: playerId,
-      match_id: match.id,
-      delta,
-      elo_before: before,
-      elo_after: after,
-      reason: 'tournament_result',
-    };
-    if (sportId) historyRow.sport_id = sportId;
-    const { error: historyError } = await supabaseAdmin.from('elo_history').insert(historyRow);
+  // All four ratings at once, then the four history rows in one insert
+  // (this used to be eight requests one after another).
+  const results = await Promise.all(
+    allIds.map(async (playerId, i) => {
+      const before = eloById.get(playerId);
+      const after = before + deltas[i];
+      const updateError = await writeRating(supabaseAdmin, playerId, sportId, after);
+      if (updateError) {
+        console.error('[auto-elo] rating update:', updateError);
+        return null;
+      }
+      // No category_id: since migration 042 the row names only the game,
+      // and the category is reached through it. sport_id: since 043.
+      const row = {
+        user_id: playerId,
+        match_id: match.id,
+        delta: deltas[i],
+        elo_before: before,
+        elo_after: after,
+        reason: 'tournament_result',
+      };
+      if (sportId) row.sport_id = sportId;
+      return row;
+    })
+  );
+  const historyRows = results.filter(Boolean);
+  if (historyRows.length > 0) {
+    const { error: historyError } = await supabaseAdmin.from('elo_history').insert(historyRows);
     if (historyError) console.error('[auto-elo] elo_history insert:', historyError.message);
   }
+}
+
+// A correction that changes who won an Americanka game. The game is paid
+// again from the SAME starting ratings it was paid from the first time
+// (elo_before in its history rows), so its new delta is exactly what it
+// would have been; each player's current rating moves by the difference
+// and the history rows are rewritten. Games played after it keep their
+// deltas (re-playing the whole chain would move ratings nobody expects to
+// move); the error that leaves is a point or two at most.
+// Only the winner matters for Ело — a corrected margin changes nothing.
+async function correctEloForAmericanka(supabaseAdmin, match, sets) {
+  const format = match.tournament_categories?.tournament_events?.format_kind;
+  if (format !== 'americanka') return;
+  const teamA = match.team_a_players || [];
+  const teamB = match.team_b_players || [];
+  if (teamA.length !== 2 || teamB.length !== 2) return;
+  const allIds = [...teamA, ...teamB];
+
+  const { data: rows } = await supabaseAdmin
+    .from('elo_history')
+    .select('id, user_id, delta, elo_before')
+    .eq('match_id', match.id)
+    .eq('reason', 'tournament_result');
+  const byUser = new Map((rows || []).map((r) => [r.user_id, r]));
+  // Games from before Ело history was written cannot be re-paid exactly.
+  if (!allIds.every((id) => byUser.has(id) && byUser.get(id).elo_before != null)) return;
+
+  const sportId = match.tournament_categories?.tournament_events?.sport_id || null;
+  const aWon = teamAWon({ set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null });
+  const b = (id) => byUser.get(id).elo_before;
+  const deltas = matchDeltas([b(teamA[0]), b(teamA[1])], [b(teamB[0]), b(teamB[1])], aWon);
+  const current = await readRatings(supabaseAdmin, allIds, sportId);
+
+  await Promise.all(
+    allIds.map(async (id, i) => {
+      const row = byUser.get(id);
+      const diff = deltas[i] - row.delta;
+      if (diff === 0) return;
+      const err = await writeRating(supabaseAdmin, id, sportId, current.get(id) + diff);
+      if (err) {
+        console.error('[elo-correction] rating update:', err);
+        return;
+      }
+      const { error } = await supabaseAdmin
+        .from('elo_history')
+        .update({ delta: deltas[i], elo_after: row.elo_before + deltas[i] })
+        .eq('id', row.id);
+      if (error) console.error('[elo-correction] history update:', error.message);
+    })
+  );
 }
 
 // Pick the scoring rule from the event's format. Eventless categories

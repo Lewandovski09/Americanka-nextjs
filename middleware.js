@@ -105,14 +105,16 @@ export async function middleware(request) {
       }
     );
 
-    // Refresh session if expired — required for Server Components
-    // to read a valid session. Capped at 5 seconds so a slow
-    // Supabase response can never hang the whole site.
-    const result = await withTimeout(supabase.auth.getUser(), 5000);
+    // Refresh the session cookie if the token has expired, so the route
+    // handler sees a valid one. getSession() only goes to the network
+    // when a refresh is actually due; the route itself verifies the user
+    // with getUser(). (getUser() here was a second auth round trip on
+    // EVERY API call — every score entered waited for it.)
+    const result = await withTimeout(supabase.auth.getSession(), 5000);
     if (result?.timedOut) {
       console.error('[middleware] supabase.auth.getUser() timed out after 5s');
     } else {
-      user = result?.data?.user ?? null;
+      user = result?.data?.session?.user ?? null;
       authCheckSucceeded = true;
     }
   } catch (err) {

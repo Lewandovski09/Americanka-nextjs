@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback } from 'react';
+import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
@@ -50,77 +50,80 @@ export default function TournamentDetailPage({ params }) {
   const [slotModal, setSlotModal] = useState(null);
   const [judgeModal, setJudgeModal] = useState(null); // admin / head judge: { matchId, title, current }
 
+  // The two things that change while a tournament is being played — the
+  // category row (status, winner) and its games. Realtime and a saved
+  // score refresh only these; the roster, teams and crew are loaded once.
+  const fetchLive = useCallback(async (supabase) => {
+    // A TOTAL order, not just round_number: an americanka round holds two
+    // games, and with only round_number Postgres was free to return them
+    // either way round, so entering a score made a game swap places with
+    // its round-mate. order_index is the stored schedule order (040); id
+    // is the last-resort tiebreaker.
+    const [{ data: t }, { data: m }] = await Promise.all([
+      supabase
+        .from('tournament_categories')
+        .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
+        .eq('id', id)
+        .single(),
+      supabase
+        .from('tournament_matches')
+        .select('*')
+        .eq('category_id', id)
+        .order('round_number')
+        .order('order_index')
+        .order('id'),
+    ]);
+    if (t) setTournament(t);
+    setMatches(m || []);
+    return { t, m: m || [] };
+  }, [id]);
+
   const load = useCallback(async () => {
     const supabase = createClient();
 
-    const { data: t } = await supabase
-      .from('tournament_categories')
-      .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
-      .eq('id', id)
-      .single();
-    setTournament(t);
-
-    // The other leagues of the same event, for the switcher above the
-    // tabs — same order as the admin pages (gender, then label).
-    if (t?.event_id) {
-      const { data: sibs } = await supabase
-        .from('tournament_categories')
-        .select('id, category_label, gender, status')
-        .eq('event_id', t.event_id)
-        .order('gender', { ascending: true })
-        .order('category_label', { ascending: true });
-      setSiblings(sibs || []);
-    } else {
-      setSiblings([]);
-    }
-
-    const { data: tps } = await supabase
-      .from('tournament_players')
-      .select('user_id, users(full_name, last_name, photo_url)')
-      .eq('category_id', id);
+    // Everything keyed by the category id at once (this used to be seven
+    // requests one after another before the page could draw).
+    const [{ t, m }, { data: tps }, { data: tt }] = await Promise.all([
+      fetchLive(supabase),
+      supabase
+        .from('tournament_players')
+        .select('user_id, users(full_name, last_name, photo_url)')
+        .eq('category_id', id),
+      // Pair formats keep participants in tournament_teams — load them too
+      // so match sides and the score dialog can show names.
+      supabase
+        .from('tournament_teams')
+        .select(
+          `user1_id, user2_id,
+           p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url),
+           p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url)`
+        )
+        .eq('category_id', id),
+    ]);
     setTournamentPlayers(tps || []);
-
-    // Pair formats keep participants in tournament_teams — load them too
-    // so match sides and the score dialog can show names.
-    const { data: tt } = await supabase
-      .from('tournament_teams')
-      .select(
-        `user1_id, user2_id,
-         p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url),
-         p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url)`
-      )
-      .eq('category_id', id);
     setTeams(tt || []);
 
-    // A TOTAL order, not just round_number. An americanka round holds two
-    // games, and with only round_number to sort by, Postgres was free to
-    // return them either way round — so entering a score (an UPDATE, which
-    // relocates the row) made that game swap places with its round-mate and
-    // take its game number along. order_index is the stored schedule order
-    // (migration 040); id is the last-resort tiebreaker in case a row ever
-    // reaches here without one.
-    const { data: m } = await supabase
-      .from('tournament_matches')
-      .select('*')
-      .eq('category_id', id)
-      .order('round_number')
-      .order('order_index')
-      .order('id');
-    setMatches(m || []);
-
-    // The judging crew belongs to the EVENT — the same people cover
-    // every league of the day. Head judge first (that's who the score
-    // and court rules give the extra rights to).
-    let crew = [];
-    if (t?.event_id) {
-      const { data: js } = await supabase
-        .from('tournament_judges')
-        .select('user_id, is_head, users(full_name, last_name, photo_url)')
-        .eq('event_id', t.event_id)
-        .order('is_head', { ascending: false })
-        .order('created_at', { ascending: true });
-      crew = js || [];
-    }
+    // Then what hangs off the EVENT: the other leagues of the day (for the
+    // switcher above the tabs) and the judging crew — the same people
+    // cover every league. Head judge first.
+    const [{ data: sibs }, { data: js }] = t?.event_id
+      ? await Promise.all([
+          supabase
+            .from('tournament_categories')
+            .select('id, category_label, gender, status')
+            .eq('event_id', t.event_id)
+            .order('gender', { ascending: true })
+            .order('category_label', { ascending: true }),
+          supabase
+            .from('tournament_judges')
+            .select('user_id, is_head, users(full_name, last_name, photo_url)')
+            .eq('event_id', t.event_id)
+            .order('is_head', { ascending: false })
+            .order('created_at', { ascending: true }),
+        ])
+      : [{ data: [] }, { data: [] }];
+    setSiblings(sibs || []);
+    const crew = js || [];
     setJudges(crew);
 
     // Names for the «Суддя» column. Normally everyone assigned to a game
@@ -131,7 +134,7 @@ export default function TournamentDetailPage({ params }) {
     crew.forEach((j) => {
       if (j.users) info[j.user_id] = j.users;
     });
-    const missing = [...new Set((m || []).map((x) => x.judge_id).filter((pid) => pid && !info[pid]))];
+    const missing = [...new Set(m.map((x) => x.judge_id).filter((pid) => pid && !info[pid]))];
     if (missing.length > 0) {
       const { data: extra } = await supabase
         .from('users')
@@ -142,25 +145,35 @@ export default function TournamentDetailPage({ params }) {
       });
     }
     setJudgeInfo(info);
-  }, [id]);
+  }, [id, fetchLive]);
 
   useEffect(() => {
     load();
   }, [load]);
 
-  // Realtime: re-fetch matches when anyone updates a score, so the
-  // live table updates for everyone watching, not just the submitter.
+  // Realtime: refresh the games when anyone enters a score, so the live
+  // table updates for everyone watching. One saved score fires several
+  // row changes (the game itself, the next bracket slots, the next
+  // round…) — they are gathered into ONE refresh instead of a full page
+  // reload per row, which is what made the page stutter after each score.
+  const liveTimer = useRef(null);
+  const refreshLive = useCallback(() => {
+    clearTimeout(liveTimer.current);
+    liveTimer.current = setTimeout(() => fetchLive(createClient()), 350);
+  }, [fetchLive]);
+
   useEffect(() => {
     const supabase = createClient();
     const channel = supabase
       .channel(`tournament-${id}`)
-      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_matches', filter: `category_id=eq.${id}` }, load)
+      .on('postgres_changes', { event: '*', schema: 'public', table: 'tournament_matches', filter: `category_id=eq.${id}` }, refreshLive)
       .subscribe();
 
     return () => {
+      clearTimeout(liveTimer.current);
       supabase.removeChannel(channel);
     };
-  }, [id, load]);
+  }, [id, refreshLive]);
 
   // A player picked in the bracket search: bring their game into view.
   // The flowchart zooms and centres itself; this covers the classic
@@ -294,15 +307,25 @@ export default function TournamentDetailPage({ params }) {
   // Entering a score belongs to the crew, same as the server enforces.
   // Everyone else still sees every game and every result — they just
   // don't get a dialog that would come back 403.
-  const canEnterScore = (isAdmin || isJudge) && live;
+  // The admin may also fill in a game of a finished category.
+  const canEnterScore = isAdmin || (isJudge && live);
 
   // An already-played game may be corrected, but only by the admin or
   // the head judge, and only while its stage is still the current one:
   // once anything of a later stage has been played (or the bracket match
   // it feeds into is decided), the score is locked. Mirrors the
   // server-side check.
+  //
+  // The ADMIN may correct any played game, finished tournament or not —
+  // the server recalculates places, AVP and Ело. (The one case it refuses
+  // is flipping the winner of a bracket game whose next game is already
+  // played; it says so in the dialog.)
   function canEditScore(m) {
-    if (!(isAdmin || isHeadJudge) || !m.played || !live) return false;
+    if (!m.played) return false;
+    // A walkover (bye) has no score to correct.
+    if (!(m.team_a_players?.length > 0) || !(m.team_b_players?.length > 0)) return false;
+    if (isAdmin) return true;
+    if (!isHeadJudge || !live) return false;
     const downstream = [m.winner_to_match_id, m.loser_to_match_id].filter(Boolean);
     if (downstream.length > 0) {
       return downstream.every((id) => !matches.find((x) => x.id === id)?.played);
@@ -516,18 +539,36 @@ export default function TournamentDetailPage({ params }) {
       setScoreModal((prev) => ({ ...prev, error: 'Введіть рахунок першої партії' }));
       return;
     }
-    const res = await fetch(`/api/matches/${matchId}/score`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ sets }),
-    });
-    const data = await res.json();
+    if (scoreModal.saving) return; // a second tap while the first is on its way
+    setScoreModal((prev) => ({ ...prev, saving: true, error: null }));
+
+    let data;
+    try {
+      const res = await fetch(`/api/matches/${matchId}/score`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ sets }),
+      });
+      data = await res.json();
+    } catch {
+      data = { success: false, error: 'Немає зв’язку. Перевірте інтернет і спробуйте ще раз.' };
+    }
     if (!data.success) {
-      setScoreModal((prev) => ({ ...prev, error: data.error }));
+      setScoreModal((prev) => (prev ? { ...prev, saving: false, error: data.error } : prev));
       return;
     }
+    // The saved score shows at once; the bracket moves the realtime
+    // refresh brings in a moment later.
+    setMatches((prev) =>
+      prev.map((x) =>
+        x.id === matchId
+          ? { ...x, set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null, played: true, played_at: x.played_at || new Date().toISOString() }
+          : x
+      )
+    );
     setScoreModal(null);
-    load();
+    if (data.warning) window.alert(data.warning);
+    refreshLive();
   }
 
   async function handleFinish() {
@@ -1071,9 +1112,14 @@ export default function TournamentDetailPage({ params }) {
                 )}
               </>
             )}
+            {!live && (
+              <div className={styles.errMsg} style={{ color: 'var(--text2)' }}>
+                Турнір завершено. Після збереження місця, очки AVP і Ело перерахуються автоматично.
+              </div>
+            )}
             {scoreModal.error && <div className={styles.errMsg}>{scoreModal.error}</div>}
-            <button className={styles.btnPrimary} onClick={handleSubmitScore}>
-              Зберегти
+            <button className={styles.btnPrimary} onClick={handleSubmitScore} disabled={scoreModal.saving}>
+              {scoreModal.saving ? 'Збереження…' : 'Зберегти'}
             </button>
           </div>
         </div>

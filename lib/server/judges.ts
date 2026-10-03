@@ -15,21 +15,21 @@ export async function getJudgeRole(
   playerId: string,
   eventId: string | null
 ): Promise<JudgeRole> {
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', playerId)
-    .maybeSingle();
+  // Both lookups at once — they do not depend on each other.
+  const [{ data: caller }, judgeRes] = await Promise.all([
+    supabaseAdmin.from('users').select('is_admin').eq('id', playerId).maybeSingle(),
+    eventId
+      ? supabaseAdmin
+          .from('tournament_judges')
+          .select('is_head')
+          .eq('event_id', eventId)
+          .eq('user_id', playerId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
   const isAdmin = !!caller?.is_admin;
-
   if (!eventId) return { isAdmin, isJudge: false, isHeadJudge: false };
-
-  const { data: judge } = await supabaseAdmin
-    .from('tournament_judges')
-    .select('is_head')
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
-    .maybeSingle();
+  const judge = judgeRes.data as { is_head: boolean } | null;
 
   return { isAdmin, isJudge: !!judge, isHeadJudge: !!judge?.is_head };
 }

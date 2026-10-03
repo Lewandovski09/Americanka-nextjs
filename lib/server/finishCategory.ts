@@ -70,6 +70,51 @@ export async function recalcPlacementsForCategory(supabaseAdmin: SupabaseAdmin, 
   return { ok: true, placements: placements.length };
 }
 
+export interface RefreshFinishedResult {
+  ok: boolean;
+  error?: string;
+}
+
+/**
+ * A FINISHED category whose games were corrected afterwards (admin edit):
+ * recompute everything that was paid out from its results — places,
+ * the winner, players' tournament counters, AVP season points, and the
+ * partner statistics when a game's winner changed. Every step is a
+ * rewrite from the matches, never an increment, so running it again is
+ * harmless.
+ */
+export async function refreshFinishedCategory(
+  supabaseAdmin: SupabaseAdmin,
+  categoryId: string,
+  { winnerChanged = false }: { winnerChanged?: boolean } = {}
+): Promise<RefreshFinishedResult> {
+  const [{ data: matches }, { data: tps }, { data: teams }] = await Promise.all([
+    supabaseAdmin.from('tournament_matches').select('*').eq('category_id', categoryId),
+    supabaseAdmin.from('tournament_players').select('user_id, users(full_name)').eq('category_id', categoryId),
+    supabaseAdmin.from('tournament_teams').select('user1_id, user2_id').eq('category_id', categoryId),
+  ]);
+  const typedTps = (tps || []) as unknown as { user_id: string; users: { full_name: string | null } | null }[];
+  const players = typedTps.map((tp) => ({ id: tp.user_id, full_name: tp.users?.full_name }));
+  const placements = placementsFor({ matches: (matches as Match[]) || [], teams: teams || [], players });
+  const participants = [
+    ...new Set((matches || []).flatMap((m: Match) => [...(m.team_a_players || []), ...(m.team_b_players || [])])),
+  ].filter(Boolean) as string[];
+
+  await recordPlacements(supabaseAdmin, categoryId, placements);
+  const winnerPlayerId = placements.find((p) => p.place === 1)?.playerIds?.[0] || null;
+
+  const [, { error: winnerError }, avp, partners] = await Promise.all([
+    syncTournamentCounters(supabaseAdmin, participants),
+    supabaseAdmin.from('tournament_categories').update({ winner_user_id: winnerPlayerId }).eq('id', categoryId),
+    recalcAvpForCategory(supabaseAdmin, categoryId),
+    winnerChanged ? recalcAllPartnerStats(supabaseAdmin) : Promise.resolve({ ok: true } as RecalcPartnerStatsResult),
+  ]);
+  if (winnerError) return { ok: false, error: winnerError.message };
+  if (!avp.ok && !avp.skipped) return { ok: false, error: avp.error };
+  if (!partners.ok) return { ok: false, error: partners.error };
+  return { ok: true };
+}
+
 /**
  * Close a category and pay out its results. Safe to call from anywhere
  * that decides a league is over; the `status === 'done'` guard makes a
@@ -123,7 +168,6 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
     ...new Set((matches || []).flatMap((m: Match) => [...(m.team_a_players || []), ...(m.team_b_players || [])])),
   ].filter(Boolean) as string[];
 
-  await updatePartnerStats(supabaseAdmin, (matches as Match[]) || []);
   await recordPlacements(supabaseAdmin, categoryId, placements);
   // After the places are written: the counters are re-derived from them.
   await syncTournamentCounters(supabaseAdmin, participants);
@@ -147,10 +191,19 @@ export async function finishCategory(supabaseAdmin: SupabaseAdmin, categoryId: s
   // now, and a missing season or a tier nobody set must not undo that.
   // It is a standalone recalculation precisely so it can be run again
   // later — see recalcAvpForCategory and the admin recalc route.
-  const avp = await recalcAvpForCategory(supabaseAdmin, categoryId);
+  //
+  // Partner stats are rebuilt from every finished game (a handful of
+  // requests in total) rather than bumped pair by pair — the old
+  // increment made ~4 requests per game one after another, which is what
+  // made the last score of a tournament hang, and it double-counted
+  // whenever a category was finished twice.
+  const [avp, partners] = await Promise.all([
+    recalcAvpForCategory(supabaseAdmin, categoryId),
+    recalcAllPartnerStats(supabaseAdmin),
+    finishEventIfLastCategory(supabaseAdmin, category.event_id),
+  ]);
   if (!avp.ok) console.error('[finishCategory] avp:', avp.error);
-
-  await finishEventIfLastCategory(supabaseAdmin, category.event_id);
+  if (!partners.ok) console.error('[finishCategory] partner stats:', partners.error);
 
   return { ok: true, winnerPlayerId, placements, avp };
 }
@@ -176,23 +229,16 @@ async function syncTournamentCounters(supabaseAdmin: SupabaseAdmin, participants
     if (p.place === 1) won.set(p.user_id, (won.get(p.user_id) || 0) + 1);
   }
 
-  for (const id of participants) {
-    const { error } = await supabaseAdmin
-      .from('users')
-      .update({ tournaments_played: played.get(id) || 0, tournaments_won: won.get(id) || 0 })
-      .eq('id', id);
-    if (error) console.error('[finishCategory] counters:', error.message);
-  }
-}
-
-// Who played alongside whom, and how it went. Both directions are stored
-// so either player's profile can read their side without a union.
-async function updatePartnerStats(supabaseAdmin: SupabaseAdmin, matches: Match[]): Promise<void> {
-  for (const match of matches.filter((m) => m.played)) {
-    const aWon = teamAWon(match);
-    await recordPartnerPair(supabaseAdmin, match.team_a_players, aWon);
-    await recordPartnerPair(supabaseAdmin, match.team_b_players, !aWon);
-  }
+  // All at once — one small update per player, none waits for another.
+  await Promise.all(
+    participants.map(async (id) => {
+      const { error } = await supabaseAdmin
+        .from('users')
+        .update({ tournaments_played: played.get(id) || 0, tournaments_won: won.get(id) || 0 })
+        .eq('id', id);
+      if (error) console.error('[finishCategory] counters:', error.message);
+    })
+  )
 }
 
 export interface RecalcPartnerStatsResult {
@@ -208,8 +254,8 @@ export interface RecalcPartnerStatsResult {
  * it was incremented — or in what fed it — leaves permanently wrong
  * numbers behind that normal operation can never self-correct.
  *
- * Deliberately NOT built on updatePartnerStats/recordPartnerPair: those
- * do one read-then-write round trip PER PAIR PER MATCH, which is fine
+ * Replaced the old per-pair increment (removed), which did one
+ * read-then-write round trip PER PAIR PER MATCH, which is fine
  * for a single just-finished tournament (a handful of games) but does
  * not scale to every tournament the club has ever played — with 76
  * games that's on the order of 300 sequential database round trips,
@@ -306,31 +352,6 @@ async function recordPlacements(supabaseAdmin: SupabaseAdmin, categoryId: string
 
   const { error } = await supabaseAdmin.from('tournament_placements').insert(rows);
   if (error) console.error('[finishCategory] placements:', error.message);
-}
-
-async function recordPartnerPair(supabaseAdmin: SupabaseAdmin, teamPlayerIds: string[], won: boolean): Promise<void> {
-  if ((teamPlayerIds || []).length < 2) return;
-  const [p1, p2] = teamPlayerIds;
-
-  for (const [a, b] of [
-    [p1, p2],
-    [p2, p1],
-  ]) {
-    const { data: existing } = await supabaseAdmin
-      .from('partner_stats')
-      .select('games_together, wins_together')
-      .eq('user_id', a)
-      .eq('partner_id', b)
-      .maybeSingle();
-
-    await supabaseAdmin.from('partner_stats').upsert({
-      user_id: a,
-      partner_id: b,
-      games_together: (existing?.games_together || 0) + 1,
-      wins_together: (existing?.wins_together || 0) + (won ? 1 : 0),
-      last_played_at: new Date().toISOString(),
-    });
-  }
 }
 
 // An event is over when its last league is. Nothing used to write this,
