@@ -12,8 +12,19 @@
 -- (category_id, user_id) only. On a database built from this folder
 -- that insert fails; the live one was evidently relaxed by hand. This
 -- makes the folder say what the live database already does.
-alter table tournament_players alter column elo_at_start drop not null;
-comment on column tournament_players.elo_at_start is 'Unused since the events rewrite (011). Kept for old rows only.';
+-- The live database had already dropped the column by hand (found when
+-- this file first failed there), so it is only touched where it exists.
+do $$
+begin
+  if exists (
+    select 1 from information_schema.columns
+    where table_schema = 'public' and table_name = 'tournament_players' and column_name = 'elo_at_start'
+  ) then
+    alter table tournament_players alter column elo_at_start drop not null;
+    comment on column tournament_players.elo_at_start is 'Unused since the events rewrite (011). Kept for old rows only.';
+  end if;
+end;
+$$;
 
 -- ──────────────────────────────────────────────
 -- 2. Expired one-time rows
