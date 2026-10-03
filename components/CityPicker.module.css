@@ -18,7 +18,7 @@
 
 .row {
   padding: 9px 13px;
-  font-size: 14px;
+  font-size: 15.5px;
   cursor: pointer;
 }
 
@@ -33,6 +33,6 @@
 
 .emptyRow {
   padding: 9px 13px;
-  font-size: 13px;
+  font-size: 14.5px;
   color: #8a8a8a;
 }

@@ -113,7 +113,7 @@
   border-radius: var(--r-sm);
   background: rgba(220, 38, 38, 0.14);
   color: #fff;
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
 }
 
@@ -170,7 +170,7 @@
   display: flex;
   align-items: center;
   justify-content: center;
-  font-size: 11px;
+  font-size: 12.5px;
   border: 2px solid var(--navy);
   cursor: pointer;
 }
@@ -181,13 +181,13 @@
 }
 
 .name {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: #fff;
 }
 
 .cat {
-  font-size: 12px;
+  font-size: 13.5px;
   color: rgba(255, 255, 255, 0.5);
   font-weight: 700;
   margin-top: 2px;
@@ -199,7 +199,7 @@
   border-radius: var(--r-sm);
   padding: 7px 12px;
   color: rgba(255, 255, 255, 0.75);
-  font-size: 12px;
+  font-size: 13.5px;
   cursor: pointer;
   flex-shrink: 0;
 }
@@ -222,7 +222,7 @@
 }
 
 .heroEloLabel {
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 700;
   letter-spacing: 0.5px;
   color: rgba(255, 255, 255, 0.4);
@@ -248,7 +248,7 @@
 
 .headerStatLabel,
 .headerStatLabelAvp {
-  font-size: 10px;
+  font-size: 11.5px;
   font-weight: 800;
   letter-spacing: 0.4px;
   text-transform: uppercase;
@@ -290,14 +290,14 @@
 }
 
 .headerStatMeta {
-  font-size: 10px;
+  font-size: 11.5px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 4px;
   min-height: 12px;
 }
 
 .headerStatMetaAvp {
-  font-size: 10px;
+  font-size: 11.5px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 22px;
 }
@@ -313,13 +313,13 @@
 }
 
 .streakText {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--rust-dark);
 }
 
 .editProfileBtn {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: #fff;
   background: rgba(255, 255, 255, 0.12);
@@ -345,7 +345,7 @@
 }
 
 .sectionLabel {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--text2);
   text-transform: uppercase;
@@ -374,7 +374,7 @@
 }
 
 .calcInfoText {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text2);
   line-height: 1.55;
 }
@@ -413,7 +413,7 @@
 }
 
 .statSquareLabel {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
   text-transform: uppercase;
   font-weight: 700;
@@ -429,7 +429,7 @@
 }
 
 .sliderLabel {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text2);
   margin-bottom: 6px;
 }
@@ -464,17 +464,17 @@
 }
 
 .calcValue {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
 }
 
 .calcLabel {
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--text2);
 }
 
 .empty {
-  font-size: 13px;
+  font-size: 14.5px;
   color: var(--text2);
 }
 
@@ -491,7 +491,7 @@
   border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
-  font-size: 14px;
+  font-size: 15.5px;
 }
 
 .searchBtn {
@@ -505,7 +505,7 @@
 }
 
 .searchError {
-  font-size: 12px;
+  font-size: 13.5px;
   color: #b91c1c;
   margin-bottom: 10px;
 }
@@ -538,13 +538,13 @@
 }
 
 .suggestionName {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .suggestionLogin {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
 }
 
@@ -568,13 +568,13 @@
 
 .partnerName {
   flex: 1;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .partnerMeta {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
 }
 
@@ -591,30 +591,30 @@
 }
 
 .historyName {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .historyMeta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
   margin-top: 2px;
 }
 
 .historyPlace {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
 }
 
 .positive {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--accent-green);
 }
 
 .negative {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--danger);
 }
@@ -631,14 +631,14 @@
 }
 
 .eloLogDate {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
   width: 56px;
   flex-shrink: 0;
 }
 
 .eloLogName {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--text);
   flex: 1;
@@ -649,7 +649,7 @@
 
 .eloLogRow .positive,
 .eloLogRow .negative {
-  font-size: 14px;
+  font-size: 15.5px;
 }
 
 .supportCard {
@@ -662,7 +662,7 @@
 
 .creditsText {
   text-align: center;
-  font-size: 11.5px;
+  font-size: 13px;
   color: var(--text2);
   line-height: 1.6;
   margin-bottom: 30px;
@@ -675,12 +675,12 @@
   padding: 12px 10px;
   color: var(--text);
   text-decoration: none;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
 }
 
 .supportIcon {
-  font-size: 16px;
+  font-size: 17px;
 }
 
 .editProfileBtnRow {
@@ -718,14 +718,14 @@
 }
 
 .modalTitle {
-  font-size: 16px;
+  font-size: 17px;
   font-weight: 800;
   color: var(--text);
   flex: 1;
 }
 
 .modalProfileLink {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--rust);
   text-decoration: none;
@@ -733,7 +733,7 @@
 }
 
 .modalSub {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
   margin-bottom: 12px;
 }
@@ -752,7 +752,7 @@
   background: var(--surface-alt);
   border-radius: var(--r-sm);
   margin-bottom: 6px;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text);
   gap: 8px;
 }
@@ -763,7 +763,7 @@
   padding: 2px 7px;
   border-radius: 6px;
   font-weight: 700;
-  font-size: 10px;
+  font-size: 11.5px;
 }
 
 .matchTournament {
@@ -800,7 +800,7 @@
   border: 1px solid var(--border-light);
   background: var(--surface-alt);
   color: var(--text2);
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 600;
   cursor: pointer;
 }
@@ -812,7 +812,7 @@
 }
 
 .fieldLabel {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
   display: block;
   margin-bottom: 5px;
@@ -828,7 +828,7 @@
   border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
 }
 
 .saveBtn {

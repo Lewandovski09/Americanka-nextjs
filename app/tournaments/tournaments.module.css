@@ -26,7 +26,7 @@
   border: none;
   border-radius: 11px;
   background: transparent;
-  font-size: 13px;
+  font-size: 14.5px;
   cursor: pointer;
   color: var(--text2);
   font-weight: 600;
@@ -46,7 +46,7 @@
   background: var(--rust);
   color: #fff;
   border-radius: var(--r-md);
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   text-decoration: none;
   margin-bottom: 16px;
@@ -57,7 +57,7 @@
   text-align: center;
   padding: 24px;
   color: var(--text2);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .card {
@@ -79,13 +79,13 @@
 }
 
 .cardName {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--text);
 }
 
 .badge {
-  font-size: 10px;
+  font-size: 11.5px;
   padding: 4px 10px;
   border-radius: var(--r-lg);
   font-weight: 700;
@@ -102,7 +102,7 @@
 }
 
 .cardMeta {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
   margin-bottom: 10px;
 }
@@ -129,7 +129,7 @@
 }
 
 .slotsCount {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text2);
 }
@@ -154,7 +154,7 @@
 }
 
 .catChip {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   padding: 4px 10px;
   border-radius: var(--r-lg);
@@ -172,7 +172,7 @@
 .gearBtn {
   position: relative;
   z-index: 2;
-  font-size: 16px;
+  font-size: 17px;
   line-height: 1;
   text-decoration: none;
   padding: 5px 8px;
@@ -199,7 +199,7 @@
 .catChipLink {
   position: relative;
   z-index: 2;
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   padding: 6px 12px;
   border-radius: var(--r-lg);
@@ -219,7 +219,7 @@
 }
 
 .cityChip {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   padding: 6px 12px;
   border-radius: var(--r-lg);

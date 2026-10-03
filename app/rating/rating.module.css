@@ -12,7 +12,7 @@
 }
 
 .pageTitle {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--text);
   margin-bottom: 14px;
@@ -33,7 +33,7 @@
   border: none;
   border-radius: 11px;
   background: transparent;
-  font-size: 13px;
+  font-size: 14.5px;
   cursor: pointer;
   color: var(--text2);
   font-weight: 600;
@@ -52,13 +52,13 @@
   border-radius: var(--r-sm);
   background: var(--surface);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   margin-bottom: 10px;
   box-shadow: var(--shadow-sm);
 }
 
 .searchError {
-  font-size: 12px;
+  font-size: 13.5px;
   color: #b91c1c;
   margin-top: 8px;
 }
@@ -76,7 +76,7 @@
   border: none;
   background: var(--surface);
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text2);
   box-shadow: var(--shadow-sm);
@@ -97,7 +97,7 @@
 .chip {
   padding: 6px 16px;
   border-radius: var(--r-lg);
-  font-size: 12px;
+  font-size: 13.5px;
   border: 1px solid var(--border-light);
   background: var(--surface);
   cursor: pointer;
@@ -112,7 +112,7 @@
 }
 
 .genderLabel {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   letter-spacing: 0.8px;
   margin-bottom: 10px;
@@ -124,7 +124,7 @@
   text-align: center;
   padding: 16px;
   color: var(--text2);
-  font-size: 13px;
+  font-size: 14.5px;
 }
 
 .playerRow {
@@ -145,8 +145,11 @@
 }
 
 .rank {
-  width: 24px;
+  width: 26px;
   text-align: center;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
 }
 
 .playerInfo {
@@ -155,7 +158,7 @@
 }
 
 .playerName {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
   white-space: nowrap;
@@ -164,7 +167,7 @@
 }
 
 .playerMeta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
 }
 
@@ -178,18 +181,18 @@
 }
 
 .playerElo {
-  font-size: 17px;
+  font-size: 18px;
   font-weight: 800;
   color: var(--navy);
 }
 
 .playerCat {
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--text2);
 }
 
 .sectionLabel {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 800;
   color: var(--text2);
   text-transform: uppercase;
@@ -212,7 +215,7 @@
 .scaleHeader {
   display: flex;
   justify-content: space-between;
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
   margin-bottom: 4px;
   font-weight: 600;
@@ -244,7 +247,7 @@
   border-radius: var(--r-sm);
   background: var(--surface-alt);
   color: var(--text);
-  font-size: 15px;
+  font-size: 16px;
   margin-bottom: 8px;
 }
 
@@ -287,7 +290,7 @@
 }
 
 .comparePlayerName {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text);
   max-width: 100px;
@@ -295,12 +298,12 @@
 }
 
 .comparePlayerElo {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--navy);
 }
 
 .compareVs {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--text2);
 }
@@ -310,7 +313,7 @@
 }
 
 .compareFormatName {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text2);
   margin-bottom: 8px;
@@ -336,7 +339,7 @@
 }
 
 .compareStatSmall {
-  font-size: 10px;
+  font-size: 11.5px;
   color: var(--text2);
   margin-top: 2px;
 }
@@ -350,7 +353,7 @@
 }
 
 .clubStatTitle {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 800;
   color: var(--text);
   margin-bottom: 8px;
@@ -364,7 +367,7 @@
 }
 
 .clubStatRank {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text2);
   width: 16px;
@@ -373,7 +376,7 @@
 
 .clubStatName {
   flex: 1;
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -382,13 +385,13 @@
 }
 
 .clubStatValue {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--navy);
 }
 
 .clubStatValuePositive {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--accent-green, #16a34a);
 }
@@ -425,13 +428,13 @@
 }
 
 .compareSuggestionName {
-  font-size: 13px;
+  font-size: 14.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .compareSuggestionLogin {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
 }
 
@@ -446,7 +449,7 @@
   border-radius: var(--r-sm, 10px);
   background: var(--surface);
   box-shadow: var(--shadow-sm);
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
 }
 
@@ -456,7 +459,7 @@
 }
 
 .compareScope {
-  font-size: 11px;
+  font-size: 12.5px;
   font-weight: 700;
   color: var(--text2);
   text-transform: uppercase;

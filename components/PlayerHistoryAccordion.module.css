@@ -23,7 +23,7 @@
   border: none;
   padding: 14px 16px;
   cursor: pointer;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
 }
@@ -39,7 +39,7 @@
 }
 
 .statCount {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--navy);
 }
@@ -59,7 +59,7 @@
 }
 
 .empty {
-  font-size: 12.5px;
+  font-size: 14px;
   color: var(--text2);
 }
 
@@ -78,13 +78,13 @@
 
 .partnerName {
   flex: 1;
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .partnerMeta {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text2);
 }
 
@@ -104,30 +104,30 @@
 }
 
 .historyName {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 700;
   color: var(--text);
 }
 
 .historyMeta {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
   margin-top: 2px;
 }
 
 .historyPlace {
-  font-size: 11px;
+  font-size: 12.5px;
   color: var(--text2);
 }
 
 .positive {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--accent-green);
 }
 
 .negative {
-  font-size: 15px;
+  font-size: 16px;
   font-weight: 800;
   color: var(--danger);
 }
@@ -153,12 +153,12 @@
 }
 
 .eloLogDate {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--text2);
 }
 
 .eloLogName {
-  font-size: 12.5px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   overflow: hidden;
@@ -168,13 +168,13 @@
 
 .eloLogRow .positive,
 .eloLogRow .negative {
-  font-size: 13px;
+  font-size: 14.5px;
   flex-shrink: 0;
 }
 
 /* Ело log: everyone in the game, with their rating at the time. */
 .eloLogPeople {
-  font-size: 12px;
+  font-size: 13.5px;
   color: var(--text);
   line-height: 1.4;
   white-space: normal;
@@ -186,7 +186,7 @@
 }
 
 .eloLogFromTo {
-  font-size: 10.5px;
+  font-size: 12px;
   color: var(--text2);
   white-space: nowrap;
   margin-top: 2px;

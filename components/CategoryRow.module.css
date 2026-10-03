@@ -14,13 +14,13 @@
 }
 
 .label {
-  font-size: 14px;
+  font-size: 15.5px;
   font-weight: 800;
   color: var(--text);
 }
 
 .badge {
-  font-size: 10.5px;
+  font-size: 12px;
   font-weight: 700;
   color: var(--text2);
   background: var(--surface-alt);
@@ -51,7 +51,7 @@
 }
 
 .slotsCount {
-  font-size: 12px;
+  font-size: 13.5px;
   font-weight: 700;
   color: var(--text2);
 }

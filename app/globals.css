@@ -16,8 +16,11 @@
   --bg-light: #f3f6fb;
   --surface: #ffffff;
   --surface-alt: #eef1f7;
-  --text: #14213d;
-  --text2: #6b7280;
+  /* Text: deep and crisp on white (the «Таблиця» look, everywhere). The
+     secondary grey is a notch darker than before so small labels stay
+     sharp on a phone in the sun. */
+  --text: #101b33;
+  --text2: #5a6476;
   --border-light: #e6eaf2;
 
   /* Status accents */
@@ -70,10 +73,19 @@ body {
 }
 
 body {
-  font-family: 'Inter', -apple-system, sans-serif;
+  /* The phone's own UI font (SF Pro on iPhone, Roboto on Android) —
+     'Inter' was named here but never actually loaded. */
+  font-family: -apple-system, BlinkMacSystemFont, 'SF Pro Text', 'Segoe UI', Roboto, 'Helvetica Neue', Arial, sans-serif;
   background: var(--navy);
   color: var(--text);
   padding-top: env(safe-area-inset-top);
+  /* Sharp, even text rendering; digits of equal width so numbers in
+     lists and tables line up. */
+  -webkit-font-smoothing: antialiased;
+  -moz-osx-font-smoothing: grayscale;
+  text-rendering: optimizeLegibility;
+  font-variant-numeric: tabular-nums;
+  -webkit-text-size-adjust: 100%;
 }
 
 button {
