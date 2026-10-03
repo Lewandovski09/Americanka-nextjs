@@ -316,10 +316,9 @@ export default function TournamentDetailPage({ params }) {
   // it feeds into is decided), the score is locked. Mirrors the
   // server-side check.
   //
-  // The ADMIN may correct any played game, finished tournament or not —
-  // the server recalculates places, AVP and Ело. (The one case it refuses
-  // is flipping the winner of a bracket game whose next game is already
-  // played; it says so in the dialog.)
+  // The ADMIN may correct any played game, finished tournament or not,
+  // without exceptions — the server moves the teams through the bracket
+  // and recalculates places, AVP and Ело.
   function canEditScore(m) {
     if (!m.played) return false;
     // A walkover (bye) has no score to correct.

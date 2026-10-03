@@ -66,11 +66,11 @@ export async function POST(request, { params }) {
   // • A judge enters the game in front of them while the category runs.
   // • The head judge may also correct a played game, while its stage is
   //   still the current one.
-  // • The ADMIN may correct any game of any tournament, finished or not
-  //   (everything that depends on the result is recalculated below). The
-  //   one thing refused: flipping the winner of a bracket game whose next
-  //   game has already been played with the old winner in it — fix that
-  //   next game first (from the top of the bracket down).
+  // • The ADMIN may correct any game of any tournament, finished or not,
+  //   with no exceptions. Everything that depends on the result follows:
+  //   if a bracket game's winner flips, the two teams swap places in
+  //   every later game they reached through it (see swapTeamsDownstream),
+  //   and a finished tournament is recalculated below.
   let warning = null;
   if (!role.isAdmin) {
     if (categoryDone) {
@@ -89,24 +89,11 @@ export async function POST(request, { params }) {
       const lock = await checkStillCurrentStage(supabaseAdmin, match);
       if (!lock.ok) return Response.json({ success: false, error: lock.error }, { status: 400 });
     }
-  } else if (winnerChanged) {
-    const downstream = [match.winner_to_match_id, match.loser_to_match_id].filter(Boolean);
-    if (downstream.length > 0) {
-      const { data: next } = await supabaseAdmin.from('tournament_matches').select('played').in('id', downstream);
-      if ((next || []).some((m) => m.played)) {
-        return Response.json(
-          {
-            success: false,
-            error:
-              'Переможець змінюється, а наступний матч сітки вже зіграно з попереднім переможцем. Спочатку виправте або очистьте наступний матч.',
-          },
-          { status: 400 }
-        );
-      }
-    } else if (match.stage) {
-      const lock = await checkStillCurrentStage(supabaseAdmin, match);
-      if (!lock.ok) warning = 'Рахунок збережено. Наступний етап уже зіграно — його склад не перебудовувався.';
-    }
+  } else if (winnerChanged && match.stage && !match.winner_to_match_id && !match.loser_to_match_id) {
+    // Groups / King rounds: a later stage already played is left as it
+    // was played — it is not re-drawn (that would wipe real results).
+    const lock = await checkStillCurrentStage(supabaseAdmin, match);
+    if (!lock.ok) warning = 'Рахунок збережено. Наступний етап уже зіграно — його склад не перебудовувався.';
   }
 
   const validation = validateForMatch(match, sets);
@@ -147,6 +134,7 @@ export async function POST(request, { params }) {
   // Ело (Americanka) and the bracket do not depend on each other — both
   // at once. A first entry pays the game; a correction that changes the
   // winner re-pays it (see correctEloForAmericanka).
+  if (winnerChanged) await swapTeamsDownstream(supabaseAdmin, match);
   await Promise.all([
     propagateBracket(supabaseAdmin, match, sets),
     firstEntry
@@ -177,6 +165,49 @@ export async function POST(request, { params }) {
   }
 
   return Response.json({ success: true, warning });
+}
+
+// The winner of a bracket game was corrected: the old winner and the old
+// loser trade places in every later game reachable from it through the
+// bracket pointers — whoever really won now stands where the old winner
+// stood (and keeps that game's result), and the same the other way round.
+// Unplayed later games just get the right names.
+const teamKey = (t) => [...(t || [])].sort().join(',');
+async function swapTeamsDownstream(supabaseAdmin, match) {
+  const start = [match.winner_to_match_id, match.loser_to_match_id].filter(Boolean);
+  if (start.length === 0) return;
+  const a = teamKey(match.team_a_players);
+  const b = teamKey(match.team_b_players);
+  if (!a || !b) return;
+
+  const { data: all } = await supabaseAdmin
+    .from('tournament_matches')
+    .select('id, team_a_players, team_b_players, winner_to_match_id, loser_to_match_id')
+    .eq('category_id', match.category_id);
+  const byId = new Map((all || []).map((m) => [m.id, m]));
+  const swap = (t) => {
+    const k = teamKey(t);
+    return k === a ? match.team_b_players : k === b ? match.team_a_players : t;
+  };
+
+  const seen = new Set();
+  const queue = [...start];
+  const updates = [];
+  while (queue.length > 0) {
+    const id = queue.shift();
+    if (seen.has(id) || id === match.id) continue;
+    seen.add(id);
+    const m = byId.get(id);
+    if (!m) continue;
+    const ta = swap(m.team_a_players);
+    const tb = swap(m.team_b_players);
+    if (ta !== m.team_a_players || tb !== m.team_b_players) {
+      updates.push(supabaseAdmin.from('tournament_matches').update({ team_a_players: ta, team_b_players: tb }).eq('id', id));
+    }
+    [m.winner_to_match_id, m.loser_to_match_id].filter(Boolean).forEach((n) => queue.push(n));
+  }
+  const results = await Promise.all(updates);
+  results.forEach((r) => r.error && console.error('[score swap-downstream]:', r.error.message));
 }
 
 // Is the match still in the "current" stage, i.e. safe to correct?
