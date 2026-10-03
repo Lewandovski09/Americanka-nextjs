@@ -1177,7 +1177,7 @@
 }
 
 .ltTitle {
-  font-size: 17px;
+  font-size: 16px;
   font-weight: 700;
   color: var(--text);
   padding: 0 16px 10px;
@@ -1189,7 +1189,7 @@
 }
 
 .ltTable th {
-  font-size: 12px;
+  font-size: 11.5px;
   font-weight: 600;
   color: var(--text2);
   padding: 8px 4px;
@@ -1199,7 +1199,7 @@
 .ltGroup {
   position: relative;
   text-align: left;
-  font-size: 13px !important;
+  font-size: 12.25px !important;
   font-weight: 600;
   color: var(--text2);
   padding: 12px 16px 6px !important;
@@ -1228,7 +1228,7 @@
   width: 1%;
   padding-left: 16px !important;
   padding-right: 8px !important;
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 600;
   color: var(--text);
   text-align: left;
@@ -1255,7 +1255,7 @@
 }
 
 .ltName {
-  font-size: 15px;
+  font-size: 14px;
   font-weight: 500;
   color: var(--text);
   white-space: nowrap;
@@ -1274,7 +1274,7 @@
 
 .ltNum {
   text-align: center;
-  font-size: 15px;
+  font-size: 14px;
   color: var(--text);
   white-space: nowrap;
   font-variant-numeric: tabular-nums;
@@ -1296,7 +1296,7 @@
 }
 
 .ltHint {
-  font-size: 11px;
+  font-size: 10.5px;
   color: var(--text2);
   padding: 10px 16px 0;
   line-height: 1.4;
