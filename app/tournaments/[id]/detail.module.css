@@ -1021,19 +1021,10 @@
 
 /* ── Americanka: Ело in the schedule and the table ── */
 .eloLine {
-  line-height: 1.2;
-  padding: 2px 0;
-}
-
-.eloName {
-  font-weight: 700;
-  white-space: nowrap;
-}
-
-.eloSub {
   display: flex;
-  gap: 5px;
-  font-size: 11px;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.35;
 }
 
 .eloVal {
@@ -1078,19 +1069,9 @@
 }
 
 /* №, Час, Корт, Суддя hug their content — the space goes to the teams. */
-.schedCompact th:nth-child(-n + 3),
-.schedCompact td:nth-child(-n + 3) {
+.schedCompact th:nth-child(-n + 4),
+.schedCompact td:nth-child(-n + 4) {
   width: 1%;
-}
-
-.noTimeCell {
-  line-height: 1.25;
-  font-size: 12px;
-}
-
-.gameNo {
-  font-weight: 800;
-  color: var(--navy);
 }
 
 .schedCompact .judgeCell {
@@ -1101,7 +1082,7 @@
 }
 
 .schedCompact .eloLine {
-  font-size: 13px;
+  font-size: 12.5px;
 }
 
 .schedCompact .eloVal {

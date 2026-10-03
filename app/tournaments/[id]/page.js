@@ -260,7 +260,7 @@ export default function TournamentDetailPage({ params }) {
   // Schedule table width, for the section header rows: №, час, корт,
   // суддя, команда 1, vs, команда 2, результат — plus «+/-» (solo
   // formats only) and the per-set columns.
-  const schedColumns = isSum ? 6 : 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
+  const schedColumns = isSum ? 7 : 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
   const scoringConfig = {
     points_to_win: tournament.points_to_win ?? event?.points_to_win ?? 21,
     points_mode: event?.points_mode,
@@ -472,15 +472,13 @@ export default function TournamentDetailPage({ params }) {
       const elo = h?.before ?? playerById(pid)?.elo;
       return (
         <div key={pid} className={styles.eloLine}>
-          <div className={styles.eloName}>{surnameOf(playerById(pid))}</div>
-          <div className={styles.eloSub}>
-            {elo != null && <span className={styles.eloVal}>{elo}</span>}
-            {h && (
-              <span className={h.delta > 0 ? styles.positive : h.delta < 0 ? styles.negative : undefined}>
-                {h.delta > 0 ? `+${h.delta}` : h.delta}
-              </span>
-            )}
-          </div>
+          <span>{surnameOf(playerById(pid))}</span>
+          {elo != null && <span className={styles.eloVal}>{elo}</span>}
+          {h && h.delta !== 0 && (
+            <span className={h.delta > 0 ? styles.positive : styles.negative}>
+              {h.delta > 0 ? `+${h.delta}` : h.delta}
+            </span>
+          )}
         </div>
       );
     });
@@ -548,21 +546,10 @@ export default function TournamentDetailPage({ params }) {
         }`}
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
       >
-        {isSum ? (
-          // Americanka: game number and time share one cell — the room
-          // goes to the players.
-          <td {...timeProps} className={`${timeProps.className || ''} ${styles.noTimeCell}`}>
-            <div className={styles.gameNo}>{i + 1}</div>
-            <div>{planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
-          </td>
-        ) : (
-          <>
-            <td>{i + 1}</td>
-            <td {...timeProps}>
-              {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
-            </td>
-          </>
-        )}
+        <td>{i + 1}</td>
+        <td {...timeProps}>
+          {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
+        </td>
         <td {...courtProps}>{m.court || 1}</td>
         <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
           {m.judge_id ? judgeName(m.judge_id) : canAssignJudge ? '+' : '—'}
@@ -815,7 +802,7 @@ export default function TournamentDetailPage({ params }) {
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th />
+                      <th>{isSum ? 'Рахунок' : ''}</th>
                       <th>Прізвище 1</th>
                       <th>Ім&apos;я 1</th>
                       <th>Місто 1</th>
@@ -887,14 +874,8 @@ export default function TournamentDetailPage({ params }) {
               <table className={`${styles.schedTable} ${isSum ? styles.schedCompact : ''}`}>
                 <thead>
                   <tr>
-                    {isSum ? (
-                      <th>№ · час</th>
-                    ) : (
-                      <>
-                        <th>№ гри</th>
-                        <th>Час</th>
-                      </>
-                    )}
+                    <th>{isSum ? '№' : '№ гри'}</th>
+                    <th>Час</th>
                     <th title="Корт">{isSum ? 'К' : 'Корт'}</th>
                     <th>Суддя</th>
                     <th className={styles.schedTeamCol}>Команда 1</th>
