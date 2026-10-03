@@ -802,7 +802,7 @@ export default function TournamentDetailPage({ params }) {
                   <thead>
                     <tr>
                       <th>#</th>
-                      <th>{isSum ? 'Рахунок' : ''}</th>
+                      <th />
                       <th>Прізвище 1</th>
                       <th>Ім&apos;я 1</th>
                       <th>Місто 1</th>
@@ -869,18 +869,18 @@ export default function TournamentDetailPage({ params }) {
         (matches.length === 0 ? (
             <div className={styles.loading}>Ігор ще немає</div>
           ) : (
-            <PinchZoom fit={false}>
+            <PinchZoom>
               <div className={styles.schedWrap}>
-              <table className={`${styles.schedTable} ${isSum ? styles.schedCompact : ''}`}>
+              <table className={styles.schedTable}>
                 <thead>
                   <tr>
-                    <th>{isSum ? '№' : '№ гри'}</th>
+                    <th>№ гри</th>
                     <th>Час</th>
-                    <th title="Корт">{isSum ? 'К' : 'Корт'}</th>
+                    <th>Корт</th>
                     <th>Суддя</th>
                     <th className={styles.schedTeamCol}>Команда 1</th>
                     {/* Americanka: the score sits between the two teams. */}
-                    <th />
+                    <th>{isSum ? 'Рахунок' : ''}</th>
                     <th className={styles.schedTeamCol}>Команда 2</th>
                     {/* Points differential is a King thing there — it ranks
                         the players. Pair formats are decided by sets, and
@@ -967,6 +967,7 @@ export default function TournamentDetailPage({ params }) {
               playerById={playerById}
               currentPlayerId={player?.id}
               eloRounds={eloRoundsByPlayer(matches, eloByMatch)}
+              title={tournament.name}
             />
           </PinchZoom>
         )
@@ -1435,92 +1436,107 @@ function eloRoundsByPlayer(matches, eloByMatch) {
 
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
 
+// «Коваленко О.» — surname first, the way the club calls players, short
+// enough that the table never has to cut a name.
+function shortName(p) {
+  const last = p?.last_name?.trim();
+  if (!last) return p?.full_name || '';
+  const first = (p.full_name || '').replace(last, '').trim().split(/\s+/)[0];
+  return first ? `${last} ${first[0]}.` : last;
+}
+
 // Live americanka standings: replaces the bracket tab entirely for this
 // format (a round robin has no elimination to draw). One row per
 // player, already carrying a shared `place` for anyone still level on
 // diff/points-for/wins (see placeStandings in lib/tournamentEngine).
 // Under each name — the Ело each round gave them; «Ело» — the total.
 // Compact on purpose: it opens fitted to the screen (PinchZoom).
-function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {} }) {
+function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}, title }) {
   if (rows.length === 0) return <div className={styles.loading}>Учасників ще немає</div>;
   const anyElo = Object.keys(eloRounds).length > 0;
+  const podium = rows.filter((r) => r.place <= 3);
+  const rest = rows.filter((r) => r.place > 3);
+
+  // Laid out like a league table in a sports app: a title, a quiet
+  // header, airy rows with no grid lines, the podium marked by a bar on
+  // the left, and only the numbers that decide the order on the right.
+  const renderRow = (r) => {
+    const diff = r.gamesFor - r.gamesAgainst;
+    const elo = eloRounds[r.player.id];
+    const p = playerById(r.player.id);
+    return (
+      <tr key={r.player.id} className={`${styles.ltRow} ${r.player.id === currentPlayerId ? styles.ltMe : ''}`}>
+        <td className={styles.ltPlace}>{r.place}</td>
+        <td className={styles.ltPlayer}>
+          <div className={styles.ltPlayerLine}>
+            <PlayerAvatar player={p} size={30} />
+            <div className={styles.ltNames}>
+              <div className={styles.ltName}>{shortName(p) || r.player.full_name}</div>
+              {elo && elo.rounds.length > 0 && (
+                <div className={styles.ltRounds}>
+                  {elo.rounds.map((x, i) => (
+                    <span
+                      key={i}
+                      title={`Раунд ${x.round}`}
+                      className={x.delta > 0 ? styles.positive : x.delta < 0 ? styles.negative : undefined}
+                    >
+                      {signed(x.delta)}
+                    </span>
+                  ))}
+                </div>
+              )}
+            </div>
+          </div>
+        </td>
+        <td className={styles.ltNum}>{r.played}</td>
+        <td className={styles.ltNum}>{r.wins}</td>
+        <td className={styles.ltNum}>{signed(diff)}</td>
+        {anyElo && (
+          <td className={`${styles.ltNum} ${styles.ltElo} ${elo?.total > 0 ? styles.positive : elo?.total < 0 ? styles.negative : ''}`}>
+            {elo ? signed(elo.total) : '—'}
+          </td>
+        )}
+      </tr>
+    );
+  };
+
   return (
-    <>
-      <table className={styles.amTable}>
+    <div className={styles.ltCard}>
+      {title && <div className={styles.ltTitle}>{title}</div>}
+      <table className={styles.ltTable}>
         <thead>
           <tr>
-            <th className={styles.amNum}>#</th>
-            <th className={styles.amName}>Гравець</th>
-            <th className={styles.amNum} title="Зіграно ігор">І</th>
-            <th className={styles.amNum} title="Перемоги">В</th>
-            <th className={styles.amNum} title="Очки: виграно : програно">Очки</th>
-            <th className={styles.amNum} title="Різниця очок">+/-</th>
+            <th className={styles.ltGroup} colSpan={2}>
+              <span className={styles.ltBarPodium} />
+              Призери
+            </th>
+            <th className={styles.ltNum} title="Зіграно ігор">І</th>
+            <th className={styles.ltNum} title="Перемоги">В</th>
+            <th className={styles.ltNum} title="Різниця очок">+/-</th>
             {anyElo && (
-              <th className={styles.amNum} title="Зміна Ело за турнір">
+              <th className={styles.ltNum} title="Зміна Ело за турнір">
                 Ело
               </th>
             )}
           </tr>
         </thead>
-        <tbody>
-          {rows.map((r) => {
-            const diff = r.gamesFor - r.gamesAgainst;
-            const elo = eloRounds[r.player.id];
-            const p = playerById(r.player.id);
-            return (
-              <tr
-                key={r.player.id}
-                className={`${r.player.id === currentPlayerId ? styles.meRow : ''} ${r.place <= 3 ? styles.amTop : ''}`}
-              >
-                <td className={`${styles.amNum} ${styles.amPlace}`}>
-                  {r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : r.place}
-                </td>
-                <td className={styles.amName}>
-                  <div className={styles.amPlayer}>
-                    <PlayerAvatar player={p} size={22} />
-                    <span className={styles.amSurname}>{surnameOf(p) || r.player.full_name}</span>
-                  </div>
-                  {elo && elo.rounds.length > 0 && (
-                    <div className={styles.eloRounds}>
-                      {elo.rounds.map((x, i) => (
-                        <span
-                          key={i}
-                          title={`Раунд ${x.round}`}
-                          className={x.delta > 0 ? styles.positive : x.delta < 0 ? styles.negative : undefined}
-                        >
-                          {signed(x.delta)}
-                        </span>
-                      ))}
-                    </div>
-                  )}
-                </td>
-                <td className={styles.amNum}>{r.played}</td>
-                <td className={styles.amNum}>{r.wins}</td>
-                <td className={styles.amNum}>
-                  {r.gamesFor}:{r.gamesAgainst}
-                </td>
-                <td className={`${styles.amNum} ${diff > 0 ? styles.standingsDiffPos : diff < 0 ? styles.standingsDiffNeg : ''}`}>
-                  {signed(diff)}
-                </td>
-                {anyElo && (
-                  <td
-                    className={`${styles.amNum} ${
-                      elo?.total > 0 ? styles.standingsDiffPos : elo?.total < 0 ? styles.standingsDiffNeg : ''
-                    }`}
-                  >
-                    {elo ? signed(elo.total) : ''}
-                  </td>
-                )}
-              </tr>
-            );
-          })}
-        </tbody>
+        <tbody className={styles.ltPodium}>{podium.map(renderRow)}</tbody>
+        {rest.length > 0 && (
+          <tbody>
+            <tr>
+              <td className={styles.ltGroup} colSpan={anyElo ? 6 : 5}>
+                Решта учасників
+              </td>
+            </tr>
+            {rest.map(renderRow)}
+          </tbody>
+        )}
       </table>
-      <div className={styles.standingsHint}>
-        Місце — за різницею очок, потім за виграними очками, потім за перемогами. Під прізвищем — Ело за кожен
+      <div className={styles.ltHint}>
+        Порядок — за різницею очок (+/-), далі за виграними очками, далі за перемогами. Під іменем — Ело за кожен
         раунд, «Ело» — за весь турнір.
       </div>
-    </>
+    </div>
   );
 }
 

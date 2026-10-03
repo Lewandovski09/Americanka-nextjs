@@ -1167,3 +1167,129 @@
 .amTop .amSurname {
   color: var(--navy);
 }
+
+/* ── Americanka «Таблиця» — league-table look ── */
+.ltCard {
+  background: var(--surface);
+  border-radius: var(--r-lg, 16px);
+  box-shadow: var(--shadow-sm);
+  padding: 14px 0 10px;
+}
+
+.ltTitle {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  padding: 0 16px 10px;
+}
+
+.ltTable {
+  width: 100%;
+  border-collapse: collapse;
+}
+
+.ltTable th {
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  padding: 8px 4px;
+  text-transform: none;
+}
+
+.ltGroup {
+  position: relative;
+  text-align: left;
+  font-size: 13px !important;
+  font-weight: 700;
+  color: var(--text2);
+  padding: 12px 16px 6px !important;
+}
+
+.ltRow td {
+  padding: 9px 4px;
+  vertical-align: middle;
+}
+
+.ltPodium .ltRow td:first-child {
+  box-shadow: inset 3px 0 0 #22c55e; /* the podium bar on the left */
+}
+
+.ltBarPodium {
+  display: inline-block;
+  width: 3px;
+  height: 14px;
+  background: #22c55e;
+  border-radius: 2px;
+  margin-right: 8px;
+  vertical-align: -2px;
+}
+
+.ltPlace {
+  width: 1%;
+  padding-left: 16px !important;
+  padding-right: 8px !important;
+  font-size: 15px;
+  font-weight: 800;
+  color: var(--text);
+  text-align: left;
+  white-space: nowrap;
+}
+
+.ltPlayer {
+  text-align: left;
+  max-width: 0; /* lets the name ellipsize instead of widening the table */
+}
+
+.ltPlayerLine {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  min-width: 0;
+}
+
+.ltNames {
+  min-width: 0;
+}
+
+.ltName {
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--text);
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.ltRounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0 6px;
+  font-size: 10.5px;
+  font-weight: 700;
+  margin-top: 1px;
+}
+
+.ltNum {
+  width: 34px;
+  text-align: center;
+  font-size: 15px;
+  color: var(--text);
+  white-space: nowrap;
+  font-variant-numeric: tabular-nums;
+}
+
+.ltElo {
+  padding-right: 14px !important;
+  font-weight: 700;
+}
+
+.ltMe {
+  background: var(--rust-tint);
+}
+
+.ltHint {
+  font-size: 11px;
+  color: var(--text2);
+  padding: 10px 16px 0;
+  line-height: 1.4;
+}
