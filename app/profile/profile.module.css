@@ -843,3 +843,18 @@
   margin-top: 14px;
   margin-bottom: 8px;
 }
+
+/* Current season, right of «Редагувати профіль». */
+.seasonPill {
+  font-size: 12px;
+  font-weight: 800;
+  color: #fff;
+  background: rgba(232, 93, 74, 0.9);
+  border-radius: 999px;
+  padding: 8px 14px;
+  text-decoration: none;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  min-width: 0;
+}
