@@ -11,7 +11,9 @@ import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
 import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import { loadPlayerGames } from '@/lib/playerGames';
+import { loadPlayerGames, partnerStatsFrom } from '@/lib/playerGames';
+import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
+import { inSeason } from '@/lib/seasons';
 import HeaderStatCards from '@/components/HeaderStatCards';
 import { getCached, setCached } from '@/lib/clientCache';
 import { winPluralUk } from '@/lib/pluralize';
@@ -26,14 +28,16 @@ export default function PlayerProfilePage() {
   const [loading, setLoading] = useState(!cached);
   const [notFound, setNotFound] = useState(false);
   const [tournamentHistory, setTournamentHistory] = useState(cached?.th || []);
-  const [games, setGames] = useState(cached?.games || []);
+  const [gameData, setGameData] = useState(cached?.games || { games: [], people: {} });
   const [eloGameLog, setEloGameLog] = useState(cached?.elog || []);
-  const [partners, setPartners] = useState(cached?.partners || []);
   const [opponentElo, setOpponentElo] = useState(cached?.player?.elo || 1200);
   const [photoLightbox, setPhotoLightbox] = useState(false);
   const [calcInfoOpen, setCalcInfoOpen] = useState(false);
   const [headerStats, setHeaderStats] = useState(cached?.header || null);
   const winStreak = headerStats?.winStreak || 0;
+  // One season switch for the whole page; opens on the current season.
+  const seasons = useProfileSeasons();
+  const [pickedScope, setPickedScope] = useState(null);
 
   useEffect(() => {
     let active = true;
@@ -50,23 +54,17 @@ export default function PlayerProfilePage() {
       if (!cached) setOpponentElo(data.elo || 1200);
 
       // Everything else needs only the id — the five loads run at once.
-      const [{ data: th }, gameList, { data: elog }, { data: p }, header] = await Promise.all([
+      const [{ data: th }, gameList, { data: elog }, header] = await Promise.all([
         supabase.rpc('get_user_tournament_history', { p_user_id: data.id }),
         loadPlayerGames(supabase, data.id),
         supabase.rpc('get_user_elo_log', { p_user_id: data.id }),
-        supabase
-          .from('partner_stats')
-          .select('*, partner:users!partner_stats_partner_id_fkey(id, full_name, photo_url)')
-          .eq('user_id', data.id)
-          .order('games_together', { ascending: false }),
         loadPlayerHeaderStats(supabase, data),
       ]);
-      setCached(`player:${params.id}`, { player: data, th: th || [], games: gameList, elog: elog || [], partners: p || [], header });
+      setCached(`player:${params.id}`, { player: data, th: th || [], games: gameList, elog: elog || [], header });
       if (!active) return;
       setTournamentHistory(th || []);
-      setGames(gameList);
+      setGameData(gameList);
       setEloGameLog(elog || []);
-      setPartners(p || []);
       setHeaderStats(header);
       setLoading(false);
     }
@@ -116,6 +114,13 @@ export default function PlayerProfilePage() {
   const goToPartner = (p) => router.push(`/players/${p.id}`);
   const goToTournament = (tournamentId) => router.push(`/tournaments/${tournamentId}`);
 
+  const scope = pickedScope ?? seasons?.current ?? ALL_TIME;
+  const scopeSeason = scope === ALL_TIME ? null : scope;
+  const within = (when) => !scopeSeason || inSeason(when, scopeSeason);
+  const scopedHistory = tournamentHistory.filter((h) => within(h.scheduled_at));
+  const scopedEloLog = eloGameLog.filter((h) => within(h.created_at));
+  const partners = partnerStatsFrom(gameData.games.filter((g) => within(g.played_at)), gameData.people);
+
   return (
     <div className={styles.page}>
       <button className={styles.backBtn} onClick={() => router.back()}>
@@ -159,7 +164,8 @@ export default function PlayerProfilePage() {
       )}
 
       <div className="riseIn" style={{ animationDelay: '0.06s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} games={games} season={headerStats?.avpSeason} />
+        <ProfileSeasonPicker seasons={seasons} value={scope} onChange={setPickedScope} />
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} games={gameData.games} season={scopeSeason} />
       </div>
 
       {player.telegram_username && (
@@ -178,7 +184,7 @@ export default function PlayerProfilePage() {
       )}
 
       <div className={styles.sectionLabel}>Рейтинг AVP</div>
-      <AvpSeasonCard playerId={player.id} gender={player.gender} />
+      <AvpSeasonCard playerId={player.id} gender={player.gender} scope={seasons ? scope : undefined} />
 
       {showCalculator && (
         <>
@@ -238,8 +244,9 @@ export default function PlayerProfilePage() {
 
       <PlayerHistoryAccordion
         partners={partners}
-        tournamentHistory={tournamentHistory}
-        eloGameLog={eloGameLog}
+        tournamentHistory={scopedHistory}
+        eloGameLog={scopedEloLog}
+        scopeLabel={scopeSeason ? scopeSeason.name : 'Весь час'}
         onOpenPartner={goToPartner}
         onOpenTournament={goToTournament}
       />

@@ -69,9 +69,9 @@ function groupBy(list, keyFn) {
  */
 export default function TournamentStatsBreakdown({ history: allHistory, gender, games, season, totalGames: allGames, winRate: allWinRate }) {
   const [openKey, setOpenKey] = useState(null);
-  // «Сезон …» (default when there is a season) or «Весь час».
-  const [scope, setScope] = useState('season');
-  const seasonMode = Boolean(season) && scope === 'season';
+  // `season` = a season row → only that season; null → all time. The
+  // choice is made by the season picker above (ProfileSeasonPicker).
+  const seasonMode = Boolean(season);
 
   const history = seasonMode ? allHistory.filter((h) => inSeason(h.scheduled_at, season)) : allHistory;
   // `games` ([{ won, played_at }]) lets the summary follow the scope; the
@@ -108,24 +108,6 @@ export default function TournamentStatsBreakdown({ history: allHistory, gender, 
 
   return (
     <div className={styles.wrap}>
-      {season && (
-        <div className={styles.scopeRow}>
-          <button
-            className={`${styles.scopeBtn} ${seasonMode ? styles.scopeBtnOn : ''}`}
-            onClick={() => setScope('season')}
-            aria-pressed={seasonMode}
-          >
-            {season.name}
-          </button>
-          <button
-            className={`${styles.scopeBtn} ${!seasonMode ? styles.scopeBtnOn : ''}`}
-            onClick={() => setScope('all')}
-            aria-pressed={!seasonMode}
-          >
-            Весь час
-          </button>
-        </div>
-      )}
       {totalGames > 0 && (
         <div className={styles.gamesSummary}>
           {totalGames} {totalGames === 1 ? 'гра' : 'ігор'} зіграно · {winRate}% перемог

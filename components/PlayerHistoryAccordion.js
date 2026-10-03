@@ -12,7 +12,7 @@ import styles from './PlayerHistoryAccordion.module.css';
  * wants all three open at once, and it's the same disclosure pattern
  * TournamentStatsBreakdown already uses one card up.
  */
-export default function PlayerHistoryAccordion({ partners, tournamentHistory, eloGameLog, onOpenPartner, onOpenTournament }) {
+export default function PlayerHistoryAccordion({ partners, tournamentHistory, eloGameLog, onOpenPartner, onOpenTournament, scopeLabel }) {
   const [openKey, setOpenKey] = useState(null);
 
   const rows = [
@@ -23,6 +23,13 @@ export default function PlayerHistoryAccordion({ partners, tournamentHistory, el
 
   return (
     <div className={styles.wrap}>
+      {/* Which season these three lists are for — the switch at the top
+          of the page picks it. */}
+      {scopeLabel && (
+        <div style={{ padding: '10px 16px 0', fontSize: 11, fontWeight: 800, color: 'var(--text2)', textTransform: 'uppercase', letterSpacing: 0.5 }}>
+          {scopeLabel}
+        </div>
+      )}
       {rows.map((row, i) => {
         const isOpen = openKey === row.key;
         return (
