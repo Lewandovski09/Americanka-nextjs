@@ -234,8 +234,40 @@ async function buildAmericankaMatches(supabaseAdmin: SupabaseAdmin, categoryId: 
   if (!tps || tps.length !== 8) {
     throw new Error(`Для Americanka потрібно рівно 8 гравців (зараз ${tps?.length || 0})`);
   }
-  const playerIds = ([...tps] as Seedable[]).sort(bySeed).map((t) => t.user_id as string);
+  // Americanka is seeded AT RANDOM at the moment it starts: who shares a
+  // court with whom in which round is decided by a shuffle (crypto-strong),
+  // not by registration order or the «Посів» tab. Every player still
+  // partners every other exactly once — the schedule guarantees that; the
+  // shuffle only decides who gets which slot.
+  const playerIds: string[] = shuffle((tps as Seedable[]).map((t) => t.user_id as string));
+
+  // Record the drawn order as the seeding, so «Посів» shows what was
+  // actually played. Best effort — the draw itself does not depend on it.
+  // (category_id, slot_index) is unique, so the old places are cleared
+  // first and the new ones written after.
+  await supabaseAdmin.from('tournament_players').update({ slot_index: null }).eq('category_id', categoryId);
+  const results = await Promise.all(
+    playerIds.map((userId, i) =>
+      supabaseAdmin.from('tournament_players').update({ slot_index: i }).eq('category_id', categoryId).eq('user_id', userId)
+    )
+  );
+  results.forEach((r: { error: { message: string } | null }) => {
+    if (r.error) console.error('[americanka random seed]', r.error.message);
+  });
+
   return buildAmericanoMatches(playerIds, courts);
+}
+
+// Fisher–Yates with crypto randomness (Node 18+ / Edge: globalThis.crypto).
+function shuffle<T>(list: T[]): T[] {
+  const a = [...list];
+  for (let i = a.length - 1; i > 0; i--) {
+    const r = new Uint32Array(1);
+    globalThis.crypto.getRandomValues(r);
+    const j = r[0] % (i + 1);
+    [a[i], a[j]] = [a[j], a[i]];
+  }
+  return a;
 }
 
 async function buildKingMatches(supabaseAdmin: SupabaseAdmin, categoryId: string, category: CategoryRow, courts: number[]): Promise<Match[]> {
