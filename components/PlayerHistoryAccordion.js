@@ -1,6 +1,9 @@
 'use client';
 
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
+import { createClient } from '@/lib/supabase/client';
+import { loadEloLogDetails } from '@/lib/eloLogDetails';
+import { getCached, setCached } from '@/lib/clientCache';
 import { IconChevronDown } from '@/components/Icons';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './PlayerHistoryAccordion.module.css';
@@ -12,8 +15,33 @@ import styles from './PlayerHistoryAccordion.module.css';
  * wants all three open at once, and it's the same disclosure pattern
  * TournamentStatsBreakdown already uses one card up.
  */
-export default function PlayerHistoryAccordion({ partners, tournamentHistory, eloGameLog, onOpenPartner, onOpenTournament, scopeLabel }) {
+export default function PlayerHistoryAccordion({ partners, tournamentHistory, eloGameLog, onOpenPartner, onOpenTournament, scopeLabel, userId }) {
   const [openKey, setOpenKey] = useState(null);
+
+  // The Ело log's details (partner, opponents, everyone's rating, score)
+  // are loaded the first time the log is opened — not before, so the
+  // profile itself does not wait for them.
+  const detailsKey = userId ? `elodetails:${userId}` : null;
+  const [details, setDetails] = useState(() => (detailsKey && getCached(detailsKey)) || null);
+  const logIds = eloGameLog.map((h) => h.match_id).filter(Boolean).join(',');
+  useEffect(() => {
+    if (openKey !== 'elolog' || !userId) return;
+    const cached = getCached(detailsKey);
+    if (cached && cached.ids === logIds) {
+      setDetails(cached);
+      return;
+    }
+    let alive = true;
+    loadEloLogDetails(createClient(), userId, eloGameLog).then((byMatch) => {
+      const value = { ids: logIds, byMatch };
+      setCached(detailsKey, value);
+      if (alive) setDetails(value);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [openKey, userId, logIds]); // eslint-disable-line react-hooks/exhaustive-deps
+
 
   const rows = [
     { key: 'partners', label: 'Статистика з партнерами', count: partners.length },
@@ -98,32 +126,62 @@ export default function PlayerHistoryAccordion({ partners, tournamentHistory, el
                   (eloGameLog.length === 0 ? (
                     <div className={styles.empty}>Ще немає змін рейтингу</div>
                   ) : (
-                    eloGameLog.map((h) => (
-                      <div key={h.id} className={styles.eloLogRow}>
-                        <div className={styles.eloLogInfo}>
-                          <div className={styles.eloLogDate}>
-                            {h.created_at
-                              ? `${new Date(h.created_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' })}, ${new Date(
-                                  h.created_at
-                                ).toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' })}`
-                              : '—'}
+                    eloGameLog.map((h) => {
+                      const d = h.match_id ? details?.byMatch?.[h.match_id] : null;
+                      const who = (list) => list.map((x) => (x.elo != null ? `${x.name} (${x.elo})` : x.name)).join(' + ');
+                      return (
+                        <div key={h.id} className={styles.eloLogRow}>
+                          <div className={styles.eloLogInfo}>
+                            <div className={styles.eloLogDate}>
+                              {h.created_at
+                                ? `${new Date(h.created_at).toLocaleDateString('uk', { day: 'numeric', month: 'short' })}, ${new Date(
+                                    h.created_at
+                                  ).toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' })}`
+                                : '—'}
+                              {h.tournament_name ? ` · ${h.tournament_name}` : ''}
+                            </div>
+                            {!h.match_id ? (
+                              <div className={styles.eloLogName}>
+                                {h.reason === 'season_reset'
+                                  ? 'Новий сезон'
+                                  : h.reason === 'admin_adjustment'
+                                  ? 'Корекція адміном'
+                                  : 'Зміна рейтингу'}
+                              </div>
+                            ) : d ? (
+                              <>
+                                {d.score && (
+                                  <div className={styles.eloLogName}>
+                                    <span className={d.won ? styles.positive : styles.negative}>{d.won ? 'Перемога' : 'Поразка'}</span>{' '}
+                                    {d.score}
+                                  </div>
+                                )}
+                                {d.partners.length > 0 && <div className={styles.eloLogPeople}>Разом з: {who(d.partners)}</div>}
+                                <div className={styles.eloLogPeople}>
+                                  Проти: {who(d.opponents)}
+                                  {d.opponentsAvg != null && d.opponents.length > 1 ? ` · сер. ${d.opponentsAvg}` : ''}
+                                </div>
+                              </>
+                            ) : (
+                              <div className={styles.eloLogName}>
+                                {h.opponent_names ? `Проти: ${h.opponent_names}` : 'Гра'}
+                              </div>
+                            )}
                           </div>
-                          <div className={styles.eloLogName}>
-                            {h.tournament_name ||
-                              (h.reason === 'season_reset'
-                                ? 'Новий сезон'
-                                : h.reason === 'admin_adjustment'
-                                ? 'Корекція адміном'
-                                : 'Турнір')}
-                            {h.opponent_names ? ` · проти ${h.opponent_names}` : ''}
+                          <div className={styles.eloLogDelta}>
+                            <div className={h.delta >= 0 ? styles.positive : styles.negative}>
+                              {h.delta >= 0 ? '+' : ''}
+                              {h.delta}
+                            </div>
+                            {h.elo_before != null && h.elo_after != null && (
+                              <div className={styles.eloLogFromTo}>
+                                {h.elo_before} → {h.elo_after}
+                              </div>
+                            )}
                           </div>
                         </div>
-                        <div className={h.delta >= 0 ? styles.positive : styles.negative}>
-                          {h.delta >= 0 ? '+' : ''}
-                          {h.delta}
-                        </div>
-                      </div>
-                    ))
+                      );
+                    })
                   ))}
               </div>
             )}

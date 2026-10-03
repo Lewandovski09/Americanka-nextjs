@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { computeStandings, placeStandings } from '@/lib/tournamentEngine';
 import { getFormat } from '@/lib/formats';
-import { pointsTargetForStage, targetForSet } from '@/lib/formats/scoring';
+import { pointsTargetForStage, targetForSet, validateSumTo } from '@/lib/formats/scoring';
 import { aggregateScore, pointsDiffA, teamAWon } from '@/lib/formats/sets';
 import { rankGroupDetailed } from '@/lib/formats/kingOfBeach';
 import { stageWeight, stageLabel, groupTitle, isSharedPlaceStage } from '@/lib/formats/stages';
@@ -16,6 +16,7 @@ import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
+import { getCached, setCached } from '@/lib/clientCache';
 import PinchZoom from './PinchZoom';
 import styles from './detail.module.css';
 
@@ -34,16 +35,20 @@ export default function TournamentDetailPage({ params }) {
   const { player } = useCurrentPlayer();
   const router = useRouter();
 
-  const [tournament, setTournament] = useState(null);
-  const [siblings, setSiblings] = useState([]); // the event's other leagues
-  const [tournamentPlayers, setTournamentPlayers] = useState([]);
-  const [teams, setTeams] = useState([]);
-  const [matches, setMatches] = useState([]);
+  // A tournament opened before shows at once from the tab-wide cache;
+  // the fresh load replaces it a moment later.
+  const cachedLive = getCached(`tournament:${id}:live`);
+  const cachedRest = getCached(`tournament:${id}:rest`);
+  const [tournament, setTournament] = useState(cachedLive?.t || null);
+  const [siblings, setSiblings] = useState(cachedRest?.sibs || []); // the event's other leagues
+  const [tournamentPlayers, setTournamentPlayers] = useState(cachedRest?.tps || []);
+  const [teams, setTeams] = useState(cachedRest?.tt || []);
+  const [matches, setMatches] = useState(cachedLive?.m || []);
   // Americanka: each game's Ело change per player, from elo_history —
   // { [matchId]: { [userId]: { delta, before } } }.
-  const [eloByMatch, setEloByMatch] = useState({});
-  const [judges, setJudges] = useState([]); // the event's judging crew
-  const [judgeInfo, setJudgeInfo] = useState({}); // player id → profile, for the «Суддя» column
+  const [eloByMatch, setEloByMatch] = useState(cachedLive?.elo || {});
+  const [judges, setJudges] = useState(cachedRest?.crew || []); // the event's judging crew
+  const [judgeInfo, setJudgeInfo] = useState(cachedRest?.info || {}); // player id → profile, for the «Суддя» column
   const [tab, setTab] = useState(TABS.PLAYERS);
   const tabChosen = useRef(false); // the viewer picked a tab themselves
   function pickTab(t) {
@@ -55,6 +60,7 @@ export default function TournamentDetailPage({ params }) {
   // counter so picking the same player twice re-centres the view.
   const [focus, setFocus] = useState(null); // { playerId, matchId, seq }
   const [scoreModal, setScoreModal] = useState(null); // { matchId, teamAName, teamBName, pointsToWin }
+  const [savingIds, setSavingIds] = useState(() => new Set()); // games whose score is on its way
   // Time and court are moved one at a time: { field: 'time'|'court', matchId, … }
   const [slotModal, setSlotModal] = useState(null);
   const [judgeModal, setJudgeModal] = useState(null); // admin / head judge: { matchId, title, current }
@@ -68,40 +74,50 @@ export default function TournamentDetailPage({ params }) {
     // either way round, so entering a score made a game swap places with
     // its round-mate. order_index is the stored schedule order (040); id
     // is the last-resort tiebreaker.
-    const [{ data: t }, { data: m }] = await Promise.all([
+    //
+    // Each game comes WITH its Ело rows (elo_history → match, migration
+    // 042), so the schedule's «+12» needs no second request.
+    const matchesQuery = (withElo) =>
+      supabase
+        .from('tournament_matches')
+        .select(withElo ? '*, elo_history(user_id, delta, elo_before, reason)' : '*')
+        .eq('category_id', id)
+        .order('round_number')
+        .order('order_index')
+        .order('id');
+    const [{ data: t }, first] = await Promise.all([
       supabase
         .from('tournament_categories')
         .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
         .eq('id', id)
         .single(),
-      supabase
-        .from('tournament_matches')
-        .select('*')
-        .eq('category_id', id)
-        .order('round_number')
-        .order('order_index')
-        .order('id'),
+      matchesQuery(true),
     ]);
-    if (t) setTournament(t);
-    setMatches(m || []);
+    // Should the embed ever be refused, fall back to the plain list.
+    const m = first.error ? (await matchesQuery(false)).data || [] : first.data || [];
 
-    // Americanka moves Ело after every game; the schedule shows what each
-    // player had before the game and what it gave them, the table the
-    // change per round.
-    if (t?.tournament_events?.format_kind === 'americanka' && (m || []).length > 0) {
+    const elo = {};
+    let eloRows = m.flatMap((x) => (x.elo_history || []).map((r) => ({ ...r, match_id: x.id })));
+    if (first.error && t?.tournament_events?.format_kind === 'americanka' && m.length > 0) {
       const { data: eh } = await supabase
         .from('elo_history')
-        .select('match_id, user_id, delta, elo_before')
-        .eq('reason', 'tournament_result')
+        .select('match_id, user_id, delta, elo_before, reason')
         .in('match_id', m.map((x) => x.id));
-      const map = {};
-      (eh || []).forEach((r) => {
-        if (!map[r.match_id]) map[r.match_id] = {};
-        map[r.match_id][r.user_id] = { delta: r.delta, before: r.elo_before };
-      });
-      setEloByMatch(map);
+      eloRows = eh || [];
     }
-    return { t, m: m || [] };
+    eloRows
+      .filter((r) => r.reason === 'tournament_result')
+      .forEach((r) => {
+        if (!elo[r.match_id]) elo[r.match_id] = {};
+        elo[r.match_id][r.user_id] = { delta: r.delta, before: r.elo_before };
+      });
+    const games = m.map(({ elo_history, ...rest }) => rest); // eslint-disable-line no-unused-vars
+
+    if (t) setTournament(t);
+    setMatches(games);
+    setEloByMatch(elo);
+    setCached(`tournament:${id}:live`, { t, m: games, elo });
+    return { t, m: games };
   }, [id]);
 
   const load = useCallback(async () => {
@@ -171,6 +187,7 @@ export default function TournamentDetailPage({ params }) {
       });
     }
     setJudgeInfo(info);
+    setCached(`tournament:${id}:rest`, { sibs: sibs || [], tps: tps || [], tt: tt || [], crew, info });
   }, [id, fetchLive]);
 
   useEffect(() => {
@@ -243,7 +260,7 @@ export default function TournamentDetailPage({ params }) {
   // Schedule table width, for the section header rows: №, час, корт,
   // суддя, команда 1, vs, команда 2, результат — plus «+/-» (solo
   // formats only) and the per-set columns.
-  const schedColumns = isSum ? 7 : 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
+  const schedColumns = isSum ? 6 : 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
   const scoringConfig = {
     points_to_win: tournament.points_to_win ?? event?.points_to_win ?? 21,
     points_mode: event?.points_mode,
@@ -455,13 +472,15 @@ export default function TournamentDetailPage({ params }) {
       const elo = h?.before ?? playerById(pid)?.elo;
       return (
         <div key={pid} className={styles.eloLine}>
-          <span>{surnameOf(playerById(pid))}</span>
-          {elo != null && <span className={styles.eloVal}>{elo}</span>}
-          {h && h.delta !== 0 && (
-            <span className={h.delta > 0 ? styles.positive : styles.negative}>
-              {h.delta > 0 ? `+${h.delta}` : h.delta}
-            </span>
-          )}
+          <div className={styles.eloName}>{surnameOf(playerById(pid))}</div>
+          <div className={styles.eloSub}>
+            {elo != null && <span className={styles.eloVal}>{elo}</span>}
+            {h && (
+              <span className={h.delta > 0 ? styles.positive : h.delta < 0 ? styles.negative : undefined}>
+                {h.delta > 0 ? `+${h.delta}` : h.delta}
+              </span>
+            )}
+          </div>
         </div>
       );
     });
@@ -524,13 +543,26 @@ export default function TournamentDetailPage({ params }) {
     return (
       <tr
         key={m.id}
-        className={`${clickable ? styles.schedRowPending : ''} ${future ? styles.schedRowFuture : ''}`}
+        className={`${clickable ? styles.schedRowPending : ''} ${future ? styles.schedRowFuture : ''} ${
+          savingIds.has(m.id) ? styles.schedRowSaving : ''
+        }`}
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
       >
-        <td>{i + 1}</td>
-        <td {...timeProps}>
-          {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
-        </td>
+        {isSum ? (
+          // Americanka: game number and time share one cell — the room
+          // goes to the players.
+          <td {...timeProps} className={`${timeProps.className || ''} ${styles.noTimeCell}`}>
+            <div className={styles.gameNo}>{i + 1}</div>
+            <div>{planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}</div>
+          </td>
+        ) : (
+          <>
+            <td>{i + 1}</td>
+            <td {...timeProps}>
+              {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
+            </td>
+          </>
+        )}
         <td {...courtProps}>{m.court || 1}</td>
         <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
           {m.judge_id ? judgeName(m.judge_id) : canAssignJudge ? '+' : '—'}
@@ -605,8 +637,31 @@ export default function TournamentDetailPage({ params }) {
       setScoreModal((prev) => ({ ...prev, error: 'Введіть рахунок першої партії' }));
       return;
     }
-    if (scoreModal.saving) return; // a second tap while the first is on its way
-    setScoreModal((prev) => ({ ...prev, saving: true, error: null }));
+    // Americanka's rule is simple enough to check right here, so a typo
+    // never has to wait for the server to be told.
+    if (mode === 'sum') {
+      const v = validateSumTo(sets[0][0], sets[0][1], scoreModal.target);
+      if (!v.valid) {
+        setScoreModal((prev) => ({ ...prev, error: v.error }));
+        return;
+      }
+    }
+
+    // Optimistic: the dialog closes and the score shows AT ONCE; the game
+    // is marked «saving» (dimmed) until the server confirms. Should the
+    // server refuse, the old score comes back and the dialog reopens with
+    // the reason — nothing is lost.
+    const snapshot = scoreModal;
+    const before = matches.find((x) => x.id === matchId);
+    setMatches((prev) =>
+      prev.map((x) =>
+        x.id === matchId
+          ? { ...x, set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null, played: true, played_at: x.played_at || new Date().toISOString() }
+          : x
+      )
+    );
+    setSavingIds((prev) => new Set(prev).add(matchId));
+    setScoreModal(null);
 
     let data;
     try {
@@ -619,20 +674,16 @@ export default function TournamentDetailPage({ params }) {
     } catch {
       data = { success: false, error: 'Немає зв’язку. Перевірте інтернет і спробуйте ще раз.' };
     }
+    setSavingIds((prev) => {
+      const next = new Set(prev);
+      next.delete(matchId);
+      return next;
+    });
     if (!data.success) {
-      setScoreModal((prev) => (prev ? { ...prev, saving: false, error: data.error } : prev));
+      if (before) setMatches((prev) => prev.map((x) => (x.id === matchId ? before : x)));
+      setScoreModal({ ...snapshot, saving: false, error: data.error || 'Не вдалося зберегти рахунок' });
       return;
     }
-    // The saved score shows at once; the bracket moves the realtime
-    // refresh brings in a moment later.
-    setMatches((prev) =>
-      prev.map((x) =>
-        x.id === matchId
-          ? { ...x, set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null, played: true, played_at: x.played_at || new Date().toISOString() }
-          : x
-      )
-    );
-    setScoreModal(null);
     if (data.warning) window.alert(data.warning);
     // Straight away, not debounced: the Ело the game just paid should
     // appear next to the players at once.
@@ -831,18 +882,24 @@ export default function TournamentDetailPage({ params }) {
         (matches.length === 0 ? (
             <div className={styles.loading}>Ігор ще немає</div>
           ) : (
-            <PinchZoom>
+            <PinchZoom fit={false}>
               <div className={styles.schedWrap}>
-              <table className={styles.schedTable}>
+              <table className={`${styles.schedTable} ${isSum ? styles.schedCompact : ''}`}>
                 <thead>
                   <tr>
-                    <th>№ гри</th>
-                    <th>Час</th>
-                    <th>Корт</th>
+                    {isSum ? (
+                      <th>№ · час</th>
+                    ) : (
+                      <>
+                        <th>№ гри</th>
+                        <th>Час</th>
+                      </>
+                    )}
+                    <th title="Корт">{isSum ? 'К' : 'Корт'}</th>
                     <th>Суддя</th>
                     <th className={styles.schedTeamCol}>Команда 1</th>
                     {/* Americanka: the score sits between the two teams. */}
-                    <th>{isSum ? 'Рахунок' : ''}</th>
+                    <th />
                     <th className={styles.schedTeamCol}>Команда 2</th>
                     {/* Points differential is a King thing there — it ranks
                         the players. Pair formats are decided by sets, and
@@ -923,7 +980,7 @@ export default function TournamentDetailPage({ params }) {
         matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
-          <PinchZoom>
+          <PinchZoom fit={false}>
             <AmericankaStandings
               rows={placeStandings(standings)}
               playerById={playerById}
@@ -1408,39 +1465,46 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
   const anyElo = Object.keys(eloRounds).length > 0;
   return (
     <>
-      <table className={`${styles.standingsTable} ${styles.standingsCompact}`}>
+      <table className={styles.amTable}>
         <thead>
           <tr>
-            <th>#</th>
-            <th className={styles.standingsNameCol}>Гравець</th>
-            <th title="Зіграно ігор">І</th>
-            <th title="Перемоги">В</th>
-            <th title="Виграно очок">О+</th>
-            <th title="Програно очок">О−</th>
-            <th title="Різниця очок">+/-</th>
-            {anyElo && <th title="Зміна Ело за турнір">Ело</th>}
+            <th className={styles.amNum}>#</th>
+            <th className={styles.amName}>Гравець</th>
+            <th className={styles.amNum} title="Зіграно ігор">І</th>
+            <th className={styles.amNum} title="Перемоги">В</th>
+            <th className={styles.amNum} title="Очки: виграно : програно">Очки</th>
+            <th className={styles.amNum} title="Різниця очок">+/-</th>
+            {anyElo && (
+              <th className={styles.amNum} title="Зміна Ело за турнір">
+                Ело
+              </th>
+            )}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => {
             const diff = r.gamesFor - r.gamesAgainst;
             const elo = eloRounds[r.player.id];
+            const p = playerById(r.player.id);
             return (
-              <tr key={r.player.id} className={r.player.id === currentPlayerId ? styles.meRow : ''}>
-                <td className={styles.placeCell}>
+              <tr
+                key={r.player.id}
+                className={`${r.player.id === currentPlayerId ? styles.meRow : ''} ${r.place <= 3 ? styles.amTop : ''}`}
+              >
+                <td className={`${styles.amNum} ${styles.amPlace}`}>
                   {r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : r.place}
                 </td>
-                <td className={styles.standingsNameCol}>
-                  <div className={styles.nameCell}>
-                    <PlayerAvatar player={playerById(r.player.id)} size={20} />
-                    <span>{surnameOf(playerById(r.player.id)) || r.player.full_name}</span>
+                <td className={styles.amName}>
+                  <div className={styles.amPlayer}>
+                    <PlayerAvatar player={p} size={22} />
+                    <span className={styles.amSurname}>{surnameOf(p) || r.player.full_name}</span>
                   </div>
                   {elo && elo.rounds.length > 0 && (
                     <div className={styles.eloRounds}>
                       {elo.rounds.map((x, i) => (
                         <span
                           key={i}
-                          title={`Тур ${x.round}`}
+                          title={`Раунд ${x.round}`}
                           className={x.delta > 0 ? styles.positive : x.delta < 0 ? styles.negative : undefined}
                         >
                           {signed(x.delta)}
@@ -1449,15 +1513,20 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
                     </div>
                   )}
                 </td>
-                <td>{r.played}</td>
-                <td>{r.wins}</td>
-                <td>{r.gamesFor}</td>
-                <td>{r.gamesAgainst}</td>
-                <td className={diff > 0 ? styles.standingsDiffPos : diff < 0 ? styles.standingsDiffNeg : ''}>
+                <td className={styles.amNum}>{r.played}</td>
+                <td className={styles.amNum}>{r.wins}</td>
+                <td className={styles.amNum}>
+                  {r.gamesFor}:{r.gamesAgainst}
+                </td>
+                <td className={`${styles.amNum} ${diff > 0 ? styles.standingsDiffPos : diff < 0 ? styles.standingsDiffNeg : ''}`}>
                   {signed(diff)}
                 </td>
                 {anyElo && (
-                  <td className={elo?.total > 0 ? styles.standingsDiffPos : elo?.total < 0 ? styles.standingsDiffNeg : ''}>
+                  <td
+                    className={`${styles.amNum} ${
+                      elo?.total > 0 ? styles.standingsDiffPos : elo?.total < 0 ? styles.standingsDiffNeg : ''
+                    }`}
+                  >
                     {elo ? signed(elo.total) : ''}
                   </td>
                 )}
@@ -1467,9 +1536,8 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
         </tbody>
       </table>
       <div className={styles.standingsHint}>
-        Місце визначається за різницею очок, потім за виграними очками, потім за перемогами — рівність за
-        всіма трьома ділить місце. Під прізвищем — зміна Ело в кожному турі, «Ело» — за весь турнір. Таблицю
-        можна збільшити двома пальцями.
+        Місце — за різницею очок, потім за виграними очками, потім за перемогами. Під прізвищем — Ело за кожен
+        раунд, «Ело» — за весь турнір.
       </div>
     </>
   );

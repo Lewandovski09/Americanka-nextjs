@@ -17,9 +17,12 @@ const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 
 export default function EventsPage() {
   const { player } = useCurrentPlayer();
-  const [tab, setTab] = useState(() => getCached('tournaments:tab') || TABS.SCHEDULED);
-  const [events, setEvents] = useState(() => getCached(`tournaments:${getCached('tournaments:tab') || TABS.SCHEDULED}`) || []);
-  const [loading, setLoading] = useState(() => !getCached(`tournaments:${getCached('tournaments:tab') || TABS.SCHEDULED}`));
+  // The tab the player picked earlier in this visit; otherwise the last
+  // one shown (the live check below may still switch to «Активні»).
+  const initialTab = getCached('tournaments:tab') || TABS.SCHEDULED;
+  const [tab, setTab] = useState(initialTab);
+  const [events, setEvents] = useState(() => getCached(`tournaments:${initialTab}`) || []);
+  const [loading, setLoading] = useState(() => !getCached(`tournaments:${initialTab}`));
   // Same reasoning as app/rating/page.js: switching straight back to a
   // tab shown moments ago used to refetch it from scratch every time,
   // which is what made the switch itself feel slow. Cache per tab,
@@ -34,6 +37,30 @@ export default function EventsPage() {
   const [cityId, setCityId] = useState('all');
   const visibleEvents =
     cityId === 'all' ? events : events.filter((ev) => findVenue(venues, ev.location)?.city?.id === cityId);
+
+  // While something is being played, the section opens on «Активні» —
+  // unless the player has picked a tab themselves this visit.
+  useEffect(() => {
+    if (getCached('tournaments:tabChosen')) return;
+    let alive = true;
+    createClient()
+      .from('tournament_events')
+      .select('id', { count: 'exact', head: true })
+      .eq('status', TABS.LIVE)
+      .then(({ count }) => {
+        if (!alive || getCached('tournaments:tabChosen')) return;
+        if (count > 0) setTab(TABS.LIVE);
+        else setTab((t) => (t === TABS.LIVE ? TABS.SCHEDULED : t)); // nothing live any more
+      });
+    return () => {
+      alive = false;
+    };
+  }, []);
+
+  function pickTab(t) {
+    setCached('tournaments:tabChosen', true);
+    setTab(t);
+  }
 
   useEffect(() => {
     setCached('tournaments:tab', tab);
@@ -84,13 +111,13 @@ export default function EventsPage() {
   return (
     <div className={styles.page}>
       <div className={styles.tabs}>
-        <TabBtn styles={styles} active={tab === TABS.SCHEDULED} onClick={() => setTab(TABS.SCHEDULED)}>
+        <TabBtn styles={styles} active={tab === TABS.SCHEDULED} onClick={() => pickTab(TABS.SCHEDULED)}>
           Розклад
         </TabBtn>
-        <TabBtn styles={styles} active={tab === TABS.LIVE} onClick={() => setTab(TABS.LIVE)}>
+        <TabBtn styles={styles} active={tab === TABS.LIVE} onClick={() => pickTab(TABS.LIVE)}>
           Активні
         </TabBtn>
-        <TabBtn styles={styles} active={tab === TABS.DONE} onClick={() => setTab(TABS.DONE)}>
+        <TabBtn styles={styles} active={tab === TABS.DONE} onClick={() => pickTab(TABS.DONE)}>
           Завершені
         </TabBtn>
       </div>

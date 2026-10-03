@@ -17,7 +17,10 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 
 const MAX_ZOOM = 3; // relative to «fits the screen»
 
-export default function PinchZoom({ children }) {
+// fit = true: opens shrunk to the screen width. fit = false: opens at the
+// real size (never smaller) and only grows with the fingers — for tables
+// laid out to fit a phone on their own.
+export default function PinchZoom({ children, fit: fitToWidth = true }) {
   const outerRef = useRef(null);
   const innerRef = useRef(null);
   const [size, setSize] = useState({ w: 0, h: 0, box: 0 }); // natural table size, wrapper width
@@ -45,7 +48,7 @@ export default function PinchZoom({ children }) {
     return () => ro.disconnect();
   }, [measure]);
 
-  const fit = size.w > 0 && size.box > 0 ? Math.min(1, size.box / size.w) : 1;
+  const fit = fitToWidth && size.w > 0 && size.box > 0 ? Math.min(1, size.box / size.w) : 1;
   const scale = userScale ?? fit;
   const scaleRef = useRef(scale);
   scaleRef.current = scale;
@@ -95,7 +98,7 @@ export default function PinchZoom({ children }) {
       ref={outerRef}
       style={{
         marginTop: 8,
-        overflowX: scale > fit + 0.001 ? 'auto' : 'hidden',
+        overflowX: size.w * scale > size.box + 1 ? 'auto' : 'hidden',
         overflowY: 'hidden',
         height: size.h ? size.h * scale : undefined,
         touchAction: 'pan-x pan-y',

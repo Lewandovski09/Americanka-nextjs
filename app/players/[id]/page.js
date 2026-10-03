@@ -247,6 +247,7 @@ export default function PlayerProfilePage() {
         tournamentHistory={scopedHistory}
         eloGameLog={scopedEloLog}
         scopeLabel={scopeSeason ? scopeSeason.name : 'Весь час'}
+        userId={player.id}
         onOpenPartner={goToPartner}
         onOpenTournament={goToTournament}
       />
