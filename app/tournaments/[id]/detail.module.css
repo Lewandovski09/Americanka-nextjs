@@ -166,7 +166,6 @@
 
 .schedTable {
   width: 100%;
-  min-width: 640px;
   border-collapse: collapse;
   font-size: 12px;
   color: var(--text);
@@ -973,7 +972,6 @@
    format with no elimination to draw. */
 .standingsTable {
   width: 100%;
-  min-width: 460px;
   border-collapse: collapse;
   font-size: 12px;
   color: var(--text);
@@ -1019,4 +1017,39 @@
   color: var(--text2);
   margin-top: 8px;
   text-align: center;
+}
+
+/* ── Americanka: Ело in the schedule and the table ── */
+.eloLine {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  line-height: 1.35;
+}
+
+.eloVal {
+  font-size: 10px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.schedScoreMid {
+  font-weight: 800;
+  font-size: 14px;
+  color: var(--navy);
+}
+
+.eloRounds {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 2px 6px;
+  margin: 2px 0 0 26px;
+  font-size: 10px;
+  font-weight: 700;
+}
+
+/* The fitted table: tighter cells so it stays readable at screen width. */
+.standingsCompact th,
+.standingsCompact td {
+  padding: 7px 5px;
 }

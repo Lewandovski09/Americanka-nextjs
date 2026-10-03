@@ -16,6 +16,7 @@ import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
+import PinchZoom from './PinchZoom';
 import styles from './detail.module.css';
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket' };
@@ -38,9 +39,17 @@ export default function TournamentDetailPage({ params }) {
   const [tournamentPlayers, setTournamentPlayers] = useState([]);
   const [teams, setTeams] = useState([]);
   const [matches, setMatches] = useState([]);
+  // Americanka: each game's Ело change per player, from elo_history —
+  // { [matchId]: { [userId]: { delta, before } } }.
+  const [eloByMatch, setEloByMatch] = useState({});
   const [judges, setJudges] = useState([]); // the event's judging crew
   const [judgeInfo, setJudgeInfo] = useState({}); // player id → profile, for the «Суддя» column
   const [tab, setTab] = useState(TABS.PLAYERS);
+  const tabChosen = useRef(false); // the viewer picked a tab themselves
+  function pickTab(t) {
+    tabChosen.current = true;
+    setTab(t);
+  }
   const [playersView, setPlayersView] = useState(null); // 'list' | 'results'; null = auto by status
   // Bracket search: the picked player, the game to zoom in on, and a
   // counter so picking the same player twice re-centres the view.
@@ -75,6 +84,23 @@ export default function TournamentDetailPage({ params }) {
     ]);
     if (t) setTournament(t);
     setMatches(m || []);
+
+    // Americanka moves Ело after every game; the schedule shows what each
+    // player had before the game and what it gave them, the table the
+    // change per round.
+    if (t?.tournament_events?.format_kind === 'americanka' && (m || []).length > 0) {
+      const { data: eh } = await supabase
+        .from('elo_history')
+        .select('match_id, user_id, delta, elo_before')
+        .eq('reason', 'tournament_result')
+        .in('match_id', m.map((x) => x.id));
+      const map = {};
+      (eh || []).forEach((r) => {
+        if (!map[r.match_id]) map[r.match_id] = {};
+        map[r.match_id][r.user_id] = { delta: r.delta, before: r.elo_before };
+      });
+      setEloByMatch(map);
+    }
     return { t, m: m || [] };
   }, [id]);
 
@@ -87,7 +113,7 @@ export default function TournamentDetailPage({ params }) {
       fetchLive(supabase),
       supabase
         .from('tournament_players')
-        .select('user_id, users(full_name, last_name, photo_url)')
+        .select('user_id, users(full_name, last_name, photo_url, elo)')
         .eq('category_id', id),
       // Pair formats keep participants in tournament_teams — load them too
       // so match sides and the score dialog can show names.
@@ -151,6 +177,14 @@ export default function TournamentDetailPage({ params }) {
     load();
   }, [load]);
 
+  // A running Americanka opens straight on «Розклад» — that is what the
+  // courts need — unless the viewer has already picked a tab.
+  const startedAmericanka =
+    tournament?.status === 'live' && tournament?.tournament_events?.format_kind === 'americanka';
+  useEffect(() => {
+    if (startedAmericanka && !tabChosen.current) setTab(TABS.TABLE);
+  }, [startedAmericanka]);
+
   // Realtime: refresh the games when anyone enters a score, so the live
   // table updates for everyone watching. One saved score fires several
   // row changes (the game itself, the next bracket slots, the next
@@ -209,7 +243,7 @@ export default function TournamentDetailPage({ params }) {
   // Schedule table width, for the section header rows: №, час, корт,
   // суддя, команда 1, vs, команда 2, результат — plus «+/-» (solo
   // formats only) and the per-set columns.
-  const schedColumns = 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
+  const schedColumns = isSum ? 7 : 8 + (isPair ? 0 : 1) + (maxSets > 1 ? 3 : 0);
   const scoringConfig = {
     points_to_win: tournament.points_to_win ?? event?.points_to_win ?? 21,
     points_mode: event?.points_mode,
@@ -410,6 +444,29 @@ export default function TournamentDetailPage({ params }) {
     load();
   }
 
+  // Americanka team cell: one line per player — surname, the Ело they
+  // went into the game with (today's for a game not played yet), and,
+  // once the score is in, what the game gave them.
+  function eloTeam(m, ids) {
+    if (!ids || ids.length === 0) return '· · ·';
+    const paid = eloByMatch[m.id] || {};
+    return ids.map((pid) => {
+      const h = paid[pid];
+      const elo = h?.before ?? playerById(pid)?.elo;
+      return (
+        <div key={pid} className={styles.eloLine}>
+          <span>{surnameOf(playerById(pid))}</span>
+          {elo != null && <span className={styles.eloVal}>{elo}</span>}
+          {h && h.delta !== 0 && (
+            <span className={h.delta > 0 ? styles.positive : styles.negative}>
+              {h.delta > 0 ? `+${h.delta}` : h.delta}
+            </span>
+          )}
+        </div>
+      );
+    });
+  }
+
   // One row of the schedule table. Placeholder games (future rounds
   // whose teams are not decided yet) show '· · ·' and are not clickable.
   function renderScheduleRow(m, i) {
@@ -478,15 +535,25 @@ export default function TournamentDetailPage({ params }) {
         <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
           {m.judge_id ? judgeName(m.judge_id) : canAssignJudge ? '+' : '—'}
         </td>
-        <td className={styles.schedTeamCol}>{nameA}</td>
-        <td className={styles.schedVs}>vs</td>
-        <td className={styles.schedTeamCol}>{nameB}</td>
-        {!isPair && (
+        {isSum ? (
+          <>
+            <td className={styles.schedTeamCol}>{eloTeam(m, m.team_a_players)}</td>
+            <td className={agg ? styles.schedScoreMid : styles.schedVs}>{agg ? `${agg[0]}:${agg[1]}` : 'vs'}</td>
+            <td className={styles.schedTeamCol}>{eloTeam(m, m.team_b_players)}</td>
+          </>
+        ) : (
+          <>
+            <td className={styles.schedTeamCol}>{nameA}</td>
+            <td className={styles.schedVs}>vs</td>
+            <td className={styles.schedTeamCol}>{nameB}</td>
+          </>
+        )}
+        {!isPair && !isSum && (
           <td className={diff > 0 ? styles.positive : diff < 0 ? styles.negative : ''}>
             {diff == null ? '' : diff > 0 ? `+${diff}` : diff}
           </td>
         )}
-        <td className={styles.schedScore}>{agg ? `${agg[0]}:${agg[1]}` : ''}</td>
+        {!isSum && <td className={styles.schedScore}>{agg ? `${agg[0]}:${agg[1]}` : ''}</td>}
         {maxSets > 1 && (
           <>
             <td>{m.set1 ? m.set1.join(':') : ''}</td>
@@ -567,7 +634,9 @@ export default function TournamentDetailPage({ params }) {
     );
     setScoreModal(null);
     if (data.warning) window.alert(data.warning);
-    refreshLive();
+    // Straight away, not debounced: the Ело the game just paid should
+    // appear next to the players at once.
+    fetchLive(createClient());
   }
 
   async function handleFinish() {
@@ -604,17 +673,19 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       <div className={styles.tabs}>
-        <TabBtn active={tab === TABS.PLAYERS} onClick={() => setTab(TABS.PLAYERS)}>
+        <TabBtn active={tab === TABS.PLAYERS} onClick={() => pickTab(TABS.PLAYERS)}>
           Учасники
         </TabBtn>
-        <TabBtn active={tab === TABS.TABLE} onClick={() => setTab(TABS.TABLE)}>
-          Таблиця
+        {/* Americanka: the game list is the day's «Розклад», and the live
+            standings are «Таблиця». */}
+        <TabBtn active={tab === TABS.TABLE} onClick={() => pickTab(TABS.TABLE)}>
+          {isSum ? 'Розклад' : 'Таблиця'}
         </TabBtn>
         {/* Americanka has no bracket to draw — this tab holds the live
             standings instead (see the AmericankaStandings branch below),
             so «Сітка» would name something that isn't there. */}
-        <TabBtn active={tab === TABS.BRACKET} onClick={() => setTab(TABS.BRACKET)}>
-          {isSum ? 'Рахунки' : 'Сітка'}
+        <TabBtn active={tab === TABS.BRACKET} onClick={() => pickTab(TABS.BRACKET)}>
+          {isSum ? 'Таблиця' : 'Сітка'}
         </TabBtn>
       </div>
 
@@ -754,13 +825,13 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       {/* Game schedule: every match in play order. Клік по незіграній
-          грі відкриває введення рахунку. Масштабується (+/−) — на
+          грі відкриває введення рахунку. Відкривається вписаною в екран, збільшується двома пальцями (PinchZoom) — на
           телефоні рядків багато. */}
       {tab === TABS.TABLE &&
         (matches.length === 0 ? (
             <div className={styles.loading}>Ігор ще немає</div>
           ) : (
-            <ZoomTable>
+            <PinchZoom>
               <div className={styles.schedWrap}>
               <table className={styles.schedTable}>
                 <thead>
@@ -770,13 +841,14 @@ export default function TournamentDetailPage({ params }) {
                     <th>Корт</th>
                     <th>Суддя</th>
                     <th className={styles.schedTeamCol}>Команда 1</th>
-                    <th />
+                    {/* Americanka: the score sits between the two teams. */}
+                    <th>{isSum ? 'Рахунок' : ''}</th>
                     <th className={styles.schedTeamCol}>Команда 2</th>
-                    {/* Points differential is an americanka / King thing —
-                        there it ranks the players. Pair formats are decided
-                        by sets, so the column only adds noise. */}
-                    {!isPair && <th title="(+15) → 21:15, (-12) → 12:21">+/-</th>}
-                    <th>Результат</th>
+                    {/* Points differential is a King thing there — it ranks
+                        the players. Pair formats are decided by sets, and
+                        americanka shows the score itself in the middle. */}
+                    {!isPair && !isSum && <th title="(+15) → 21:15, (-12) → 12:21">+/-</th>}
+                    {!isSum && <th>Результат</th>}
                     {maxSets > 1 && (
                       <>
                         <th>1 сет</th>
@@ -805,7 +877,7 @@ export default function TournamentDetailPage({ params }) {
                 </tbody>
               </table>
             </div>
-            </ZoomTable>
+            </PinchZoom>
           ))}
 
       {/* Manual finish is an americanka-only action: staged formats
@@ -851,13 +923,14 @@ export default function TournamentDetailPage({ params }) {
         matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
-          <ZoomTable>
+          <PinchZoom>
             <AmericankaStandings
               rows={placeStandings(standings)}
               playerById={playerById}
               currentPlayerId={player?.id}
+              eloRounds={eloRoundsByPlayer(matches, eloByMatch)}
             />
-          </ZoomTable>
+          </PinchZoom>
         )
       )}
       {tab === TABS.BRACKET && !isSum &&
@@ -1306,83 +1379,88 @@ function BracketSearch({ players, focus, onPick, onClear }) {
   );
 }
 
-// Zoomable wrapper: +/− controls around a table, using CSS `zoom` so
-// the layout actually reflows at the new size (no leftover blank space
-// like `transform: scale` leaves when shrinking). Steps of 10%, clamped
-// so the schedule/standings table stays legible but can also be shrunk
-// to fit a phone screen or blown up on a big display at the club.
-function ZoomTable({ children }) {
-  const [zoom, setZoom] = useState(1);
-  const step = (delta) => setZoom((z) => Math.min(1.6, Math.max(0.6, +(z + delta).toFixed(2))));
-  return (
-    <div className={styles.zoomWrap}>
-      <div className={styles.zoomControls}>
-        <button
-          type="button"
-          className={styles.zoomBtn}
-          onClick={() => step(-0.1)}
-          disabled={zoom <= 0.6}
-          aria-label="Зменшити"
-        >
-          −
-        </button>
-        <span className={styles.zoomPct}>{Math.round(zoom * 100)}%</span>
-        <button
-          type="button"
-          className={styles.zoomBtn}
-          onClick={() => step(0.1)}
-          disabled={zoom >= 1.6}
-          aria-label="Збільшити"
-        >
-          +
-        </button>
-      </div>
-      <div className={styles.zoomScroll} style={{ zoom }}>
-        {children}
-      </div>
-    </div>
-  );
+// Ело change per player, round by round: { [userId]: { rounds: [{ round, delta }], total } }.
+function eloRoundsByPlayer(matches, eloByMatch) {
+  const out = {};
+  [...matches]
+    .filter((m) => m.played && eloByMatch[m.id])
+    .sort((a, b) => a.round_number - b.round_number || (a.order_index ?? 0) - (b.order_index ?? 0))
+    .forEach((m) => {
+      Object.entries(eloByMatch[m.id]).forEach(([uid, h]) => {
+        if (!out[uid]) out[uid] = { rounds: [], total: 0 };
+        out[uid].rounds.push({ round: m.round_number, delta: h.delta });
+        out[uid].total += h.delta;
+      });
+    });
+  return out;
 }
+
+const signed = (n) => (n > 0 ? `+${n}` : String(n));
 
 // Live americanka standings: replaces the bracket tab entirely for this
 // format (a round robin has no elimination to draw). One row per
 // player, already carrying a shared `place` for anyone still level on
 // diff/points-for/wins (see placeStandings in lib/tournamentEngine).
-function AmericankaStandings({ rows, playerById, currentPlayerId }) {
+// Under each name — the Ело each round gave them; «Ело» — the total.
+// Compact on purpose: it opens fitted to the screen (PinchZoom).
+function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {} }) {
   if (rows.length === 0) return <div className={styles.loading}>Учасників ще немає</div>;
+  const anyElo = Object.keys(eloRounds).length > 0;
   return (
     <>
-      <table className={styles.standingsTable}>
+      <table className={`${styles.standingsTable} ${styles.standingsCompact}`}>
         <thead>
           <tr>
-            <th>Місце</th>
+            <th>#</th>
             <th className={styles.standingsNameCol}>Гравець</th>
             <th title="Зіграно ігор">І</th>
             <th title="Перемоги">В</th>
             <th title="Виграно очок">О+</th>
             <th title="Програно очок">О−</th>
             <th title="Різниця очок">+/-</th>
+            {anyElo && <th title="Зміна Ело за турнір">Ело</th>}
           </tr>
         </thead>
         <tbody>
           {rows.map((r) => {
             const diff = r.gamesFor - r.gamesAgainst;
+            const elo = eloRounds[r.player.id];
             return (
               <tr key={r.player.id} className={r.player.id === currentPlayerId ? styles.meRow : ''}>
                 <td className={styles.placeCell}>
                   {r.place === 1 ? '🥇' : r.place === 2 ? '🥈' : r.place === 3 ? '🥉' : r.place}
                 </td>
-                <td className={`${styles.nameCell} ${styles.standingsNameCol}`}>
-                  <PlayerAvatar player={playerById(r.player.id)} size={22} />
-                  {r.player.full_name}
+                <td className={styles.standingsNameCol}>
+                  <div className={styles.nameCell}>
+                    <PlayerAvatar player={playerById(r.player.id)} size={20} />
+                    <span>{surnameOf(playerById(r.player.id)) || r.player.full_name}</span>
+                  </div>
+                  {elo && elo.rounds.length > 0 && (
+                    <div className={styles.eloRounds}>
+                      {elo.rounds.map((x, i) => (
+                        <span
+                          key={i}
+                          title={`Тур ${x.round}`}
+                          className={x.delta > 0 ? styles.positive : x.delta < 0 ? styles.negative : undefined}
+                        >
+                          {signed(x.delta)}
+                        </span>
+                      ))}
+                    </div>
+                  )}
                 </td>
                 <td>{r.played}</td>
                 <td>{r.wins}</td>
                 <td>{r.gamesFor}</td>
                 <td>{r.gamesAgainst}</td>
                 <td className={diff > 0 ? styles.standingsDiffPos : diff < 0 ? styles.standingsDiffNeg : ''}>
-                  {diff > 0 ? `+${diff}` : diff}
+                  {signed(diff)}
                 </td>
+                {anyElo && (
+                  <td className={elo?.total > 0 ? styles.standingsDiffPos : elo?.total < 0 ? styles.standingsDiffNeg : ''}>
+                    {elo ? signed(elo.total) : ''}
+                  </td>
+                )}
               </tr>
             );
           })}
@@ -1390,7 +1468,8 @@ function AmericankaStandings({ rows, playerById, currentPlayerId }) {
       </table>
       <div className={styles.standingsHint}>
         Місце визначається за різницею очок, потім за виграними очками, потім за перемогами — рівність за
-        всіма трьома ділить місце.
+        всіма трьома ділить місце. Під прізвищем — зміна Ело в кожному турі, «Ело» — за весь турнір. Таблицю
+        можна збільшити двома пальцями.
       </div>
     </>
   );
