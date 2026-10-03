@@ -18,7 +18,6 @@ import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { loadPlayerGames } from '@/lib/playerGames';
 import HeaderStatCards from '@/components/HeaderStatCards';
 import { getCached, setCached } from '@/lib/clientCache';
-import { useClubSeasons, seasonHeadline } from '@/lib/seasons';
 import { winPluralUk } from '@/lib/pluralize';
 import styles from './profile.module.css';
 
@@ -54,7 +53,6 @@ export default function ProfilePage() {
   const [editSaving, setEditSaving] = useState(false);
 
   const winStreak = headerStats?.winStreak || 0;
-  const seasonText = seasonHeadline(useClubSeasons());
 
   // All five loads are independent — they run at once (they used to run
   // one after another). The last-known result is shown first, so coming
@@ -317,18 +315,9 @@ export default function ProfilePage() {
           <HeaderStatCards styles={styles} player={me} stats={headerStats} />
         )}
 
-        {/* The current season sits right of the edit button — which season
-            the numbers above belong to. */}
-        <div className={styles.editProfileBtnRow} style={{ marginTop: 10, gap: 8, alignItems: 'center' }}>
-          <button className={styles.editProfileBtn} onClick={openEdit}>
-            Редагувати профіль
-          </button>
-          {seasonText && (
-            <a href="/rating" className={styles.seasonPill} title="Поточний сезон рейтингу">
-              {seasonText}
-            </a>
-          )}
-        </div>
+        <button className={styles.editProfileBtn} onClick={openEdit} style={{ marginTop: 10 }}>
+          Редагувати профіль
+        </button>
 
         <div className={styles.headerWave} aria-hidden="true">
           <svg viewBox="0 0 600 22" preserveAspectRatio="none">
