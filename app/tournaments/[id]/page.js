@@ -961,15 +961,14 @@ export default function TournamentDetailPage({ params }) {
         matches.length === 0 ? (
           <div className={styles.loading}>Ігор ще немає</div>
         ) : (
-          <PinchZoom fit={false}>
-            <AmericankaStandings
+          <AmericankaStandings
               rows={placeStandings(standings)}
               playerById={playerById}
               currentPlayerId={player?.id}
               eloRounds={eloRoundsByPlayer(matches, eloByMatch)}
               title={tournament.name}
             />
-          </PinchZoom>
+
         )
       )}
       {tab === TABS.BRACKET && !isSum &&
@@ -1472,19 +1471,6 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
             <PlayerAvatar player={p} size={30} />
             <div className={styles.ltNames}>
               <div className={styles.ltName}>{shortName(p) || r.player.full_name}</div>
-              {elo && elo.rounds.length > 0 && (
-                <div className={styles.ltRounds}>
-                  {elo.rounds.map((x, i) => (
-                    <span
-                      key={i}
-                      title={`Раунд ${x.round}`}
-                      className={x.delta > 0 ? styles.positive : x.delta < 0 ? styles.negative : undefined}
-                    >
-                      {signed(x.delta)}
-                    </span>
-                  ))}
-                </div>
-              )}
             </div>
           </div>
         </td>
@@ -1514,7 +1500,7 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
             <th className={styles.ltNum} title="Перемоги">В</th>
             <th className={styles.ltNum} title="Різниця очок">+/-</th>
             {anyElo && (
-              <th className={styles.ltNum} title="Зміна Ело за турнір">
+              <th className={`${styles.ltNum} ${styles.ltElo}`} title="Зміна Ело за турнір">
                 Ело
               </th>
             )}
@@ -1524,17 +1510,18 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
         {rest.length > 0 && (
           <tbody>
             <tr>
-              <td className={styles.ltGroup} colSpan={anyElo ? 6 : 5}>
+              <td className={styles.ltGroup} colSpan={5}>
                 Решта учасників
               </td>
+              {anyElo && <td className={styles.ltElo} />}
             </tr>
             {rest.map(renderRow)}
           </tbody>
         )}
       </table>
       <div className={styles.ltHint}>
-        Порядок — за різницею очок (+/-), далі за виграними очками, далі за перемогами. Під іменем — Ело за кожен
-        раунд, «Ело» — за весь турнір.
+        Порядок — за різницею очок (+/-), далі за виграними очками, далі за перемогами. «Ело» — зміна рейтингу за
+        весь турнір.
       </div>
     </div>
   );

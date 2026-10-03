@@ -1237,7 +1237,10 @@
 
 .ltPlayer {
   text-align: left;
-  max-width: 0; /* lets the name ellipsize instead of widening the table */
+  width: 1%; /* hugs the name — the spare width goes to the numbers, not
+                to a white gap after the surname */
+  white-space: nowrap;
+  padding-right: 10px !important;
 }
 
 .ltPlayerLine {
@@ -1270,7 +1273,6 @@
 }
 
 .ltNum {
-  width: 34px;
   text-align: center;
   font-size: 15px;
   color: var(--text);
@@ -1278,9 +1280,15 @@
   font-variant-numeric: tabular-nums;
 }
 
+/* The whole Ело column on its own colour, header included. */
 .ltElo {
-  padding-right: 14px !important;
-  font-weight: 700;
+  background: #e8eefc;
+  font-weight: 800;
+}
+
+.ltTable th.ltElo {
+  color: var(--navy);
+  border-radius: 8px 8px 0 0;
 }
 
 .ltMe {
