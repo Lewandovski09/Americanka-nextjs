@@ -10,6 +10,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
 import { CATEGORY_STARTING_ELO } from '@/lib/elo';
+import { invalidate } from '@/lib/clientCache';
 
 const START_ELO_TEXT = Object.entries(CATEGORY_STARTING_ELO)
   .map(([cat, elo]) => `${cat} ${elo}`)
@@ -85,6 +86,9 @@ export default function SeasonAdminPanel({ styles, kind }) {
       setMessage({ error: true, text: data.error || 'Не вдалося почати сезон' });
       return;
     }
+    // Every page shows the season name — drop the cached one so they pick up the new season.
+    invalidate('seasons:');
+    invalidate('rating:');
     setMessage({ error: false, text: `✓ Сезон «${name.trim()}» розпочато` });
     setName('');
     setOpen(false);

@@ -42,6 +42,27 @@ export async function middleware(request) {
     }
   }
 
+  // Page navigations: no network call to Supabase here. Pages are
+  // client-rendered and read the session in the browser (which also
+  // refreshes the token itself), so the old getUser() on every page and
+  // every prefetch only added a Supabase round trip before each tab could
+  // open. The gate below only needs to know whether a session cookie
+  // exists at all; a stale one still falls through to AppShell's own
+  // check, and the data itself is protected by RLS either way.
+  if (!pathname.startsWith('/api/')) {
+    const hasSession = request.cookies
+      .getAll()
+      .some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value);
+    if (!hasSession && GATED_PREFIXES.some((p) => pathname.startsWith(p))) {
+      const url = request.nextUrl.clone();
+      url.pathname = '/';
+      return NextResponse.redirect(url);
+    }
+    return NextResponse.next();
+  }
+
+  // API routes: refresh the session cookie so route handlers see a
+  // valid one.
   // IMPORTANT: response must be re-created any time cookies are
   // set, and built from the (possibly updated) request — otherwise
   // a refreshed session token never actually reaches the browser,

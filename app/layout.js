@@ -2,6 +2,7 @@ import './globals.css';
 import AppShell from '@/components/AppShell';
 import RegisterSW from '@/components/RegisterSW';
 import SentryInit from '@/components/SentryInit';
+import { PlayerProvider } from '@/hooks/useCurrentPlayer';
 import { VENUE } from '@/lib/venue';
 
 export const metadata = {
@@ -38,7 +39,9 @@ export default function RootLayout({ children }) {
       <body>
         <SentryInit />
         <RegisterSW />
-        <AppShell>{children}</AppShell>
+        <PlayerProvider>
+          <AppShell>{children}</AppShell>
+        </PlayerProvider>
       </body>
     </html>
   );

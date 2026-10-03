@@ -12,15 +12,18 @@ import { useEffect, useState } from 'react';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { IconChevronDown } from '@/components/Icons';
-import { PRIMARY_SPORT_ID } from '@/lib/sports';
+import { loadClubSeasons, seasonDates } from '@/lib/seasons';
+import { getCached, setCached } from '@/lib/clientCache';
 import styles from './AvpSeasonCard.module.css';
 
 export default function AvpSeasonCard({ playerId, gender }) {
-  const [season, setSeason] = useState(null);
-  const [total, setTotal] = useState(null); // { points, tournaments_counted }
-  const [rank, setRank] = useState(null);
-  const [rows, setRows] = useState([]);
-  const [loading, setLoading] = useState(true);
+  // Last-known card for this player first (instant on a repeat visit).
+  const cached = playerId ? getCached(`avpcard:${playerId}`) : undefined;
+  const [season, setSeason] = useState(cached?.season || null);
+  const [total, setTotal] = useState(cached?.total || null); // { points, tournaments_counted }
+  const [rank, setRank] = useState(cached?.rank || null);
+  const [rows, setRows] = useState(cached?.rows || []);
+  const [loading, setLoading] = useState(!cached);
   const [expanded, setExpanded] = useState(false);
 
   useEffect(() => {
@@ -28,25 +31,11 @@ export default function AvpSeasonCard({ playerId, gender }) {
     let cancelled = false;
 
     async function load() {
-      setLoading(true);
       const supabase = createClient();
 
-      // The season that covers today, or the most recent one if we are
-      // between seasons.
-      const today = new Date().toISOString().slice(0, 10);
-      const { data: seasons } = await supabase
-        .from('avp_seasons')
-        .select('id, name, starts_on, ends_on')
-        // The club-wide season of the primary sport (043 scopes seasons by
-        // sport and city; a city or another sport has its own list).
-        .eq('kind', 'avp')
-        .eq('sport_id', PRIMARY_SPORT_ID)
-        .is('city_id', null)
-        .order('starts_on', { ascending: false });
-      const current =
-        (seasons || []).find((s) => s.starts_on <= today && (s.ends_on === null || s.ends_on >= today)) ||
-        seasons?.[0] ||
-        null;
+      // The current club-wide AVP season — the same one the header card
+      // and the AVP tab use (lib/seasons, cached for the tab).
+      const { avp: current } = await loadClubSeasons(supabase);
 
       if (cancelled) return;
       setSeason(current);
@@ -55,7 +44,10 @@ export default function AvpSeasonCard({ playerId, gender }) {
         return;
       }
 
-      const [{ data: standings }, { data: breakdown }] = await Promise.all([
+      // All three at once: the standings, this player's ledger, and who
+      // is of the same gender (the rank is counted among them, exactly
+      // like the AVP leaderboard — otherwise the two numbers disagree).
+      const [{ data: standings }, { data: breakdown }, { data: sameGender }] = await Promise.all([
         supabase
           .from('avp_standings')
           .select('user_id, points, tournaments_counted')
@@ -70,37 +62,28 @@ export default function AvpSeasonCard({ playerId, gender }) {
           )
           .eq('user_id', playerId)
           .eq('season_id', current.id),
+        gender ? supabase.from('users').select('id').eq('gender', gender) : Promise.resolve({ data: null }),
       ]);
 
       const mine = (standings || []).find((s) => s.user_id === playerId) || null;
 
-      // Rank inside the same list the AVP leaderboard shows, i.e. among
-      // players of the same gender — otherwise the number here and the
-      // number there would disagree.
       let place = null;
-      if (mine && gender) {
-        const ids = (standings || []).map((s) => s.user_id);
-        const { data: profiles } = await supabase.from('users').select('id, gender').in('id', ids);
-        const sameGender = new Set(
-          (profiles || []).filter((p) => p.gender === gender).map((p) => p.id)
-        );
-        place = (standings || []).filter((s) => sameGender.has(s.user_id)).findIndex(
-          (s) => s.user_id === playerId
-        );
-        place = place >= 0 ? place + 1 : null;
+      if (mine && sameGender) {
+        const ids = new Set(sameGender.map((p) => p.id));
+        const idx = (standings || []).filter((s) => ids.has(s.user_id)).findIndex((s) => s.user_id === playerId);
+        place = idx >= 0 ? idx + 1 : null;
       }
 
+      const sorted = (breakdown || []).sort(
+        (a, b) =>
+          b.points - a.points ||
+          new Date(b.tournament_events?.scheduled_at || 0) - new Date(a.tournament_events?.scheduled_at || 0)
+      );
+      setCached(`avpcard:${playerId}`, { season: current, total: mine, rank: place, rows: sorted });
       if (cancelled) return;
       setTotal(mine);
       setRank(place);
-      setRows(
-        (breakdown || []).sort(
-          (a, b) =>
-            b.points - a.points ||
-            new Date(b.tournament_events?.scheduled_at || 0) -
-              new Date(a.tournament_events?.scheduled_at || 0)
-        )
-      );
+      setRows(sorted);
       setLoading(false);
     }
 
@@ -116,7 +99,9 @@ export default function AvpSeasonCard({ playerId, gender }) {
   return (
     <>
       <button className={styles.card} onClick={() => setExpanded((e) => !e)} disabled={rows.length === 0}>
-        <div className={styles.seasonName}>{season.name}</div>
+        <div className={styles.seasonName}>
+          {season.name} · {seasonDates(season)}
+        </div>
         <div className={styles.totalRow}>
           <div className={styles.total}>{total?.points ?? 0}</div>
           <div className={styles.totalLabel}>

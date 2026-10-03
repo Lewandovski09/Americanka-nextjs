@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
@@ -8,6 +8,9 @@ import { teamAWon } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { PRIMARY_SPORT_ID, getSport } from '@/lib/sports';
 import { getFormat } from '@/lib/formats';
+import { loadClubSeasons, seasonDates } from '@/lib/seasons';
+import { getCached, setCached } from '@/lib/clientCache';
+import styles from './rating.module.css';
 
 // Seasons are scoped by sport and optionally by city (migration 043), so
 // the chip says which one it is whenever that is not the default.
@@ -17,25 +20,218 @@ function seasonLabel(s) {
   if (s.sport_id && s.sport_id !== PRIMARY_SPORT_ID) parts.push(getSport(s.sport_id)?.displayName || s.sport_id);
   return parts.join(' · ');
 }
-import styles from './rating.module.css';
+
+// PostgREST returns at most 1000 rows per request; tables that grow with
+// every tournament (placements, matches, history) are read page by page.
+async function fetchAll(makeQuery) {
+  const out = [];
+  for (let from = 0; ; from += 1000) {
+    const { data, error } = await makeQuery().range(from, from + 999);
+    if (error || !data) break;
+    out.push(...data);
+    if (data.length < 1000) break;
+  }
+  return out;
+}
+
+// ─────────────────────────────────────────────────────────────
+// Loaders. Each returns the data for ALL genders and categories, so
+// switching Чоловіки/Жінки or A–D is a filter in memory, not a request.
+// Results go to clientCache, which outlives the page: coming back to
+// «Рейтинг» from another section shows the last table at once.
+// ─────────────────────────────────────────────────────────────
+
+// Current Ело season: live ratings, Americanka tournaments played, and the
+// change since the season opened. Five independent reads, all at once
+// (this used to be six requests one after another).
+async function loadEloCurrent(supabase, eloSeason) {
+  const [users, placements, { data: cats }, { data: events }, starts] = await Promise.all([
+    fetchAll(() =>
+      supabase
+        .from('users')
+        .select('id, full_name, login, elo, photo_url, gender')
+        .eq('approval_status', 'approved')
+        .order('elo', { ascending: false })
+    ),
+    fetchAll(() => supabase.from('tournament_placements').select('user_id, category_id')),
+    supabase.from('tournament_categories').select('id, event_id'),
+    supabase.from('tournament_events').select('id, format_kind'),
+    eloSeason
+      ? fetchAll(() => supabase.from('season_ratings').select('user_id, elo_start').eq('season_id', eloSeason.id))
+      : Promise.resolve([]),
+  ]);
+
+  // Ело moves only on Americanka results (the score route's auto-Ело), so
+  // «турн.» on this tab counts Americanka tournaments. The count comes
+  // from tournament_placements, which is rewritten idempotently on every
+  // finish — unlike an accumulating counter it cannot drift.
+  const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
+  const americanka = new Set((cats || []).filter((t) => formatByEvent.get(t.event_id) === 'americanka').map((t) => t.id));
+  const countByPlayer = new Map();
+  placements.forEach((tp) => {
+    if (!americanka.has(tp.category_id)) return;
+    countByPlayer.set(tp.user_id, (countByPlayer.get(tp.user_id) || 0) + 1);
+  });
+  const startById = new Map(starts.map((r) => [r.user_id, r.elo_start]));
+
+  return users.map((p) => {
+    const start = startById.get(p.id);
+    return {
+      ...p,
+      tournaments_played: countByPlayer.get(p.id) || 0,
+      seasonDelta: start != null && p.elo != null ? p.elo - start : null,
+    };
+  });
+}
+
+// A closed Ело season: its frozen table (migration 045).
+async function loadEloArchived(supabase, seasonId) {
+  const rows = await fetchAll(() =>
+    supabase
+      .from('season_ratings')
+      .select('user_id, elo_start, elo_end, games_played, games_won, users(id, full_name, login, photo_url, gender, approval_status)')
+      .eq('season_id', seasonId)
+      .not('elo_end', 'is', null)
+      .order('elo_end', { ascending: false })
+  );
+  return rows
+    .filter((r) => r.users)
+    .map((r) => ({
+      ...r.users,
+      elo: r.elo_end,
+      seasonDelta: r.elo_start != null ? r.elo_end - r.elo_start : null,
+      games: r.games_played,
+      archived: true,
+    }));
+}
+
+// The standings view sums the ledger, so it holds points but no profiles.
+async function loadAvp(supabase, seasonId) {
+  const standings = await fetchAll(() =>
+    supabase
+      .from('avp_standings')
+      .select('user_id, points, tournaments_counted')
+      .eq('season_id', seasonId)
+      .order('points', { ascending: false })
+  );
+  const ids = standings.map((s) => s.user_id);
+  const { data: profiles } = ids.length
+    ? await supabase.from('users').select('id, full_name, login, photo_url, gender, elo').in('id', ids)
+    : { data: [] };
+  const byId = new Map((profiles || []).map((p) => [p.id, p]));
+  return standings.map((s) => ({ ...s, player: byId.get(s.user_id) })).filter((s) => s.player);
+}
+
+// Club leaderboards for the CURRENT season (the Ело season's dates):
+// current win streaks, game wins outside Americanka, and Ело gained.
+async function loadClubStats(supabase, season) {
+  const from = season?.starts_on || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+  const to = season?.ends_on ? `${season.ends_on}T23:59:59.999Z` : null;
+
+  const [matches, { data: cats }, { data: events }, eloRows, profiles] = await Promise.all([
+    fetchAll(() => {
+      let q = supabase
+        .from('tournament_matches')
+        .select('category_id, team_a_players, team_b_players, set1, set2, set3, played_at')
+        .eq('played', true)
+        .gte('played_at', from)
+        .order('played_at', { ascending: false });
+      return to ? q.lte('played_at', to) : q;
+    }),
+    supabase.from('tournament_categories').select('id, event_id'),
+    supabase.from('tournament_events').select('id, format_kind'),
+    fetchAll(() => {
+      // tournament_result only: admin corrections and season resets are
+      // not «gained from playing».
+      let q = supabase.from('elo_history').select('user_id, delta').eq('reason', 'tournament_result').gte('created_at', from);
+      return to ? q.lte('created_at', to) : q;
+    }),
+    fetchAll(() => supabase.from('users').select('id, full_name, login, photo_url, gender')),
+  ]);
+
+  const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
+  const formatByCat = new Map((cats || []).map((t) => [t.id, formatByEvent.get(t.event_id)]));
+
+  // Streaks: newest first, counted back to the first loss.
+  const gamesByPlayer = new Map();
+  const winsByPlayer = new Map();
+  matches.forEach((m) => {
+    const aWon = teamAWon(m);
+    (m.team_a_players || []).forEach((id) => {
+      if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
+      gamesByPlayer.get(id).push(aWon);
+    });
+    (m.team_b_players || []).forEach((id) => {
+      if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
+      gamesByPlayer.get(id).push(!aWon);
+    });
+    const kind = formatByCat.get(m.category_id);
+    if (kind && kind !== 'americanka') {
+      ((aWon ? m.team_a_players : m.team_b_players) || []).forEach((id) => {
+        winsByPlayer.set(id, (winsByPlayer.get(id) || 0) + 1);
+      });
+    }
+  });
+  const streaks = [];
+  for (const [playerId, results] of gamesByPlayer.entries()) {
+    let streak = 0;
+    for (const won of results) {
+      if (!won) break;
+      streak++;
+    }
+    if (streak >= 2) streaks.push({ playerId, streak });
+  }
+  streaks.sort((a, b) => b.streak - a.streak);
+
+  const wins = [...winsByPlayer.entries()].map(([playerId, w]) => ({ playerId, wins: w })).sort((a, b) => b.wins - a.wins);
+
+  const gainByPlayer = new Map();
+  eloRows.forEach((r) => gainByPlayer.set(r.user_id, (gainByPlayer.get(r.user_id) || 0) + r.delta));
+  const gains = [...gainByPlayer.entries()]
+    .map(([playerId, gain]) => ({ playerId, gain }))
+    .filter((r) => r.gain > 0)
+    .sort((a, b) => b.gain - a.gain);
+
+  const byId = new Map(profiles.map((p) => [p.id, p]));
+  const withPlayer = (list) => list.map((r) => ({ ...r, player: byId.get(r.playerId) })).filter((r) => r.player);
+  return { streaks: withPlayer(streaks), wins: withPlayer(wins), gains: withPlayer(gains) };
+}
+
+// «Сезон 2026 · з 1 січ. 2026» — which season the list below belongs to.
+function SeasonNote({ season, archived }) {
+  if (!season) return null;
+  return (
+    <div className={styles.seasonNote}>
+      <span className={styles.seasonNoteName}>{season.name}</span>
+      <span>
+        {seasonDates(season)}
+        {archived ? ' · архів' : season.ends_on === null ? ' · поточний сезон' : ''}
+      </span>
+    </div>
+  );
+}
 
 export default function RatingPage() {
   const { player } = useCurrentPlayer();
-  const [tab, setTab] = useState('rating'); // 'rating' | 'avp' | 'stats'
+  const [tab, setTab] = useState(() => getCached('rating:tab') || 'rating'); // 'rating' | 'avp' | 'stats'
   const [gender, setGender] = useState('M');
   const [category, setCategory] = useState('all');
   const [showScale, setShowScale] = useState(false);
-  const [players, setPlayers] = useState([]);
   const [searchTerm, setSearchTerm] = useState('');
 
-  // ── AVP season standings ──
-  const [seasons, setSeasons] = useState([]);
-  const [seasonId, setSeasonId] = useState(null);
+  // Every season of every track (for the chips) and the current club ones.
+  const [seasons, setSeasons] = useState(() => getCached('rating:seasons') || []);
+  const [club, setClub] = useState(() => getCached('seasons:club')?.value || null);
+  const [seasonId, setSeasonId] = useState(() => getCached('seasons:club')?.value?.avp?.id || null); // AVP season shown
   // Ело tab: null = the current season (live ratings); a closed season's
   // id = its frozen final table from season_ratings (migration 045).
   const [eloSeasonId, setEloSeasonId] = useState(null);
-  const [avpRows, setAvpRows] = useState([]);
-  const [avpLoading, setAvpLoading] = useState(false);
+
+  // Data, seeded from the tab-wide cache so a return visit is instant.
+  // key -> rows; `undefined` for a key = not loaded yet.
+  const [eloByKey, setEloByKey] = useState(() => ({ 'rating:elo:current': getCached('rating:elo:current') }));
+  const [avpByKey, setAvpByKey] = useState({});
+  const [clubStats, setClubStats] = useState(() => getCached('rating:stats') || null);
 
   // ── Compare players state ──
   const [loginA, setLoginA] = useState(null); // now holds the selected player object, not raw text
@@ -48,195 +244,77 @@ export default function RatingPage() {
   const [compareLoading, setCompareLoading] = useState(false);
   const [compareResult, setCompareResult] = useState(null); // { playerA, playerB, statsA, statsB }
 
-  // ── Club-wide statistics (Статистика tab) ──
-  const [clubStatsLoaded, setClubStatsLoaded] = useState(false);
-  const [clubStreaks, setClubStreaks] = useState([]);
-  const [clubTournamentWins, setClubTournamentWins] = useState([]);
-  const [clubEloGains, setClubEloGains] = useState([]);
+  function openTab(t) {
+    setTab(t);
+    setCached('rating:tab', t);
+  }
 
-  // Switching tabs used to refetch everything from scratch every single
-  // time, even flipping straight back to a tab shown seconds ago —
-  // that round-trip is what actually made tab switching feel slow, not
-  // rendering. These caches make a repeat visit instant (last-known
-  // data renders immediately) while a fresh fetch still runs quietly
-  // underneath to catch anything that changed — a manual approval, a
-  // new result — without the visible spinner/blank-state coming back
-  // every time.
-  const ratingCacheRef = useRef({}); // `${gender}:${category}` -> players[]
-  const avpCacheRef = useRef({}); // seasonId -> rows[]
-
+  // On open: seasons first (cached for the tab, usually instant), then
+  // ALL THREE tabs load at once in the background — switching between
+  // Ело / AVP / Статистика afterwards never waits for the network.
   useEffect(() => {
-    if (tab !== 'rating') return;
-    const cacheKey = `${eloSeasonId || 'current'}:${gender}:${category}`;
-    const cached = ratingCacheRef.current[cacheKey];
-    if (cached) setPlayers(cached); // show the last-known list instantly
+    let alive = true;
+    const supabase = createClient();
+    (async () => {
+      const [clubSeasons, { data: allSeasons }] = await Promise.all([
+        loadClubSeasons(supabase),
+        supabase
+          .from('avp_seasons')
+          .select('id, name, kind, starts_on, ends_on, sport_id, city:cities(name)')
+          .order('starts_on', { ascending: false }),
+      ]);
+      if (!alive) return;
+      setClub(clubSeasons);
+      setSeasons(setCached('rating:seasons', allSeasons || []));
+      setSeasonId((prev) => prev || clubSeasons.avp?.id || (allSeasons || []).find((s) => (s.kind || 'avp') === 'avp')?.id || null);
 
-    const catDefFor = (id) => SKILL_CATEGORIES.find((c) => c.id === id);
-    const inCategory = (elo) => {
-      if (category === 'all') return true;
-      const d = catDefFor(category);
-      return elo != null && elo >= d.range[0] && elo < d.range[1];
+      loadEloCurrent(supabase, clubSeasons.elo).then((rows) => {
+        setCached('rating:elo:current', rows);
+        if (alive) setEloByKey((m) => ({ ...m, 'rating:elo:current': rows }));
+      });
+      loadClubStats(supabase, clubSeasons.elo).then((st) => {
+        setCached('rating:stats', st);
+        if (alive) setClubStats(st);
+      });
+    })();
+    return () => {
+      alive = false;
     };
+  }, []);
 
-    // A closed season: its frozen table — final Ело, change over the
-    // season and games played, exactly as they stood when it was closed.
-    async function loadArchived() {
-      const supabase = createClient();
-      const { data: rows } = await supabase
-        .from('season_ratings')
-        .select('user_id, elo_start, elo_end, games_played, games_won, users(id, full_name, login, photo_url, gender, approval_status)')
-        .eq('season_id', eloSeasonId)
-        .not('elo_end', 'is', null)
-        .order('elo_end', { ascending: false });
-      const list = (rows || [])
-        .filter((r) => r.users && r.users.gender === gender && inCategory(r.elo_end))
-        .map((r) => ({
-          ...r.users,
-          elo: r.elo_end,
-          seasonDelta: r.elo_start != null ? r.elo_end - r.elo_start : null,
-          games: r.games_played,
-          archived: true,
-        }));
-      ratingCacheRef.current[cacheKey] = list;
-      setPlayers(list);
-    }
-
-    async function load() {
-      if (eloSeasonId) return loadArchived();
-      const supabase = createClient();
-      let query = supabase
-        .from('users')
-        .select('id, full_name, login, elo, photo_url')
-        .eq('gender', gender)
-        .eq('approval_status', 'approved')
-        .order('elo', { ascending: false });
-
-      if (category !== 'all') {
-        const catDef = SKILL_CATEGORIES.find((c) => c.id === category);
-        query = query.gte('elo', catDef.range[0]).lt('elo', catDef.range[1]);
-      }
-
-      const { data } = await query;
-
-      // Real tournament count, not the players.tournaments_played
-      // counter — that column accumulates by +1 per finishCategory
-      // call with no protection against being bumped twice for the
-      // same tournament (the same class of drift partner_stats had).
-      // tournament_placements is written idempotently (cleared and
-      // rewritten each time a category finishes) and is exactly the
-      // "did this player actually place in this tournament" source of
-      // truth already fixed and backfilled earlier — counting rows in
-      // it directly can't drift the way an accumulating counter can.
-      //
-      // Scoped to Americanka specifically here: Ело itself is now only
-      // ever driven by Americanka results (see the score route's
-      // auto-Ело), so "tournaments played" on THIS tab means
-      // Americanka tournaments, not every format combined — AVP's own
-      // tab already shows the all-formats count via tournaments_counted.
-      const ids = (data || []).map((p) => p.id);
-      const { data: placements } = ids.length
-        ? await supabase.from('tournament_placements').select('user_id, category_id').in('user_id', ids)
-        : { data: [] };
-
-      const tIds = [...new Set((placements || []).map((tp) => tp.category_id))];
-      const { data: tours } = tIds.length
-        ? await supabase.from('tournament_categories').select('id, event_id').in('id', tIds)
-        : { data: [] };
-      const eventIds = [...new Set((tours || []).map((t) => t.event_id).filter(Boolean))];
-      const { data: events } = eventIds.length
-        ? await supabase.from('tournament_events').select('id, format_kind').in('id', eventIds)
-        : { data: [] };
-      const formatByEvent = new Map((events || []).map((ev) => [ev.id, ev.format_kind]));
-      const formatByTournament = new Map((tours || []).map((t) => [t.id, formatByEvent.get(t.event_id)]));
-
-      const countByPlayer = new Map();
-      (placements || []).forEach((tp) => {
-        if (formatByTournament.get(tp.category_id) !== 'americanka') return;
-        countByPlayer.set(tp.user_id, (countByPlayer.get(tp.user_id) || 0) + 1);
-      });
-      // How far each player has moved THIS season: today's Ело against
-      // the starting value recorded when the season opened (045).
-      const { data: openSeason } = await supabase
-        .from('avp_seasons')
-        .select('id')
-        .eq('kind', 'elo')
-        .eq('sport_id', PRIMARY_SPORT_ID)
-        .is('city_id', null)
-        .is('ends_on', null)
-        .maybeSingle();
-      const { data: starts } = openSeason && ids.length
-        ? await supabase.from('season_ratings').select('user_id, elo_start').eq('season_id', openSeason.id).in('user_id', ids)
-        : { data: [] };
-      const startById = new Map((starts || []).map((r) => [r.user_id, r.elo_start]));
-
-      const withCounts = (data || []).map((p) => {
-        const start = startById.get(p.id);
-        return {
-          ...p,
-          tournaments_played: countByPlayer.get(p.id) || 0,
-          seasonDelta: start != null && p.elo != null ? p.elo - start : null,
-        };
-      });
-
-      ratingCacheRef.current[cacheKey] = withCounts;
-      setPlayers(withCounts);
-    }
-    load();
-  }, [gender, category, tab, eloSeasonId]);
-
-  // Seasons are loaded once — the newest first, and the newest is what
-  // the tab opens on.
+  // Ело: an archived season, loaded when its chip is picked (the current
+  // table is loaded on open).
+  const eloKey = eloSeasonId ? `rating:elo:${eloSeasonId}` : 'rating:elo:current';
   useEffect(() => {
-    if ((tab !== 'avp' && tab !== 'rating') || seasons.length > 0) return;
-    async function load() {
-      const supabase = createClient();
-      const { data } = await supabase
-        .from('avp_seasons')
-        .select('id, name, kind, starts_on, ends_on, sport_id, city:cities(name)')
-        .order('starts_on', { ascending: false });
-      setSeasons(data || []);
-      setSeasonId((prev) => prev || (data || []).find((s) => (s.kind || 'avp') === 'avp')?.id || null);
-    }
-    load();
-  }, [tab, seasons.length]);
+    if (!eloSeasonId) return;
+    const key = `rating:elo:${eloSeasonId}`;
+    const cached = getCached(key);
+    if (cached) setEloByKey((m) => ({ ...m, [key]: cached }));
+    let alive = true;
+    loadEloArchived(createClient(), eloSeasonId).then((rows) => {
+      setCached(key, rows);
+      if (alive) setEloByKey((m) => ({ ...m, [key]: rows }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [eloSeasonId]);
 
-  // The standings view sums the ledger, so it holds points but no
-  // profiles — the players are fetched alongside and joined here.
+  // AVP: the chosen season (the current one by default).
   useEffect(() => {
-    if (tab !== 'avp' || !seasonId) return;
-    const cached = avpCacheRef.current[seasonId];
-    if (cached) {
-      setAvpRows(cached); // instant on a repeat visit — no spinner
-    } else {
-      setAvpLoading(true);
-    }
-
-    async function load() {
-      const supabase = createClient();
-      const { data: standings } = await supabase
-        .from('avp_standings')
-        .select('user_id, points, tournaments_counted')
-        .eq('season_id', seasonId)
-        .order('points', { ascending: false });
-
-      const ids = (standings || []).map((s) => s.user_id);
-      const { data: profiles } = ids.length
-        ? await supabase
-            .from('users')
-            .select('id, full_name, login, photo_url, gender, elo')
-            .in('id', ids)
-        : { data: [] };
-
-      const byId = new Map((profiles || []).map((p) => [p.id, p]));
-      const rows = (standings || [])
-        .map((s) => ({ ...s, player: byId.get(s.user_id) }))
-        .filter((s) => s.player);
-      avpCacheRef.current[seasonId] = rows;
-      setAvpRows(rows);
-      setAvpLoading(false);
-    }
-    load();
-  }, [tab, seasonId]);
+    if (!seasonId) return;
+    const key = `rating:avp:${seasonId}`;
+    const cached = getCached(key);
+    if (cached) setAvpByKey((m) => ({ ...m, [key]: cached }));
+    let alive = true;
+    loadAvp(createClient(), seasonId).then((rows) => {
+      setCached(key, rows);
+      if (alive) setAvpByKey((m) => ({ ...m, [key]: rows }));
+    });
+    return () => {
+      alive = false;
+    };
+  }, [seasonId]);
 
   // Typeahead for the two compare-player pickers — same debounced
   // search-then-select pattern as the admin panel's player search.
@@ -284,138 +362,18 @@ export default function RatingPage() {
     };
   }, [queryB]);
 
-  // Club-wide leaderboards for the Статистика tab — loaded once, lazily,
-  // the first time the tab is opened (same lazy pattern the rating/AVP
-  // tabs already use). Each of the three is one club-wide query rather
-  // than one query per player, so this stays fast regardless of how
-  // many people are in the club.
-  useEffect(() => {
-    if (tab !== 'stats' || clubStatsLoaded) return;
-    async function loadClubStats() {
-      const supabase = createClient();
-      const since3mo = new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString();
+  const q = searchTerm.trim().toLowerCase();
+  const matchesSearch = (p) => !q || p.login?.toLowerCase().includes(q) || p.full_name?.toLowerCase().includes(q);
+  const catDef = category === 'all' ? null : SKILL_CATEGORIES.find((c) => c.id === category);
+  const inCategory = (elo) => !catDef || (elo != null && elo >= catDef.range[0] && elo < catDef.range[1]);
 
-      // ── Longest current win streaks ──
-      // Fetched from a bounded recent window (3 months, same window as
-      // the Ело-gain stat below) rather than truly "all games ever" —
-      // a real active streak will always be inside a recent window;
-      // reaching back further would cost a much bigger query for
-      // streaks nobody would actually be riding any more.
-      const { data: recentMatches } = await supabase
-        .from('tournament_matches')
-        .select('team_a_players, team_b_players, set1, set2, set3, played_at')
-        .eq('played', true)
-        .gte('played_at', since3mo)
-        .order('played_at', { ascending: false })
-        .limit(500);
-
-      const gamesByPlayer = new Map();
-      (recentMatches || []).forEach((m) => {
-        const aWon = teamAWon(m);
-        [...(m.team_a_players || [])].forEach((id) => {
-          if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
-          gamesByPlayer.get(id).push({ won: aWon, played_at: m.played_at });
-        });
-        [...(m.team_b_players || [])].forEach((id) => {
-          if (!gamesByPlayer.has(id)) gamesByPlayer.set(id, []);
-          gamesByPlayer.get(id).push({ won: !aWon, played_at: m.played_at });
-        });
-      });
-
-      const streakByPlayer = [];
-      for (const [playerId, games] of gamesByPlayer.entries()) {
-        games.sort((a, b) => new Date(b.played_at) - new Date(a.played_at));
-        let streak = 0;
-        for (const g of games) {
-          if (!g.won) break;
-          streak++;
-        }
-        if (streak >= 2) streakByPlayer.push({ playerId, streak });
-      }
-      streakByPlayer.sort((a, b) => b.streak - a.streak);
-      const topStreaks = streakByPlayer; // full list — filtered+sliced by gender at render time
-
-      // ── Most GAMES won, every format EXCEPT Americanka ──
-      // Not "won the whole tournament" (that's placement=1 in
-      // tournament_placements) — individual match wins, the same way
-      // get_user_format_stats counts games_won for one player, just
-      // summed across the whole club and every non-Americanka format
-      // at once. Separate queries + a JS-side join, same proven
-      // pattern as the rating tab's own tournament count above —
-      // safer than relying on nested-filter syntax (`!inner` +
-      // dotted-path `.neq()`) that isn't used anywhere else in this
-      // codebase and hasn't been verified to work as expected here.
-      const { data: allTournaments } = await supabase.from('tournament_categories').select('id, event_id');
-      const { data: allEvents } = await supabase.from('tournament_events').select('id, format_kind');
-      const formatByEvent = new Map((allEvents || []).map((ev) => [ev.id, ev.format_kind]));
-      const nonAmerIds = (allTournaments || [])
-        .filter((t) => formatByEvent.get(t.event_id) && formatByEvent.get(t.event_id) !== 'americanka')
-        .map((t) => t.id);
-
-      const { data: nonAmerMatches } = nonAmerIds.length
-        ? await supabase
-            .from('tournament_matches')
-            .select('team_a_players, team_b_players, set1, set2, set3')
-            .in('category_id', nonAmerIds)
-            .eq('played', true)
-        : { data: [] };
-
-      const winsByPlayer = new Map();
-      (nonAmerMatches || []).forEach((m) => {
-        const aWon = teamAWon(m);
-        const winners = aWon ? m.team_a_players : m.team_b_players;
-        (winners || []).forEach((id) => {
-          winsByPlayer.set(id, (winsByPlayer.get(id) || 0) + 1);
-        });
-      });
-      const topWins = [...winsByPlayer.entries()]
-        .map(([playerId, wins]) => ({ playerId, wins }))
-        .sort((a, b) => b.wins - a.wins); // full list — filtered+sliced by gender at render time
-
-      // ── Biggest Ело gain, last 3 months ──
-      // reason='tournament_result' only — elo_history also holds
-      // 'admin_adjustment' (a manual correction by the admin), which is
-      // not "gained from playing" and would distort the leaderboard.
-      // Approval logs nothing: a new player's starting rating is written
-      // straight to users.elo, so it never reaches this query either.
-      const { data: eloRows } = await supabase
-        .from('elo_history')
-        .select('user_id, delta')
-        .eq('reason', 'tournament_result')
-        .gte('created_at', since3mo);
-      const gainByPlayer = new Map();
-      (eloRows || []).forEach((r) => {
-        gainByPlayer.set(r.user_id, (gainByPlayer.get(r.user_id) || 0) + r.delta);
-      });
-      const topGains = [...gainByPlayer.entries()]
-        .map(([playerId, gain]) => ({ playerId, gain }))
-        .filter((r) => r.gain > 0)
-        .sort((a, b) => b.gain - a.gain); // full list — filtered+sliced by gender at render time
-
-      // One shared name/avatar lookup for everyone appearing in any list.
-      const allIds = [
-        ...new Set([...topStreaks.map((r) => r.playerId), ...topWins.map((r) => r.playerId), ...topGains.map((r) => r.playerId)]),
-      ];
-      const { data: profiles } = allIds.length
-        ? await supabase.from('users').select('id, full_name, login, photo_url, gender').in('id', allIds)
-        : { data: [] };
-      const profileById = new Map((profiles || []).map((p) => [p.id, p]));
-
-      setClubStreaks(topStreaks.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
-      setClubTournamentWins(topWins.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
-      setClubEloGains(topGains.map((r) => ({ ...r, player: profileById.get(r.playerId) })).filter((r) => r.player));
-      setClubStatsLoaded(true);
-    }
-    loadClubStats();
-  }, [tab, clubStatsLoaded]);
-
-  const filteredAvp = avpRows
-    .filter((r) => r.player.gender === gender)
-    .filter((r) => {
-      const q = searchTerm.trim().toLowerCase();
-      if (!q) return true;
-      return r.player.login?.toLowerCase().includes(q) || r.player.full_name?.toLowerCase().includes(q);
-    });
+  const eloRows = eloByKey[eloKey];
+  const avpRows = seasonId ? avpByKey[`rating:avp:${seasonId}`] : [];
+  const eloLoading = eloRows === undefined || eloRows === null;
+  const avpLoading = seasonId ? avpRows === undefined : !club;
+  const players = eloRows || [];
+  const filteredPlayers = players.filter((p) => p.gender === gender && inCategory(p.elo) && matchesSearch(p));
+  const filteredAvp = (avpRows || []).filter((r) => r.player.gender === gender && matchesSearch(r.player));
 
   // AVP and Ело seasons are two independent tracks (migration 045).
   const avpSeasons = seasons.filter((s) => (s.kind || 'avp') === 'avp');
@@ -423,22 +381,14 @@ export default function RatingPage() {
   const eloSeasons = seasons.filter(
     (s) => s.kind === 'elo' && (s.sport_id || PRIMARY_SPORT_ID) === PRIMARY_SPORT_ID && !s.city
   );
-
-  const filteredPlayers = searchTerm.trim()
-    ? players.filter(
-        (p) =>
-          p.login.toLowerCase().includes(searchTerm.trim().toLowerCase()) ||
-          p.full_name.toLowerCase().includes(searchTerm.trim().toLowerCase())
-      )
-    : players;
+  const shownEloSeason = eloSeasonId ? eloSeasons.find((s) => s.id === eloSeasonId) : club?.elo || null;
+  const shownAvpSeason = avpSeasons.find((s) => s.id === seasonId) || null;
 
   // Club leaderboards, same gender toggle as the Ело/AVP tabs — filtered
-  // then capped to 5, in that order, so a gender with fewer than 5
-  // qualifying players just shows however many it actually has instead
-  // of borrowing spots from an overall top-5 computed before the split.
-  const genderClubStreaks = clubStreaks.filter((r) => r.player?.gender === gender).slice(0, 5);
-  const genderClubTournamentWins = clubTournamentWins.filter((r) => r.player?.gender === gender).slice(0, 5);
-  const genderClubEloGains = clubEloGains.filter((r) => r.player?.gender === gender).slice(0, 5);
+  // then capped to 5, in that order.
+  const genderClubStreaks = (clubStats?.streaks || []).filter((r) => r.player?.gender === gender).slice(0, 5);
+  const genderClubTournamentWins = (clubStats?.wins || []).filter((r) => r.player?.gender === gender).slice(0, 5);
+  const genderClubEloGains = (clubStats?.gains || []).filter((r) => r.player?.gender === gender).slice(0, 5);
 
   async function handleCompare() {
     setCompareError('');
@@ -484,16 +434,20 @@ export default function RatingPage() {
         {/* Elo and AVP answer different questions and sit side by side:
             Elo is how strong a player is, AVP is what they have won this
             season. Neither is derived from the other. */}
-        <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => setTab('rating')} aria-pressed={tab === 'rating'}>
+        <button className={`${styles.tabBtn} ${tab === 'rating' ? styles.tabBtnOn : ''}`} onClick={() => openTab('rating')} aria-pressed={tab === 'rating'}>
           Ело
         </button>
-        <button className={`${styles.tabBtn} ${tab === 'avp' ? styles.tabBtnOn : ''}`} onClick={() => setTab('avp')} aria-pressed={tab === 'avp'}>
+        <button className={`${styles.tabBtn} ${tab === 'avp' ? styles.tabBtnOn : ''}`} onClick={() => openTab('avp')} aria-pressed={tab === 'avp'}>
           AVP
         </button>
-        <button className={`${styles.tabBtn} ${tab === 'stats' ? styles.tabBtnOn : ''}`} onClick={() => setTab('stats')} aria-pressed={tab === 'stats'}>
+        <button className={`${styles.tabBtn} ${tab === 'stats' ? styles.tabBtnOn : ''}`} onClick={() => openTab('stats')} aria-pressed={tab === 'stats'}>
           Статистика
         </button>
       </div>
+
+      {tab === 'rating' && <SeasonNote season={shownEloSeason} archived={Boolean(eloSeasonId)} />}
+      {tab === 'avp' && <SeasonNote season={shownAvpSeason} />}
+      {tab === 'stats' && <SeasonNote season={club?.elo} />}
 
       {tab === 'rating' && (
         <>
@@ -572,7 +526,8 @@ export default function RatingPage() {
             </div>
           )}
 
-          {filteredPlayers.length === 0 && <div className={styles.empty}>Немає гравців</div>}
+          {eloLoading && <div className={styles.empty}>Завантаження...</div>}
+          {!eloLoading && filteredPlayers.length === 0 && <div className={styles.empty}>Немає гравців</div>}
 
           {filteredPlayers.map((p, i) => (
             <a
@@ -680,11 +635,12 @@ export default function RatingPage() {
             </button>
           </div>
 
-          <div className={styles.sectionLabel}>Клубна статистика</div>
+          <div className={styles.sectionLabel}>Клубна статистика{club?.elo ? ` · ${club.elo.name}` : ''}</div>
+          {!clubStats && <div className={styles.empty}>Завантаження...</div>}
 
           <div className={styles.clubStatCard}>
-            <div className={styles.clubStatTitle}>Найдовші серії перемог</div>
-            {genderClubStreaks.length === 0 && <div className={styles.empty}>Ще немає активних серій</div>}
+            <div className={styles.clubStatTitle}>Найдовші поточні серії перемог у сезоні</div>
+            {clubStats && genderClubStreaks.length === 0 && <div className={styles.empty}>Ще немає активних серій</div>}
             {genderClubStreaks.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
@@ -696,8 +652,8 @@ export default function RatingPage() {
           </div>
 
           <div className={styles.clubStatCard}>
-            <div className={styles.clubStatTitle}>Найбільше перемог у турнірах (крім Americanka)</div>
-            {genderClubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            <div className={styles.clubStatTitle}>Найбільше перемог в іграх за сезон (крім Americanka)</div>
+            {clubStats && genderClubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
             {genderClubTournamentWins.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
@@ -709,8 +665,10 @@ export default function RatingPage() {
           </div>
 
           <div className={styles.clubStatCard}>
-            <div className={styles.clubStatTitle}>Найбільший приріст Ело за 3 місяці</div>
-            {genderClubEloGains.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
+            <div className={styles.clubStatTitle}>
+              Найбільший приріст Ело {club?.elo ? 'за сезон' : 'за 3 місяці'}
+            </div>
+            {clubStats && genderClubEloGains.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
             {genderClubEloGains.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>
                 <span className={styles.clubStatRank}>{i + 1}.</span>
@@ -839,6 +797,7 @@ function CompareResult({ playerA, playerB, statsA, statsB }) {
         </div>
       </div>
 
+      <div className={styles.compareScope}>За весь час</div>
       {allFormats.length === 0 && <div className={styles.empty}>Ще немає завершених турнірів у жодного з гравців</div>}
 
       {allFormats.map((format) => {

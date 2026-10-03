@@ -4,7 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
-import { categoryForElo, eloForecast, SKILL_CATEGORIES } from '@/lib/elo';
+import { categoryForElo, eloForecast } from '@/lib/elo';
 import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
@@ -15,6 +15,9 @@ import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
 import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
+import { loadPlayerGames } from '@/lib/playerGames';
+import HeaderStatCards from '@/components/HeaderStatCards';
+import { getCached, setCached } from '@/lib/clientCache';
 import { winPluralUk } from '@/lib/pluralize';
 import styles from './profile.module.css';
 
@@ -23,8 +26,9 @@ export default function ProfilePage() {
   const { player, loading, refresh: refreshPlayer } = useCurrentPlayer();
   const [tournamentHistory, setTournamentHistory] = useState([]);
   const [eloGameLog, setEloGameLog] = useState([]);
-  const [formatStats, setFormatStats] = useState([]);
+  const [games, setGames] = useState([]);
   const [partners, setPartners] = useState([]);
+  const [headerStats, setHeaderStats] = useState(null);
   const [opponentElo, setOpponentElo] = useState(1200);
 
   const [openTournamentId, setOpenTournamentId] = useState(null);
@@ -48,37 +52,47 @@ export default function ProfilePage() {
   const [editError, setEditError] = useState('');
   const [editSaving, setEditSaving] = useState(false);
 
-  const [eloRank, setEloRank] = useState(null);
-  const [avpStanding, setAvpStanding] = useState(null);
-  const [winStreak, setWinStreak] = useState(0);
+  const winStreak = headerStats?.winStreak || 0;
 
+  // All five loads are independent — they run at once (they used to run
+  // one after another). The last-known result is shown first, so coming
+  // back to the profile is instant; the fresh one replaces it quietly.
   useEffect(() => {
     if (!player) return;
+    const key = `profile:${player.id}`;
+    const apply = (d) => {
+      setTournamentHistory(d.th);
+      setEloGameLog(d.elog);
+      setGames(d.games);
+      setPartners(d.partners);
+      setHeaderStats(d.header);
+    };
+    const cached = getCached(key);
+    if (cached) apply(cached);
+
+    let alive = true;
     async function load() {
       const supabase = createClient();
-
-      const { data: th } = await supabase.rpc('get_user_tournament_history', { p_user_id: player.id });
-      setTournamentHistory(th || []);
-
-      const { data: elog } = await supabase.rpc('get_user_elo_log', { p_user_id: player.id });
-      setEloGameLog(elog || []);
-
-      const { data: fs } = await supabase.rpc('get_user_format_stats', { p_user_id: player.id });
-      setFormatStats(fs || []);
-
-      const { data: p } = await supabase
-        .from('partner_stats')
-        .select('*, partner:users!partner_stats_partner_id_fkey(id, full_name, photo_url)')
-        .eq('user_id', player.id)
-        .order('games_together', { ascending: false });
-      setPartners(p || []);
-
-      const { eloRank: rank, avpStanding: avp, winStreak: streak } = await loadPlayerHeaderStats(supabase, player);
-      setEloRank(rank);
-      setAvpStanding(avp);
-      setWinStreak(streak);
+      const [{ data: th }, { data: elog }, gameList, { data: p }, header] = await Promise.all([
+        supabase.rpc('get_user_tournament_history', { p_user_id: player.id }),
+        supabase.rpc('get_user_elo_log', { p_user_id: player.id }),
+        loadPlayerGames(supabase, player.id),
+        supabase
+          .from('partner_stats')
+          .select('*, partner:users!partner_stats_partner_id_fkey(id, full_name, photo_url)')
+          .eq('user_id', player.id)
+          .order('games_together', { ascending: false }),
+        loadPlayerHeaderStats(supabase, player),
+      ]);
+      const fresh = { th: th || [], elog: elog || [], games: gameList, partners: p || [], header };
+      setCached(key, fresh);
+      setCached(`header:${player.id}`, header);
+      if (alive) apply(fresh);
     }
     load();
+    return () => {
+      alive = false;
+    };
   }, [player]);
 
   async function openTournamentDetails(tournamentId) {
@@ -257,21 +271,6 @@ export default function ProfilePage() {
   const e = forecast.chance;
   const winGain = forecast.win;
   const lossDelta = forecast.loss;
-  const totalGames = formatStats.reduce((s, r) => s + (r.games_played || 0), 0);
-  const totalWins = formatStats.reduce((s, r) => s + (r.games_won || 0), 0);
-  const winRate = totalGames > 0 ? Math.round((totalWins / totalGames) * 100) : 0;
-
-  // Elo progress toward the next category — same computation as the
-  // home page header (lib/playerHeaderStats.js covers the rank/AVP/
-  // streak part; this bit stays local since it only needs categoryForElo,
-  // already imported here for the header label above).
-  const playerCategory = player ? categoryForElo(player.elo) : null;
-  const categoryIndex = playerCategory ? SKILL_CATEGORIES.findIndex((c) => c.id === playerCategory.id) : -1;
-  const nextCategory = categoryIndex >= 0 && categoryIndex < SKILL_CATEGORIES.length - 1 ? SKILL_CATEGORIES[categoryIndex + 1] : null;
-  const eloProgressPct = playerCategory
-    ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
-    : 0;
-
   return (
     <div className={styles.page}>
       <div className={`${styles.header} riseIn`}>
@@ -312,33 +311,8 @@ export default function ProfilePage() {
 
         {photoError && <div className={styles.photoError}>{photoError}</div>}
 
-        {player.approval_status !== 'pending' && player.elo != null && (
-          <div className={styles.headerStatsRow}>
-            <div className={styles.headerStatCard}>
-              <div className={styles.headerStatLabel}>Ело</div>
-              <div className={styles.headerStatValue}>{player.elo}</div>
-              {playerCategory && (
-                <div className={styles.headerStatBar}>
-                  <div className={styles.headerStatBarFill} style={{ width: `${eloProgressPct}%` }} />
-                </div>
-              )}
-              <div className={styles.headerStatMeta}>
-                {eloRank ? `№${eloRank}` : ''}
-                {nextCategory
-                  ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}`
-                  : playerCategory
-                  ? ' · Найвища категорія'
-                  : ''}
-              </div>
-            </div>
-            {avpStanding && (
-              <div className={`${styles.headerStatCard} ${styles.headerStatCardAvp}`}>
-                <div className={styles.headerStatLabelAvp}>AVP сезон</div>
-                <div className={styles.headerStatValueAvp}>{avpStanding.points}</div>
-                <div className={styles.headerStatMetaAvp}>№{avpStanding.rank} сезону</div>
-              </div>
-            )}
-          </div>
+        {player.approval_status !== 'pending' && (
+          <HeaderStatCards styles={styles} player={me} stats={headerStats} />
         )}
 
         <button className={styles.editProfileBtn} onClick={openEdit} style={{ marginTop: 10 }}>
@@ -362,7 +336,7 @@ export default function ProfilePage() {
       )}
 
       <div className="riseIn" style={{ animationDelay: '0.06s' }}>
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} totalGames={totalGames} winRate={winRate} />
+        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} games={games} season={headerStats?.avpSeason} />
       </div>
 
       <div className={styles.sectionLabel}>Рейтинг AVP</div>

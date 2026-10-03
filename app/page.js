@@ -4,11 +4,14 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
-import { categoryForElo, SKILL_CATEGORIES } from '@/lib/elo';
+import { categoryForElo } from '@/lib/elo';
 import { getFormat } from '@/lib/formats';
 import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
 import CategoryRow from '@/components/CategoryRow';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
+import HeaderStatCards from '@/components/HeaderStatCards';
+import { useClubSeasons, seasonHeadline } from '@/lib/seasons';
+import { getCached, setCached } from '@/lib/clientCache';
 import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
 import VenueName from '@/components/VenueName';
@@ -28,9 +31,11 @@ export default function HomePage() {
   const [avpExplainerOpen, setAvpExplainerOpen] = useState(false);
   const [communityCount, setCommunityCount] = useState(0);
   const [recentJoiners, setRecentJoiners] = useState([]);
-  const [eloRank, setEloRank] = useState(null);
-  const [avpStanding, setAvpStanding] = useState(null); // { points, rank }
-  const [winStreak, setWinStreak] = useState(0);
+  // Everything below starts from the last-known values (clientCache), so
+  // coming back to Головна shows the page at once and refreshes quietly.
+  const [headerStats, setHeaderStats] = useState(null);
+  const winStreak = headerStats?.winStreak || 0;
+  const seasons = useClubSeasons();
 
   // Swipe left to jump to the next tab (Турніри) — installed-PWA
   // users expect horizontal swipes to move between sections, not
@@ -69,8 +74,23 @@ export default function HomePage() {
   }, [router]);
 
   useEffect(() => {
+    const home = getCached('home:data');
+    if (home) {
+      setNextEvent(home.nextEvent);
+      setNextCategories(home.nextCategories);
+      setCommunityCount(home.communityCount);
+      setRecentJoiners(home.recentJoiners);
+    }
+  }, []);
+
+  useEffect(() => {
+    if (player?.id) {
+      const cached = getCached(`header:${player.id}`);
+      if (cached) setHeaderStats(cached);
+    }
     if (loading) return;
     const supabase = createClient();
+    const remember = (patch) => setCached('home:data', { ...(getCached('home:data') || {}), ...patch });
 
     async function loadNextTournament() {
       // A "next tournament" is really a whole EVENT, which can have
@@ -91,6 +111,7 @@ export default function HomePage() {
       if (!nearest?.event_id) {
         setNextEvent(null);
         setNextCategories([]);
+        remember({ nextEvent: null, nextCategories: [] });
         return;
       }
 
@@ -108,7 +129,7 @@ export default function HomePage() {
       const isPairFormat = format?.registrationType && format.registrationType !== 'solo';
       const enrichedCategories = await enrichCategoriesWithSlots(supabase, cats || [], format, event?.avp_tier);
 
-      setNextEvent({
+      const shown = {
         id: event?.id,
         format,
         isPairFormat,
@@ -117,8 +138,10 @@ export default function HomePage() {
         location: event?.location,
         scheduled_at: nearest.scheduled_at,
         status: cats?.[0]?.status,
-      });
+      };
+      setNextEvent(shown);
       setNextCategories(enrichedCategories);
+      remember({ nextEvent: shown, nextCategories: enrichedCategories });
     }
 
     async function loadAnnouncements() {
@@ -146,27 +169,25 @@ export default function HomePage() {
     }
 
     async function loadCommunity() {
-      const { count } = await supabase
-        .from('users')
-        .select('id', { count: 'exact', head: true })
-        .eq('approval_status', 'approved');
+      const [{ count }, { data: recent }] = await Promise.all([
+        supabase.from('users').select('id', { count: 'exact', head: true }).eq('approval_status', 'approved'),
+        supabase
+          .from('users')
+          .select('id, full_name, photo_url')
+          .eq('approval_status', 'approved')
+          .order('created_at', { ascending: false })
+          .limit(8),
+      ]);
       setCommunityCount(count || 0);
-
-      const { data: recent } = await supabase
-        .from('users')
-        .select('id, full_name, photo_url')
-        .eq('approval_status', 'approved')
-        .order('created_at', { ascending: false })
-        .limit(8);
       setRecentJoiners(recent || []);
+      remember({ communityCount: count || 0, recentJoiners: recent || [] });
     }
 
     async function loadRankAndStreak() {
       if (!player?.id) return;
-      const { eloRank: rank, avpStanding: avp, winStreak: streak } = await loadPlayerHeaderStats(supabase, player);
-      setEloRank(rank);
-      setAvpStanding(avp);
-      setWinStreak(streak);
+      const stats = await loadPlayerHeaderStats(supabase, player);
+      setCached(`header:${player.id}`, stats);
+      setHeaderStats(stats);
     }
 
     loadNextTournament();
@@ -214,15 +235,7 @@ export default function HomePage() {
     );
   }
 
-  // Elo progress toward the next category, for the header stat card.
-  // Top category (A) has nowhere further to go, so nextCategory stays
-  // null and the meta line falls back to just the rank.
-  const playerCategory = player ? categoryForElo(player.elo) : null;
-  const categoryIndex = playerCategory ? SKILL_CATEGORIES.findIndex((c) => c.id === playerCategory.id) : -1;
-  const nextCategory = categoryIndex >= 0 && categoryIndex < SKILL_CATEGORIES.length - 1 ? SKILL_CATEGORIES[categoryIndex + 1] : null;
-  const eloProgressPct = playerCategory
-    ? Math.min(100, Math.max(0, Math.round(((player.elo - playerCategory.range[0]) / (playerCategory.range[1] - playerCategory.range[0])) * 100)))
-    : 0;
+  const seasonText = seasonHeadline(seasons);
 
   return (
     <div className={styles.page}>
@@ -234,6 +247,11 @@ export default function HomePage() {
             </span>
             <span className={styles.headerBrandName}>{VENUE.brandName}</span>
           </div>
+          {seasonText && (
+            <a href="/rating" className={styles.headerSeason} title="Поточний сезон рейтингу">
+              {seasonText}
+            </a>
+          )}
         </div>
         <div className={styles.headerLocation}>
           <IconMapPin size={13} />
@@ -250,33 +268,8 @@ export default function HomePage() {
               </div>
             </div>
           </div>
-          {player.approval_status !== 'pending' && player.elo != null && (
-            <div className={styles.headerStatsRow}>
-              <div className={styles.headerStatCard}>
-                <div className={styles.headerStatLabel}>Ело</div>
-                <div className={styles.headerStatValue}>{player.elo}</div>
-                {playerCategory && (
-                  <div className={styles.headerStatBar}>
-                    <div className={styles.headerStatBarFill} style={{ width: `${eloProgressPct}%` }} />
-                  </div>
-                )}
-                <div className={styles.headerStatMeta}>
-                  {eloRank ? `№${eloRank}` : ''}
-                  {nextCategory
-                    ? ` · ${nextCategory.range[0] - player.elo} до Кат. ${nextCategory.id}`
-                    : playerCategory
-                    ? ' · Найвища категорія'
-                    : ''}
-                </div>
-              </div>
-              {avpStanding && (
-                <div className={`${styles.headerStatCard} ${styles.headerStatCardAvp}`}>
-                  <div className={styles.headerStatLabelAvp}>AVP сезон</div>
-                  <div className={styles.headerStatValueAvp}>{avpStanding.points}</div>
-                  <div className={styles.headerStatMetaAvp}>№{avpStanding.rank} сезону</div>
-                </div>
-              )}
-            </div>
+          {player.approval_status !== 'pending' && (
+            <HeaderStatCards styles={styles} player={player} stats={headerStats} />
           )}
           </>
         ) : (

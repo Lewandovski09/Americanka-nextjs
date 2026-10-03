@@ -8,96 +8,97 @@
 
 import { teamAWon } from '@/lib/formats/sets';
 import type { createClient } from '@/lib/supabase/client';
-import { PRIMARY_SPORT_ID } from './sports';
+import { loadClubSeasons } from './seasons';
+
+export interface SeasonRef {
+  id: string;
+  name: string;
+  starts_on: string;
+  ends_on: string | null;
+}
 
 export interface HeaderStats {
   eloRank: number | null;
   avpStanding: { points: number; rank: number } | null;
   winStreak: number;
+  /** The seasons these numbers belong to — shown on the cards. */
+  avpSeason: SeasonRef | null;
+  eloSeason: SeasonRef | null;
+  /** Ело change since the current Ело season opened (null = unknown). */
+  eloSeasonDelta: number | null;
 }
 
 /**
  * @param supabase - a browser Supabase client (createClient()), not the
  *   admin one — this always runs client-side.
  * @param player - needs at least { id, elo, gender }.
+ *
+ * Every query below is independent once the seasons are known (and those
+ * are cached for the whole tab), so they all run at once — this used to
+ * be six requests one after another.
  */
 export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createClient>, player: { id: string; elo?: number | null; gender?: string | null }): Promise<HeaderStats> {
-  let eloRank: number | null = null;
+  const empty: HeaderStats = { eloRank: null, avpStanding: null, winStreak: 0, avpSeason: null, eloSeason: null, eloSeasonDelta: null };
+  if (!player?.id) return empty;
+
+  const seasons = await loadClubSeasons(supabase);
+  const avpSeason = (seasons.avp as SeasonRef | null) || null;
+  const eloSeason = (seasons.elo as SeasonRef | null) || null;
+  const none = Promise.resolve({ data: null, count: null } as any);
+
+  const [rankRes, standingsRes, sameGenderRes, recentRes, startRes] = await Promise.all([
+    // Rank within the same gender — the pool the rating page's list is
+    // built from, so the number matches what they'd see there.
+    player.elo != null && player.gender
+      ? supabase
+          .from('users')
+          .select('id', { count: 'exact', head: true })
+          .eq('gender', player.gender)
+          .eq('approval_status', 'approved')
+          .gt('elo', player.elo)
+      : none,
+    avpSeason
+      ? supabase.from('avp_standings').select('user_id, points').eq('season_id', avpSeason.id).order('points', { ascending: false })
+      : none,
+    // AVP is ranked by gender everywhere else in the app (AvpSeasonCard,
+    // the AVP tab) — the header must agree with them.
+    avpSeason && player.gender ? supabase.from('users').select('id').eq('gender', player.gender) : none,
+    // Win streak: newest played games first by played_at (a bracket's
+    // rows are all inserted together, so created_at says nothing about
+    // play order); counted back to the first loss.
+    supabase
+      .from('tournament_matches')
+      .select('team_a_players, team_b_players, set1, set2, set3, played_at')
+      .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
+      .eq('played', true)
+      .order('played_at', { ascending: false })
+      .limit(20),
+    eloSeason
+      ? supabase.from('season_ratings').select('elo_start').eq('season_id', eloSeason.id).eq('user_id', player.id).maybeSingle()
+      : none,
+  ]);
+
+  const eloRank = player.elo != null && player.gender ? (rankRes.count ?? 0) + 1 : null;
+
   let avpStanding: HeaderStats['avpStanding'] = null;
+  if (avpSeason) {
+    const rows: { user_id: string; points: number }[] = standingsRes.data || [];
+    const same = player.gender ? new Set((sameGenderRes.data || []).map((p: { id: string }) => p.id)) : null;
+    const scoped = same ? rows.filter((r) => same.has(r.user_id)) : rows;
+    const idx = scoped.findIndex((r) => r.user_id === player.id);
+    avpStanding = idx === -1 ? null : { points: scoped[idx].points, rank: idx + 1 };
+  }
+
   let winStreak = 0;
-
-  if (!player?.id) return { eloRank, avpStanding, winStreak };
-
-  // Rank within the same gender+category — same pool the rating page's
-  // own list is built from, so the number matches what they'd see there.
-  if (player.elo != null && player.gender) {
-    const { count } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .eq('gender', player.gender)
-      .eq('approval_status', 'approved')
-      .gt('elo', player.elo);
-    eloRank = (count ?? 0) + 1;
-  }
-
-  // AVP: current season = newest one, same "newest first" rule
-  // rating.js's AVP tab already opens on.
-  const { data: season } = await supabase
-    .from('avp_seasons')
-    .select('id')
-    // Same scope as AvpSeasonCard: the primary sport's club-wide season.
-    .eq('kind', 'avp')
-    .eq('sport_id', PRIMARY_SPORT_ID)
-    .is('city_id', null)
-    .order('starts_on', { ascending: false })
-    .limit(1)
-    .maybeSingle();
-
-  if (season) {
-    const { data: rows } = await supabase
-      .from('avp_standings')
-      .select('user_id, points')
-      .eq('season_id', season.id)
-      .order('points', { ascending: false });
-
-    // Same-gender only — AVP standings, like Elo, are ranked separately
-    // by gender everywhere else in the app (AvpSeasonCard.js already
-    // does this, with a comment noting exactly why: two different ranks
-    // shown for the same season on the same page is worse than either
-    // alone). Ranking against everyone combined here is what produced
-    // that mismatch — "№5 сезону" in the header against "3-е місце" in
-    // the AVP card below, for the same player, same season.
-    const ids = (rows || []).map((r) => r.user_id);
-    const { data: profiles } = player.gender && ids.length
-      ? await supabase.from('users').select('id, gender').in('id', ids)
-      : { data: [] };
-    const sameGenderIds = new Set((profiles || []).filter((p) => p.gender === player.gender).map((p) => p.id));
-    const scopedRows = player.gender ? (rows || []).filter((r) => sameGenderIds.has(r.user_id)) : rows || [];
-
-    const idx = scopedRows.findIndex((r) => r.user_id === player.id);
-    avpStanding = idx === -1 ? null : { points: scopedRows[idx].points, rank: idx + 1 };
-  }
-
-  // Win streak: most recent played games this player was in, newest
-  // first by played_at (not created_at — a bracket's rows are all
-  // inserted together at tournament start, so created_at is the same
-  // for every game in it and says nothing about play order). Counts
-  // consecutive wins from the most recent game back, stopping at the
-  // first loss.
-  const { data: recent } = await supabase
-    .from('tournament_matches')
-    .select('team_a_players, team_b_players, set1, set2, set3, played_at')
-    .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
-    .eq('played', true)
-    .order('played_at', { ascending: false })
-    .limit(20);
-
-  for (const m of recent || []) {
+  for (const m of recentRes.data || []) {
     const onTeamA = (m.team_a_players || []).includes(player.id);
     const won = teamAWon(m) === onTeamA;
     if (!won) break;
     winStreak++;
   }
 
-  return { eloRank, avpStanding, winStreak };
+  const start = startRes.data?.elo_start;
+  const eloSeasonDelta = start != null && player.elo != null ? player.elo - start : null;
+
+  return { eloRank, avpStanding, winStreak, avpSeason, eloSeason, eloSeasonDelta };
 }

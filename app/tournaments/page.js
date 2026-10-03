@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState, useRef } from 'react';
+import { useEffect, useState } from 'react';
+import { getCached, setCached } from '@/lib/clientCache';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
@@ -16,14 +17,15 @@ const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 
 export default function EventsPage() {
   const { player } = useCurrentPlayer();
-  const [tab, setTab] = useState(TABS.SCHEDULED);
-  const [events, setEvents] = useState([]);
-  const [loading, setLoading] = useState(true);
+  const [tab, setTab] = useState(() => getCached('tournaments:tab') || TABS.SCHEDULED);
+  const [events, setEvents] = useState(() => getCached(`tournaments:${getCached('tournaments:tab') || TABS.SCHEDULED}`) || []);
+  const [loading, setLoading] = useState(() => !getCached(`tournaments:${getCached('tournaments:tab') || TABS.SCHEDULED}`));
   // Same reasoning as app/rating/page.js: switching straight back to a
   // tab shown moments ago used to refetch it from scratch every time,
   // which is what made the switch itself feel slow. Cache per tab,
   // show it instantly, refresh quietly underneath.
-  const eventsCacheRef = useRef({}); // tab -> events[]
+  // The cache lives in lib/clientCache, so it also survives leaving the
+  // page — coming back from another section is instant too.
 
   // City filter: an event's city is its venue's (migration 043). The
   // chips only appear once there is more than one city to choose from.
@@ -34,7 +36,8 @@ export default function EventsPage() {
     cityId === 'all' ? events : events.filter((ev) => findVenue(venues, ev.location)?.city?.id === cityId);
 
   useEffect(() => {
-    const cached = eventsCacheRef.current[tab];
+    setCached('tournaments:tab', tab);
+    const cached = getCached(`tournaments:${tab}`);
     if (cached) {
       setEvents(cached);
       setLoading(false);
@@ -66,11 +69,16 @@ export default function EventsPage() {
         })
       );
 
-      eventsCacheRef.current[tab] = enrichedEvents;
+      setCached(`tournaments:${tab}`, enrichedEvents);
+      if (!alive) return; // the player already switched to another tab
       setEvents(enrichedEvents);
       setLoading(false);
     }
+    let alive = true;
     load();
+    return () => {
+      alive = false;
+    };
   }, [tab]);
 
   return (

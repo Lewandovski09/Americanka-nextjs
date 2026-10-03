@@ -120,3 +120,31 @@
   flex-shrink: 0;
   margin-left: 10px;
 }
+
+/* Season / all-time switch above the numbers. */
+.scopeRow {
+  display: flex;
+  gap: 6px;
+  padding: 10px 16px 0;
+}
+
+.scopeBtn {
+  flex: 1;
+  border: 1.5px solid var(--border-light);
+  background: none;
+  border-radius: 999px;
+  padding: 6px 10px;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.scopeBtnOn {
+  background: var(--navy);
+  border-color: var(--navy);
+  color: #fff;
+}

@@ -2,6 +2,7 @@
 
 import { useState } from 'react';
 import { IconChevronDown } from '@/components/Icons';
+import { inSeason } from '@/lib/seasons';
 import styles from './TournamentStatsBreakdown.module.css';
 
 // Canonical tournament formats. "gendered" covers the single-sex
@@ -66,8 +67,23 @@ function groupBy(list, keyFn) {
  * line renders above the rows instead of those two numbers living in
  * their own separate cards elsewhere on the page.
  */
-export default function TournamentStatsBreakdown({ history, gender, totalGames, winRate }) {
+export default function TournamentStatsBreakdown({ history: allHistory, gender, games, season, totalGames: allGames, winRate: allWinRate }) {
   const [openKey, setOpenKey] = useState(null);
+  // «Сезон …» (default when there is a season) or «Весь час».
+  const [scope, setScope] = useState('season');
+  const seasonMode = Boolean(season) && scope === 'season';
+
+  const history = seasonMode ? allHistory.filter((h) => inSeason(h.scheduled_at, season)) : allHistory;
+  // `games` ([{ won, played_at }]) lets the summary follow the scope; the
+  // older totalGames/winRate props are all-time only.
+  let totalGames = allGames;
+  let winRate = allWinRate;
+  if (Array.isArray(games)) {
+    const list = seasonMode ? games.filter((g) => inSeason(g.played_at, season)) : games;
+    const wins = list.filter((g) => g.won).length;
+    totalGames = list.length;
+    winRate = list.length > 0 ? Math.round((wins / list.length) * 100) : 0;
+  }
 
   function formatLabel(f) {
     if (f.key === 'gendered') return gender === 'F' ? 'Жіночі' : 'Чоловічі';
@@ -92,6 +108,24 @@ export default function TournamentStatsBreakdown({ history, gender, totalGames, 
 
   return (
     <div className={styles.wrap}>
+      {season && (
+        <div className={styles.scopeRow}>
+          <button
+            className={`${styles.scopeBtn} ${seasonMode ? styles.scopeBtnOn : ''}`}
+            onClick={() => setScope('season')}
+            aria-pressed={seasonMode}
+          >
+            {season.name}
+          </button>
+          <button
+            className={`${styles.scopeBtn} ${!seasonMode ? styles.scopeBtnOn : ''}`}
+            onClick={() => setScope('all')}
+            aria-pressed={!seasonMode}
+          >
+            Весь час
+          </button>
+        </div>
+      )}
       {totalGames > 0 && (
         <div className={styles.gamesSummary}>
           {totalGames} {totalGames === 1 ? 'гра' : 'ігор'} зіграно · {winRate}% перемог

@@ -683,3 +683,19 @@
 .ctaBtnInline:hover {
   background: var(--rust-dark);
 }
+
+/* Current season pill, top right of the home header. */
+.headerSeason {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  color: #fff;
+  background: rgba(232, 93, 74, 0.9);
+  padding: 5px 10px;
+  border-radius: 999px;
+  text-decoration: none;
+  white-space: nowrap;
+  max-width: 60%;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}

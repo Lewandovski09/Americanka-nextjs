@@ -1,6 +1,6 @@
 'use client';
 
-import { useCallback, useEffect, useState } from 'react';
+import { createContext, createElement, useCallback, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
 // If a Supabase call hangs (no response at all — not even an
@@ -13,13 +13,16 @@ function withTimeout(promise, ms, timeoutValue) {
   ]);
 }
 
+const PlayerContext = createContext(null);
+
 /**
- * Returns the current authenticated user's full player profile row
- * (from the `players` table, not just the bare Supabase Auth user).
- * Redirects logic is left to the calling page — this hook only
- * fetches data.
+ * Loads the signed-in player ONCE for the whole app (mounted in the root
+ * layout). Every page used to call the loader itself, so every tap on the
+ * bottom nav re-ran auth.getUser() and the profile query — two network
+ * round trips and a skeleton before anything could show. Now a page
+ * reads the already-loaded row from context and renders at once.
  */
-export function useCurrentPlayer() {
+export function PlayerProvider({ children }) {
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
   // Bumped by refresh() to re-run the load below. Pages that change the
@@ -79,8 +82,11 @@ export function useCurrentPlayer() {
 
     load();
 
-    const { data: listener } = supabase.auth.onAuthStateChange(() => {
-      load();
+    // Only a real change of who is signed in needs a reload. The initial
+    // event duplicates the load above, and the hourly token refresh does
+    // not change the player.
+    const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') load();
     });
     return () => {
       isMounted = false;
@@ -88,5 +94,15 @@ export function useCurrentPlayer() {
     };
   }, [reloadKey]);
 
-  return { player, loading, refresh };
+  return createElement(PlayerContext.Provider, { value: { player, loading, refresh } }, children);
+}
+
+/**
+ * The current authenticated user's profile row (from `users`, not just
+ * the bare Supabase Auth user). Redirect logic is left to the caller.
+ */
+export function useCurrentPlayer() {
+  const ctx = useContext(PlayerContext);
+  if (!ctx) throw new Error('useCurrentPlayer must be used inside <PlayerProvider> (app/layout.js)');
+  return ctx;
 }
