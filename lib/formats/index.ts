@@ -119,7 +119,7 @@ export interface FormatKind {
 export const FORMAT_KINDS: Record<FormatKindId, FormatKind> = {
   americanka: {
     kind: 'americanka',
-    displayName: 'Американка',
+    displayName: 'Americanka',
     description:
       'Індивідуальна реєстрація, завжди 8 гравців у категорії. Кожен грає з кожним по 1 партії, рахунок до суми 31.',
     registrationType: 'solo', // one player per application

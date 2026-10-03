@@ -695,7 +695,7 @@ export default function RatingPage() {
           </div>
 
           <div className={styles.clubStatCard}>
-            <div className={styles.clubStatTitle}>Найбільше перемог у турнірах (крім Американки)</div>
+            <div className={styles.clubStatTitle}>Найбільше перемог у турнірах (крім Americanka)</div>
             {genderClubTournamentWins.length === 0 && <div className={styles.empty}>Ще немає даних</div>}
             {genderClubTournamentWins.map((r, i) => (
               <div key={r.playerId} className={styles.clubStatRow}>

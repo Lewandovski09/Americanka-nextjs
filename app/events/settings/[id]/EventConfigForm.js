@@ -228,7 +228,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
         </>
       )}
       {format.scoring === 'sum31' && (
-        <div className={styles.infoBox}>Американка — рахунок завжди до суми 31.</div>
+        <div className={styles.infoBox}>Americanka — рахунок завжди до суми 31.</div>
       )}
 
       <label className={styles.label}>Рівень AVP</label>

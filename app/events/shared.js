@@ -327,7 +327,7 @@ export function StartEventButton({ event, categories, format, busy, post }) {
       )}
       {empty.length === 0 && shortHanded.length > 0 && (
         <div className={styles.hint}>
-          Для американки потрібно рівно 8 гравців:{' '}
+          Для Americanka потрібно рівно 8 гравців:{' '}
           {shortHanded.map((c) => `${label(c)} (${rowsOf(c).length}/8)`).join(', ')}.
         </div>
       )}

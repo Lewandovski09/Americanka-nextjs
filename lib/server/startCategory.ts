@@ -232,7 +232,7 @@ async function buildAmericankaMatches(supabaseAdmin: SupabaseAdmin, categoryId: 
     .eq('category_id', categoryId);
 
   if (!tps || tps.length !== 8) {
-    throw new Error(`Для американки потрібно рівно 8 гравців (зараз ${tps?.length || 0})`);
+    throw new Error(`Для Americanka потрібно рівно 8 гравців (зараз ${tps?.length || 0})`);
   }
   const playerIds = ([...tps] as Seedable[]).sort(bySeed).map((t) => t.user_id as string);
   return buildAmericanoMatches(playerIds, courts);

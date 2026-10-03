@@ -432,7 +432,7 @@ function validateForMatch(match, sets) {
 
   if (isSum) {
     if (sets.length !== 1) {
-      return { valid: false, error: 'Американка грається в одну партію' };
+      return { valid: false, error: 'Americanka грається в одну партію' };
     }
     return validateSumTo(sets[0][0], sets[0][1], 31);
   }

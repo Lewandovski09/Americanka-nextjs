@@ -9,13 +9,17 @@ import styles from './TournamentStatsBreakdown.module.css';
 // "Чоловічі"/"Жіночі" depending on the player being viewed, since
 // a player only ever plays one side of it.
 const FORMATS = [
-  { key: 'americanka', label: 'Americanka', aliases: ['americanka', 'americanka 2x2', 'americanka2x2'] },
+  { key: 'americanka', label: 'Americanka', aliases: ['americanka', 'americanka 2x2', 'americanka2x2', 'американка'] },
   { key: 'gendered', label: null, aliases: ['чоловічі', 'жіночі', 'чоловічі/жіночі', 'мужские', 'женские', 'чоловіче', 'жіноче'] },
   { key: 'mix', label: 'Мікс', aliases: ['мікс', 'мікс 2x2', 'mix', 'микс'] },
+  { key: 'king', label: 'Король пляжу', aliases: ['король пляжу', 'король пляжа', 'king of the beach'] },
 ];
 
+// The database returns «Чоловічі / Жіночі» with spaces around the slash;
+// the alias list has none — so those tournaments used to fall through to
+// the americanka default. Spaces around a slash are dropped first.
 function normalize(s) {
-  return (s || '').trim().toLowerCase();
+  return (s || '').trim().toLowerCase().replace(/\s*\/\s*/g, '/');
 }
 
 function matchFormatKey(formatName) {

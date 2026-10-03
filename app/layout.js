@@ -6,7 +6,7 @@ import { VENUE } from '@/lib/venue';
 
 export const metadata = {
   title: `${VENUE.brandName.toUpperCase()} — ${VENUE.venueName}`,
-  description: `Турніри американка для пляжного волейболу. ${VENUE.fullLocation}.`,
+  description: `Турніри Americanka для пляжного волейболу. ${VENUE.fullLocation}.`,
   manifest: '/manifest.json',
   icons: {
     icon: [
