@@ -100,7 +100,15 @@ export default function AuthPage() {
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ identifier: loginField }),
     });
-    const resolveData = await resolveRes.json();
+    const resolveData = await resolveRes.json().catch(() => ({}));
+
+    // Too many attempts: say so, instead of «wrong password» — otherwise
+    // the rate limit looks like a wrong password and invites more tries.
+    if (resolveRes.status === 429) {
+      setError(resolveData.error || 'Забагато спроб. Зачекайте хвилину і спробуйте знову.');
+      setLoading(false);
+      return;
+    }
 
     if (!resolveData.success) {
       setError('Невірний логін, Telegram або пароль');
