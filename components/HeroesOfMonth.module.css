@@ -1,0 +1,159 @@
+/* «Герої місяця» — podium card on the home page. */
+.card {
+  position: relative;
+  overflow: hidden;
+  margin: 14px 0 4px;
+  padding: 14px;
+  border-radius: 20px;
+  color: #fff;
+  background:
+    radial-gradient(120% 80% at 50% 0%, rgba(255, 255, 255, 0.12), transparent 60%),
+    linear-gradient(150deg, #0d2347 0%, #1f3f80 70%, #e85d4a 170%);
+  box-shadow: 0 6px 18px rgba(13, 35, 71, 0.25);
+}
+
+.shine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 86% 16%, rgba(255, 220, 120, 0.7) 0 2px, transparent 3px),
+    radial-gradient(circle at 10% 60%, rgba(255, 170, 150, 0.5) 0 2px, transparent 3px),
+    radial-gradient(circle at 66% 86%, rgba(255, 255, 255, 0.35) 0 1.5px, transparent 2.5px);
+}
+
+.head {
+  position: relative;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+}
+
+.label {
+  font-size: 10.75px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  opacity: 0.65;
+}
+
+.chip {
+  font-size: 11px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: 999px;
+  background: rgba(255, 255, 255, 0.14);
+  border: 1px solid rgba(255, 255, 255, 0.25);
+}
+
+.podium {
+  position: relative;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.col {
+  width: 31%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  text-decoration: none;
+  color: #fff;
+}
+
+.av {
+  border-radius: 50%;
+  border: 3px solid #fff;
+  margin-bottom: 6px;
+  display: inline-flex;
+  line-height: 0;
+}
+
+.avFirst {
+  border-color: #ffd66b;
+  box-shadow: 0 0 18px rgba(255, 214, 107, 0.55);
+}
+
+.name {
+  font-size: 12px;
+  font-weight: 600;
+  margin-bottom: 5px;
+  text-align: center;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  max-width: 100%;
+}
+
+.block {
+  width: 100%;
+  border-radius: 10px 10px 4px 4px;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  padding-top: 6px;
+}
+
+.place {
+  font-size: 17px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.gain {
+  font-size: 11.5px;
+  font-weight: 800;
+}
+
+.gold {
+  height: 74px;
+  color: #6b4500;
+  background: linear-gradient(180deg, #ffe58a, #f3b52a);
+  box-shadow: inset 0 1px 0 #fff6cc;
+}
+
+.gold .gain {
+  color: #15803d;
+}
+
+.silver {
+  height: 56px;
+  color: #3c4a60;
+  background: linear-gradient(180deg, #ffffff, #c9d2df);
+}
+
+.silver .gain {
+  color: #15803d;
+}
+
+.bronze {
+  height: 44px;
+  color: #fff;
+  background: linear-gradient(180deg, #f6a46c, #d1692d);
+}
+
+.ticker {
+  position: relative;
+  display: flex;
+  gap: 8px;
+  overflow-x: auto;
+  margin-top: 12px;
+  scrollbar-width: none;
+}
+
+.ticker::-webkit-scrollbar {
+  display: none;
+}
+
+.fact {
+  flex-shrink: 0;
+  padding: 7px 10px;
+  border-radius: 10px;
+  font-size: 11.75px;
+  background: rgba(255, 255, 255, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.14);
+  white-space: nowrap;
+}

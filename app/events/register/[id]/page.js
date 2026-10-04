@@ -14,6 +14,8 @@ import PlayerPicker from '@/components/PlayerPicker';
 import { useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
 import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
+import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
+import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -26,6 +28,8 @@ export default function EventRegisterPage({ params, searchParams }) {
   const { event, categories, applications, loading, load } = useEventData(id);
   const { post, busy, error } = useEventPost(load);
   const [activeCatId, setActiveCatId] = useState(null);
+  // Bumped after an application, so the «Шукаю пару» board reloads.
+  const [boardVersion, setBoardVersion] = useState(0);
 
   if (loading) return <div className={styles.loading}>Завантаження...</div>;
   if (!event) return <div className={styles.loading}>Подію не знайдено</div>;
@@ -86,6 +90,25 @@ export default function EventRegisterPage({ params, searchParams }) {
     ]),
   ].filter(Boolean);
 
+  // For the «Шукаю пару» board: who already has a partner (their notices
+  // are hidden) and who has filed an application alone.
+  const liveApps = applications.filter((a) => a.status !== 'withdrawn' && a.status !== 'rejected');
+  const activeTeams = activeCat?.tournament_teams || [];
+  const pairedIds = [
+    ...liveApps.filter((a) => a.partner_id).flatMap((a) => [a.user_id, a.partner_id]),
+    ...activeTeams.filter((t) => t.user1_id && t.user2_id).flatMap((t) => [t.user1_id, t.user2_id]),
+  ];
+  const appliedIds = [
+    ...liveApps.filter((a) => !a.partner_id).map((a) => a.user_id),
+    ...activeTeams.flatMap((t) => [t.user1_id, t.user2_id]).filter(Boolean),
+  ];
+
+  async function apply(payload) {
+    const ok = await post(`/api/events/${event.id}/apply`, payload);
+    if (ok) setBoardVersion((n) => n + 1);
+    return ok;
+  }
+
   return (
     <div className={styles.page}>
       <div className={styles.titleRow}>
@@ -118,7 +141,16 @@ export default function EventRegisterPage({ params, searchParams }) {
           myApp={myApp}
           regClosed={regClosed}
           busy={busy}
-          onApply={(payload) => post(`/api/events/${event.id}/apply`, payload)}
+          isMix={event.format_kind === 'mix'}
+          onApply={async ({ partnerAd, partnerAdNote, ...payload }) => {
+            const ok = await apply(payload);
+            // Applied alone and asked for a notice — post it in the chosen league.
+            if (ok && partnerAd && payload.seekingPartner && payload.categoryId) {
+              await postPartnerAd(payload.categoryId, player.id, partnerAdNote);
+              setBoardVersion((n) => n + 1);
+            }
+            return ok;
+          }}
           onWithdraw={(withPartner) => post(`/api/events/${event.id}/withdraw`, { withPartner })}
         />
       )}
@@ -129,15 +161,42 @@ export default function EventRegisterPage({ params, searchParams }) {
         <>
           <CategoryTabs categories={categories} activeId={activeCat.id} onSelect={setActiveCatId} />
           <CategoryPanel category={activeCat} format={format} isAdmin={false} />
+          {/* «Шукаю пару» — pair formats: players without a partner. */}
+          {isPair && (
+            <PartnerBoard
+              key={`pb-${activeCat.id}`}
+              categoryId={activeCat.id}
+              isMix={event.format_kind === 'mix'}
+              categoryGender={activeCat.gender || null}
+              open={activeCat.status === 'scheduled'}
+              pairedIds={pairedIds}
+              appliedIds={appliedIds}
+              canJoin={!myApp && !regClosed}
+              onJoin={(ad) => apply({ categoryId: activeCat.id, partnerId: ad.user_id, seekingPartner: false })}
+              version={boardVersion}
+            />
+          )}
+          {/* «Хто виграє?» — over whoever is in this category right now. */}
+          <VotePoll
+            key={activeCat.id}
+            categoryId={activeCat.id}
+            title={`${activeCat.gender === 'M' ? '♂ ' : activeCat.gender === 'F' ? '♀ ' : ''}${activeCat.category_label || ''}`.trim()}
+            options={voteOptionsFrom({ isPair, players: activeCat.tournament_players, teams: activeCat.tournament_teams })}
+            open={activeCat.status === 'scheduled'}
+          />
         </>
       )}
     </div>
   );
 }
 
-function MyRegistration({ isPair, me, takenIds = [], categories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
+function MyRegistration({ isPair, isMix, me, takenIds = [], categories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
   const [partner, setPartner] = useState(null);
   const [seeking, setSeeking] = useState(false);
+  // Applying alone in a pair format: optionally also post a «Шукаю пару»
+  // notice in the chosen league, with a short note.
+  const [postAd, setPostAd] = useState(true);
+  const [adNote, setAdNote] = useState('');
   const [catId, setCatId] = useState(
     (initialCategoryId && categories.some((c) => c.id === initialCategoryId) ? initialCategoryId : categories[0]?.id) || ''
   );
@@ -175,6 +234,9 @@ function MyRegistration({ isPair, me, takenIds = [], categories, initialCategory
     );
   }
 
+  // Whom this player pairs with: in a mix — the other gender.
+  const lookingFor = isMix ? (me?.gender === 'M' ? 'напарниці' : 'напарника') : me?.gender === 'F' ? 'напарниці' : 'напарника';
+
   if (regClosed) {
     return (
       <div className={styles.myBox}>
@@ -204,8 +266,29 @@ function MyRegistration({ isPair, me, takenIds = [], categories, initialCategory
         <div className={styles.partnerBox}>
           <label className={styles.checkboxRow}>
             <input type="checkbox" checked={seeking} onChange={(e) => setSeeking(e.target.checked)} />
-            <span>Шукаю напарника (запишусь один)</span>
+            <span>Записатися одному — без {lookingFor}</span>
           </label>
+          {seeking && (
+            <div className={styles.adOptBox}>
+              <label className={styles.checkboxRow}>
+                <input type="checkbox" checked={postAd} onChange={(e) => setPostAd(e.target.checked)} />
+                <span>
+                  Розмістити оголошення «Шукаю {lookingFor === 'напарниці' ? 'напарницю' : 'напарника'}» у розділі
+                  «Шукаю пару» цієї ліги
+                </span>
+              </label>
+              {postAd && (
+                <textarea
+                  className={styles.adNote}
+                  rows={2}
+                  maxLength={200}
+                  placeholder="Кілька слів про себе (необов’язково)"
+                  value={adNote}
+                  onChange={(e) => setAdNote(e.target.value)}
+                />
+              )}
+            </div>
+          )}
           {!seeking &&
             (partner ? (
               <div className={styles.regRow}>
@@ -237,8 +320,10 @@ function MyRegistration({ isPair, me, takenIds = [], categories, initialCategory
         onClick={() =>
           onApply({
             categoryId: catId || null,
-            partnerId: partner?.id || null,
+            partnerId: seeking ? null : partner?.id || null,
             seekingPartner: seeking,
+            partnerAd: seeking && postAd,
+            partnerAdNote: adNote,
           })
         }
       >

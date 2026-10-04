@@ -1,0 +1,261 @@
+/* «Шукаю пару» — a notice board card, in the style of the poll card. */
+
+.card {
+  margin-top: 14px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 14px 14px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.count {
+  flex-shrink: 0;
+  min-width: 28px;
+  text-align: center;
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--navy2);
+  background: var(--surface-alt);
+  border-radius: var(--r-pill);
+  padding: 4px 9px;
+}
+
+.postBtn {
+  width: 100%;
+  min-height: 42px;
+  border: 1.5px dashed var(--rust);
+  border-radius: var(--r-sm);
+  background: var(--rust-tint);
+  color: var(--rust-dark);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 600;
+  cursor: pointer;
+  margin-bottom: 8px;
+}
+
+.form {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin-bottom: 10px;
+}
+
+.textarea {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  min-height: 56px;
+  padding: 9px 11px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--bg-light);
+  font: inherit;
+  font-size: 14px;
+  color: var(--text);
+}
+
+.textarea:focus {
+  outline: none;
+  border-color: var(--rust);
+}
+
+.formRow {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.counter {
+  flex: 1;
+  font-size: 11px;
+  color: var(--text2);
+}
+
+.btnPrimary,
+.btnGhost,
+.btnJoin {
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 600;
+  padding: 7px 14px;
+  cursor: pointer;
+}
+
+.btnPrimary {
+  border: none;
+  background: var(--rust);
+  color: #fff;
+}
+
+.btnGhost {
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text2);
+}
+
+.btnJoin {
+  border: none;
+  background: var(--navy2);
+  color: #fff;
+  padding: 5px 12px;
+  font-size: 12.5px;
+}
+
+.btnPrimary:disabled,
+.btnGhost:disabled,
+.btnJoin:disabled {
+  opacity: 0.6;
+  cursor: default;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.ad {
+  display: flex;
+  gap: 10px;
+  padding: 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--bg-light);
+}
+
+.adMine {
+  border-color: var(--rust);
+  background: var(--rust-tint);
+  margin-bottom: 8px;
+}
+
+.avatarLink {
+  flex-shrink: 0;
+  text-decoration: none;
+}
+
+.adBody {
+  flex: 1;
+  min-width: 0;
+}
+
+.adName {
+  display: flex;
+  align-items: center;
+  flex-wrap: wrap;
+  gap: 6px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text);
+}
+
+.nameLink {
+  color: inherit;
+  text-decoration: none;
+}
+
+.elo {
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--navy2);
+  background: #e8eefc;
+  border-radius: var(--r-pill);
+  padding: 1px 7px;
+}
+
+.metaRow {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 5px;
+  margin-top: 4px;
+}
+
+.tag,
+.tagSoft {
+  display: inline-block;
+  font-size: 11px;
+  font-weight: 600;
+  border-radius: var(--r-pill);
+  padding: 1px 8px;
+}
+
+.tag {
+  background: var(--rust-tint);
+  color: var(--rust-dark);
+}
+
+.adMine .tag {
+  background: #fff;
+}
+
+.tagSoft {
+  background: var(--surface-alt);
+  color: var(--text2);
+}
+
+.note {
+  margin-top: 6px;
+  font-size: 13px;
+  line-height: 1.4;
+  color: var(--text);
+  white-space: pre-wrap;
+  word-break: break-word;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: center;
+  gap: 12px;
+  margin-top: 7px;
+}
+
+.actions:empty {
+  display: none;
+}
+
+.btnLink {
+  border: none;
+  background: none;
+  padding: 0;
+  font: inherit;
+  font-size: 12.5px;
+  font-weight: 600;
+  color: var(--accent-blue);
+  text-decoration: none;
+  cursor: pointer;
+}
+
+.empty {
+  font-size: 13px;
+  color: var(--text2);
+  padding: 6px 2px 2px;
+}
+
+.error {
+  margin-top: 8px;
+  font-size: 12px;
+  color: var(--danger);
+}

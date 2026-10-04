@@ -847,3 +847,24 @@
 .modalRow > * {
   flex: 1;
 }
+
+/* Applying alone: the optional «Шукаю пару» notice under the checkbox. */
+.adOptBox {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  margin: 2px 0 6px 24px;
+}
+
+.adNote {
+  width: 100%;
+  box-sizing: border-box;
+  resize: vertical;
+  padding: 8px 10px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--bg-light);
+  font: inherit;
+  font-size: 13.5px;
+  color: var(--text);
+}

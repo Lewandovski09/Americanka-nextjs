@@ -103,10 +103,10 @@ export function useEventData(id) {
       .from('tournament_categories')
       .select(
         `id, category_label, gender, status, max_participants, bracket_system, points_to_win,
-         tournament_players(user_id, slot_index, created_at, users(full_name, photo_url, gender)),
+         tournament_players(user_id, slot_index, created_at, users(full_name, last_name, photo_url, gender)),
          tournament_teams(id, user1_id, user2_id, slot_index, created_at,
-           p1:users!tournament_teams_user1_id_fkey(full_name, gender),
-           p2:users!tournament_teams_user2_id_fkey(full_name, gender)),
+           p1:users!tournament_teams_user1_id_fkey(full_name, last_name, photo_url, gender),
+           p2:users!tournament_teams_user2_id_fkey(full_name, last_name, photo_url, gender)),
          tournament_matches(*)`
       )
       .eq('event_id', id)

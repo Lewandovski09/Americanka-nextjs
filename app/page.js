@@ -4,12 +4,11 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
-import { categoryForElo } from '@/lib/elo';
 import { getFormat } from '@/lib/formats';
 import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
 import CategoryRow from '@/components/CategoryRow';
-import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import HeaderStatCards from '@/components/HeaderStatCards';
+import FormCard from '@/components/FormCard';
+import HeroesOfMonth from '@/components/HeroesOfMonth';
 import { useClubSeasons, seasonHeadline } from '@/lib/seasons';
 import { getCached, setCached } from '@/lib/clientCache';
 import { VENUE } from '@/lib/venue';
@@ -32,7 +31,6 @@ export default function HomePage() {
   const [recentJoiners, setRecentJoiners] = useState([]);
   // Everything below starts from the last-known values (clientCache), so
   // coming back to Головна shows the page at once and refreshes quietly.
-  const [headerStats, setHeaderStats] = useState(null);
   const seasons = useClubSeasons();
 
   // Swipe left to jump to the next tab (Турніри) — installed-PWA
@@ -82,10 +80,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (player?.id) {
-      const cached = getCached(`header:${player.id}`);
-      if (cached) setHeaderStats(cached);
-    }
     if (loading) return;
     const supabase = createClient();
     const remember = (patch) => setCached('home:data', { ...(getCached('home:data') || {}), ...patch });
@@ -181,17 +175,9 @@ export default function HomePage() {
       remember({ communityCount: count || 0, recentJoiners: recent || [] });
     }
 
-    async function loadRankAndStreak() {
-      if (!player?.id) return;
-      const stats = await loadPlayerHeaderStats(supabase, player);
-      setCached(`header:${player.id}`, stats);
-      setHeaderStats(stats);
-    }
-
     loadNextTournament();
     loadAnnouncements();
     loadCommunity();
-    loadRankAndStreak();
   }, [loading, player]);
 
   async function dismissAnnouncement(notificationId) {
@@ -257,17 +243,13 @@ export default function HomePage() {
         </div>
         {player ? (
           <>
-          <div className={styles.headerPlayerRow}>
-            <PlayerAvatar player={player} size={44} />
-            <div className={styles.headerPlayerInfo}>
-              <div className={styles.headerPlayerName}>{player.full_name}</div>
-              <div className={styles.headerPlayerSub}>
-                {player.approval_status === 'pending' ? 'Очікує підтвердження' : categoryForElo(player.elo)?.label}
-              </div>
-            </div>
-          </div>
-          {player.approval_status !== 'pending' && (
-            <HeaderStatCards styles={styles} player={player} stats={headerStats} />
+          {/* «Твоя форма» — last five games, progress to the next category
+              and the best partner (the name and the Ело/AVP numbers live in
+              the profile). A player still awaiting approval has no games. */}
+          {player.approval_status === 'pending' ? (
+            <div className={styles.headerPlayerSub}>Акаунт очікує підтвердження</div>
+          ) : (
+            <FormCard player={player} />
           )}
           </>
         ) : (
@@ -381,6 +363,9 @@ export default function HomePage() {
           Дивитись усі турніри →
         </a>
       )}
+
+      {/* Podium of the month — most Ело gained in the last 30 days. */}
+      <HeroesOfMonth />
 
 
       <div className={styles.sectionLabel}>Спільнота</div>

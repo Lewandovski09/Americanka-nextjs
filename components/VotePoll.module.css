@@ -1,0 +1,192 @@
+/* «Хто виграє?» — a poll card: each option is a row whose background
+   fills to its share of the votes, the viewer's choice in the club rust. */
+
+.card {
+  margin-top: 14px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 14px 14px 12px;
+  box-shadow: var(--shadow-sm);
+}
+
+.head {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.titleWrap {
+  min-width: 0;
+}
+
+.title {
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+}
+
+.sub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.total {
+  flex-shrink: 0;
+  font-size: 11.5px;
+  font-weight: 600;
+  color: var(--navy2);
+  background: var(--surface-alt);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 7px;
+}
+
+.row {
+  position: relative;
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  width: 100%;
+  min-height: 46px;
+  padding: 8px 12px 8px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--bg-light);
+  overflow: hidden;
+  text-align: left;
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+  -webkit-tap-highlight-color: transparent;
+  transition: border-color var(--dur-base) var(--ease), transform var(--dur-fast) var(--ease);
+}
+
+.row:not(:disabled):active {
+  transform: scale(0.985);
+}
+
+.row:disabled {
+  cursor: default;
+  opacity: 1;
+}
+
+.rowStatic {
+  cursor: default;
+}
+
+.fill {
+  position: absolute;
+  inset: 0 auto 0 0;
+  background: rgba(26, 58, 122, 0.1);
+  transition: width 0.5s var(--ease);
+  pointer-events: none;
+}
+
+.rowMine {
+  border-color: var(--rust);
+}
+
+.rowMine .fill {
+  background: rgba(232, 93, 74, 0.16);
+}
+
+.rowWinner {
+  border-color: #e0b13a;
+}
+
+.rowWinner .fill {
+  background: rgba(240, 190, 60, 0.22);
+}
+
+.avatars,
+.name,
+.check,
+.pct {
+  position: relative; /* above the fill */
+}
+
+.avatars {
+  display: flex;
+  flex-shrink: 0;
+}
+
+.avatarOver {
+  margin-left: -9px;
+  border-radius: 50%;
+  box-shadow: 0 0 0 2px var(--bg-light);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  font-size: 14px;
+  font-weight: 500;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.badge,
+.badgeSoft {
+  display: inline-block;
+  margin-left: 6px;
+  padding: 1px 7px;
+  border-radius: var(--r-pill);
+  font-size: 10.5px;
+  font-weight: 600;
+  vertical-align: 1px;
+}
+
+.badge {
+  background: #fbe9b7;
+  color: #7a5600;
+}
+
+.badgeSoft {
+  background: var(--surface-alt);
+  color: var(--navy2);
+}
+
+.check {
+  flex-shrink: 0;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--rust);
+  color: #fff;
+  font-size: 11px;
+  font-weight: 700;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+}
+
+.pct {
+  flex-shrink: 0;
+  min-width: 38px;
+  text-align: right;
+  font-size: 14px;
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--navy);
+}
+
+.hint {
+  margin-top: 10px;
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger);
+}

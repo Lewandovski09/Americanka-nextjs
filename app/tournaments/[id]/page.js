@@ -18,6 +18,8 @@ import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
 import { getCached, setCached } from '@/lib/clientCache';
 import PinchZoom from './PinchZoom';
+import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
+import PartnerBoard from '@/components/PartnerBoard';
 import styles from './detail.module.css';
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket' };
@@ -136,7 +138,7 @@ export default function TournamentDetailPage({ params }) {
       supabase
         .from('tournament_teams')
         .select(
-          `user1_id, user2_id,
+          `id, user1_id, user2_id,
            p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url),
            p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url)`
         )
@@ -865,6 +867,34 @@ export default function TournamentDetailPage({ params }) {
       {/* Game schedule: every match in play order. Клік по незіграній
           грі відкриває введення рахунку. Відкривається вписаною в екран, збільшується двома пальцями (PinchZoom) — на
           телефоні рядків багато. */}
+      {/* «Шукаю пару» (pair formats, before the start): who is still
+          looking for a partner in this league. */}
+      {tab === TABS.PLAYERS && isPair && tournament.status === 'scheduled' && (
+        <PartnerBoard
+          categoryId={tournament.id}
+          isMix={event?.format_kind === 'mix'}
+          categoryGender={tournament.gender || null}
+          open
+          pairedIds={teams.filter((t) => t.user1_id && t.user2_id).flatMap((t) => [t.user1_id, t.user2_id])}
+          appliedIds={teams.flatMap((t) => [t.user1_id, t.user2_id]).filter(Boolean)}
+          registerHref={tournament.event_id ? `/events/register/${tournament.event_id}?category=${tournament.id}` : undefined}
+        />
+      )}
+
+      {/* «Хто виграє?»: open until the category starts, then the
+          players' forecast stays here — with the winner once it is done. */}
+      {tab === TABS.PLAYERS && (
+        <VotePoll
+          categoryId={tournament.id}
+          title={`${tournament.gender === 'M' ? '♂ ' : tournament.gender === 'F' ? '♀ ' : ''}${tournament.category_label || ''}`.trim()}
+          options={voteOptionsFrom({ isPair, players: tournamentPlayers, teams })}
+          open={tournament.status === 'scheduled'}
+          winnerIds={
+            tournament.status === 'done' ? resultRows().find((r) => r.place === 1)?.playerIds || [] : []
+          }
+        />
+      )}
+
       {tab === TABS.TABLE &&
         (matches.length === 0 ? (
             <div className={styles.loading}>Ігор ще немає</div>
