@@ -165,6 +165,9 @@ export function useEventPost(load) {
       return false;
     }
     await load();
+    // Done, but with something the admin should know (e.g. one of two
+    // writes did not go through) — shown in the same place as an error.
+    if (data.warning) setError(data.warning);
     // The server's answer itself (truthy) — some callers read its flags
     // (e.g. «invited» from the application route).
     return data;

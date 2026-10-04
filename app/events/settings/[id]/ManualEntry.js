@@ -19,8 +19,11 @@ import PlayerPicker from '@/components/PlayerPicker';
 import { GenderMark } from '../../shared';
 import styles from '../../event.module.css';
 
-export default function ManualEntry({ category, isPair, mix, takenIds = [], busy, post }) {
+export default function ManualEntry({ category, isPair, mix, takenIds = [], busy, post, error }) {
   const [p1, setP1] = useState(null);
+  // The page shows errors at its top, far above this box — the one from
+  // «Заявити» is repeated right under the button.
+  const [failed, setFailed] = useState(false);
   const [p2, setP2] = useState(null);
   const [alone, setAlone] = useState(false);
 
@@ -35,6 +38,7 @@ export default function ManualEntry({ category, isPair, mix, takenIds = [], busy
   }
 
   async function submit() {
+    setFailed(false);
     const ok = await post('/api/admin/members/add', {
       categoryId: category.id,
       playerId: p1.id,
@@ -42,6 +46,7 @@ export default function ManualEntry({ category, isPair, mix, takenIds = [], busy
       seekingPartner: isPair && alone,
     });
     if (ok) reset();
+    setFailed(!ok || !!ok.warning);
   }
 
   const ready = !!p1 && (!isPair || alone || !!p2);
@@ -99,6 +104,11 @@ export default function ManualEntry({ category, isPair, mix, takenIds = [], busy
       <button className={styles.btnPrimary} disabled={busy || !ready} onClick={submit}>
         {busy ? 'Додавання…' : 'Заявити'}
       </button>
+      {failed && error && (
+        <div className={styles.errMsg} role="alert">
+          {error}
+        </div>
+      )}
     </div>
   );
 }

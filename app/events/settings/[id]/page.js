@@ -227,6 +227,7 @@ export default function EventSettingsPage({ params }) {
                 takenIds={takenIds}
                 busy={busy}
                 post={post}
+                error={error}
               />
               {/* One start for the whole event — every league at once. */}
               <StartEventButton

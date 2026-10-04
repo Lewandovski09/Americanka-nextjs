@@ -95,17 +95,49 @@ export async function POST(request) {
     },
     { onConflict: 'event_id,user_id' }
   );
-  if (appError) console.error('[members/add] application upsert:', appError.message);
+  if (appError) {
+    // The place in the league was taken, but its application could not be
+    // written — most likely the partner joined someone else's pair at
+    // this very moment (migration 063). Take the place back, so the
+    // roster and the applications never disagree, and say so.
+    console.error('[members/add] application upsert:', appError.message);
+    await undoPlacement(supabaseAdmin, category.id, isPair, playerId);
+    return Response.json(
+      {
+        success: false,
+        error:
+          appError.code === '23505'
+            ? 'Напарник щойно потрапив в іншу пару — оновіть сторінку і виберіть іншого'
+            : 'Не вдалося зберегти заявку — гравця не додано, спробуйте ще раз',
+      },
+      { status: appError.code === '23505' ? 409 : 500 }
+    );
+  }
 
   // The partner's own application (if they filed one) follows the pair
   // out of the queue.
   if (withPartner) {
-    await supabaseAdmin
+    const { error: partnerError } = await supabaseAdmin
       .from('tournament_applications')
       .update({ status: 'assigned', assigned_category_id: category.id })
       .eq('event_id', category.event_id)
       .eq('user_id', partnerId);
+    if (partnerError) {
+      console.error('[members/add] partner application:', partnerError.message);
+      return Response.json({
+        success: true,
+        warning: 'Пару додано, але заявку напарника не оновлено — перевірте її у списку заявок',
+      });
+    }
   }
 
   return Response.json({ success: true });
+}
+
+// Removes the roster row placeMember has just added.
+async function undoPlacement(supabaseAdmin, categoryId, isPair, playerId) {
+  const { error } = isPair
+    ? await supabaseAdmin.from('tournament_teams').delete().eq('category_id', categoryId).eq('user1_id', playerId)
+    : await supabaseAdmin.from('tournament_players').delete().eq('category_id', categoryId).eq('user_id', playerId);
+  if (error) console.error('[members/add] undo placement:', error.message);
 }
