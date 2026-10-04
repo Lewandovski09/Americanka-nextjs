@@ -404,9 +404,15 @@
   text-align: center;
   width: 100%;
   padding: 15px;
-  background: var(--rust);
+  /* The same red-coral 3D button as «Чоловіки / Жінки» in «Рейтинг». */
+  background: linear-gradient(180deg, #ff6a52 0%, #e8341c 100%);
+  border: 1px solid #a51f0c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 3px 0 #a51f0c,
+    0 6px 16px rgba(232, 52, 28, 0.45);
   color: #fff;
-  border-radius: var(--r-md);
+  border-radius: 12px;
   font-size: 15.5px;
   font-weight: 800;
   text-decoration: none;
@@ -415,7 +421,7 @@
 }
 
 .ctaBtn:hover {
-  background: var(--rust-dark);
+  background: linear-gradient(180deg, #f75f47 0%, #d42f18 100%);
 }
 
 .eloExplainerToggle {
@@ -670,9 +676,14 @@
   text-align: center;
   width: 100%;
   padding: 12px;
-  background: var(--rust);
+  background: linear-gradient(180deg, #ff6a52 0%, #e8341c 100%);
+  border: 1px solid #a51f0c;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 3px 0 #a51f0c,
+    0 6px 16px rgba(232, 52, 28, 0.45);
   color: #fff;
-  border-radius: var(--r-sm);
+  border-radius: 12px;
   font-size: 14.75px;
   font-weight: 800;
   text-decoration: none;
@@ -681,7 +692,7 @@
 }
 
 .ctaBtnInline:hover {
-  background: var(--rust-dark);
+  background: linear-gradient(180deg, #f75f47 0%, #d42f18 100%);
 }
 
 /* Current season pill, top right of the home header. */
