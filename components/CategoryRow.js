@@ -4,6 +4,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './CategoryRow.module.css';
 
 export default function CategoryRow({ category: c, href, showGender }) {
+  const open = !c.status || c.status === 'scheduled';
   return (
     <a href={href} className={styles.row}>
       <div className={styles.top}>
@@ -23,16 +24,20 @@ export default function CategoryRow({ category: c, href, showGender }) {
             </span>
           ))}
         </div>
+        {/* Free places matter only while registration is open — once the
+            category has started or finished, just how many play. */}
         <div className={styles.slotsCount}>
-          {c.slotsTaken}/{c.slotsTotal} {c.slotsLabel} · {c.spotsLeft} вільно
+          {open ? `${c.slotsTaken}/${c.slotsTotal} ${c.slotsLabel} · ${c.spotsLeft} вільно` : `${c.slotsTaken} ${c.slotsLabel}`}
         </div>
       </div>
-      <div className={styles.progressBar}>
-        <div
-          className={styles.progressFill}
-          style={{ width: `${c.slotsTotal > 0 ? Math.min(100, (c.slotsTaken / c.slotsTotal) * 100) : 0}%` }}
-        />
-      </div>
+      {open && (
+        <div className={styles.progressBar}>
+          <div
+            className={styles.progressFill}
+            style={{ width: `${c.slotsTotal > 0 ? Math.min(100, (c.slotsTaken / c.slotsTotal) * 100) : 0}%` }}
+          />
+        </div>
+      )}
     </a>
   );
 }

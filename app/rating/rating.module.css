@@ -159,7 +159,7 @@
 
 .playerName {
   font-size: 14.75px;
-  font-weight: 700;
+  font-weight: 500;
   color: var(--text);
   white-space: nowrap;
   overflow: hidden;

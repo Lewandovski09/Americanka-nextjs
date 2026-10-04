@@ -239,7 +239,7 @@ export default function PlayerProfilePage() {
       )}
 
       <div className="riseIn" style={{ animationDelay: '0.12s' }}>
-        <EloChart history={tournamentHistory} currentElo={player.elo} playerName={player.full_name} />
+        <EloChart history={tournamentHistory} log={eloGameLog} currentElo={player.elo} playerName={player.full_name} />
       </div>
 
       <PlayerHistoryAccordion

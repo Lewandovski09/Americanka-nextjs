@@ -9,7 +9,7 @@ import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import CityPicker from '@/components/CityPicker';
-import { IconEdit, IconMail, IconChat, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
+import { IconEdit, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
@@ -378,7 +378,7 @@ export default function ProfilePage() {
       </div>
 
       <div className="riseIn" style={{ animationDelay: '0.12s' }}>
-        <EloChart history={tournamentHistory} currentElo={player.elo} />
+        <EloChart history={tournamentHistory} log={eloGameLog} currentElo={player.elo} />
       </div>
 
       <PlayerHistoryAccordion
@@ -391,23 +391,6 @@ export default function ProfilePage() {
         onOpenTournament={openTournamentDetails}
       />
 
-      <div className={styles.sectionLabel}>Підтримка</div>
-      <div className={styles.supportCard}>
-        <a href="mailto:a921488799327z@gmail.com" className={styles.supportRow}>
-          <span className={styles.supportIcon}><IconMail size={16} /></span>
-          <span>a921488799327z@gmail.com</span>
-        </a>
-        <a href="https://t.me/one_gogi" target="_blank" rel="noopener noreferrer" className={styles.supportRow}>
-          <span className={styles.supportIcon}><IconChat size={16} /></span>
-          <span>@one_gogi (Telegram)</span>
-        </a>
-      </div>
-
-      <div className={styles.creditsText}>
-        Організатори: Гога і Роде Світа
-        <br />
-        Головний помічник з технічної частини: Теліга Максим
-      </div>
 
       {photoLightbox && shownPhoto && (
         <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>

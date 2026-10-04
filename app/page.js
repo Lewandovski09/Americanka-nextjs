@@ -16,7 +16,7 @@ import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
 import VenueName from '@/components/VenueName';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp } from '@/components/Icons';
+import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp, IconMail, IconChat } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -404,6 +404,20 @@ export default function HomePage() {
         )}
       </a>
 
+      {/* The club's Telegram channel — news, photos, announcements. */}
+      <a href="https://t.me/BV_here_we_go" target="_blank" rel="noopener noreferrer" className={styles.tgCard}>
+        <span className={styles.tgIcon} aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="#fff">
+            <path d="M21.5 3.6 2.9 10.8c-1.1.4-1.1 1.2-.2 1.5l4.8 1.5 1.8 5.6c.2.6.4.8.9.8.4 0 .6-.2.9-.4l2.3-2.2 4.7 3.5c.9.5 1.5.2 1.7-.8l3.1-14.6c.3-1.3-.5-1.9-1.4-1.5ZM9.4 13.6l9-5.7c.4-.3.8-.1.5.2l-7.4 6.7-.3 3.1-1.8-4.3Z" />
+          </svg>
+        </span>
+        <span className={styles.tgText}>
+          <span className={styles.tgTitle}>Можете знайти нас у Telegram</span>
+          <span className={styles.tgSub}>@BV_here_we_go</span>
+        </span>
+        <span className={styles.tgArrow} aria-hidden="true">›</span>
+      </a>
+
       <div className={styles.formatsCard}>
         <div className={styles.formatsIconRow}>
           <IconRocket size={17} color="var(--rust)" />
@@ -526,6 +540,30 @@ export default function HomePage() {
           </p>
         </div>
       )}
+
+      {/* Support and the organisers — the very bottom of the home page
+          (moved here from the profile). */}
+      <div className={styles.sectionLabel}>Підтримка</div>
+      <div className={styles.supportCard}>
+        <a href="mailto:a921488799327z@gmail.com" className={styles.supportRow}>
+          <span className={styles.supportIcon}>
+            <IconMail size={16} />
+          </span>
+          <span>a921488799327z@gmail.com</span>
+        </a>
+        <a href="https://t.me/one_gogi" target="_blank" rel="noopener noreferrer" className={styles.supportRow}>
+          <span className={styles.supportIcon}>
+            <IconChat size={16} />
+          </span>
+          <span>@one_gogi (Telegram)</span>
+        </a>
+      </div>
+
+      <div className={styles.creditsText}>
+        Організатори: Гога і Роде Світа
+        <br />
+        Головний помічник з технічної частини: Теліга Максим
+      </div>
       </div>
     </div>
   );

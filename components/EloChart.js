@@ -39,6 +39,40 @@ function buildPoints(history, currentElo) {
   });
 }
 
+// From the game-by-game Ело log (get_user_elo_log): one point per game,
+// using the real rating after it, starting from the rating before the
+// first one. This is what «Весь час» draws now — the old per-tournament
+// series needed finished tournaments with a stored delta, so a player
+// with one tournament (or a running one) got «недостатньо турнірів».
+function buildPointsFromLog(log) {
+  const rows = (log || [])
+    .filter((r) => r.created_at && r.elo_after != null)
+    .slice()
+    .sort((a, b) => new Date(a.created_at) - new Date(b.created_at));
+  if (rows.length === 0) return [];
+  const first = rows[0];
+  const start =
+    first.elo_before != null
+      ? [{ date: new Date(new Date(first.created_at).getTime() - 60000), elo: first.elo_before, name: 'Старт', delta: 0 }]
+      : [];
+  return [
+    ...start,
+    ...rows.map((r) => ({ date: new Date(r.created_at), elo: r.elo_after, name: r.tournament_name, delta: r.delta })),
+  ];
+}
+
+// A period keeps the rating it started from: the last point before the
+// window is carried to its first edge, so a short period still draws a
+// line instead of «недостатньо».
+function clipToPeriod(points, months) {
+  if (months === null) return points;
+  const from = monthsAgo(months);
+  const inside = points.filter((p) => p.date >= from);
+  const before = points.filter((p) => p.date < from);
+  if (before.length > 0) inside.unshift({ ...before[before.length - 1], date: from });
+  return inside;
+}
+
 function EloSvgChart({ series }) {
   const gradId = useId();
   const width = 320;
@@ -122,7 +156,7 @@ function EloSvgChart({ series }) {
  * line graph, period tabs (1/2/3/6 months, all time), and an
  * optional second line comparing against another player by login.
  */
-export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
+export default function EloChart({ history, log, currentElo, playerName = 'Ви' }) {
   const [open, setOpen] = useState(false);
   const [period, setPeriod] = useState('all');
   const [compareLogin, setCompareLogin] = useState('');
@@ -130,15 +164,19 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
   const [compareError, setCompareError] = useState('');
   const [comparePlayer, setComparePlayer] = useState(null);
   const [compareHistory, setCompareHistory] = useState([]);
+  const [compareLog, setCompareLog] = useState([]);
 
   const periodDef = PERIODS.find((p) => p.key === period);
 
-  function inPeriod(points) {
-    return periodDef.months === null ? points : points.filter((p) => p.date >= monthsAgo(periodDef.months));
-  }
-
-  const mainPoints = inPeriod(buildPoints(history, currentElo));
-  const comparePoints = comparePlayer ? inPeriod(buildPoints(compareHistory, comparePlayer.elo)) : [];
+  // The game log when there is one; tournament totals as the fallback.
+  const pointsOf = (gameLog, tHistory, elo) => {
+    const fromLog = buildPointsFromLog(gameLog);
+    return fromLog.length > 0 ? fromLog : buildPoints(tHistory, elo);
+  };
+  const mainPoints = clipToPeriod(pointsOf(log, history, currentElo), periodDef.months);
+  const comparePoints = comparePlayer
+    ? clipToPeriod(pointsOf(compareLog, compareHistory, comparePlayer.elo), periodDef.months)
+    : [];
 
   const series = [{ key: 'me', label: playerName, color: COLORS[0], points: mainPoints }];
   if (comparePlayer) {
@@ -159,9 +197,13 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
       setCompareError('Гравця не знайдено');
       return;
     }
-    const { data: th } = await supabase.rpc('get_user_tournament_history', { p_user_id: found.id });
+    const [{ data: th }, { data: lg }] = await Promise.all([
+      supabase.rpc('get_user_tournament_history', { p_user_id: found.id }),
+      supabase.rpc('get_user_elo_log', { p_user_id: found.id }),
+    ]);
     setComparePlayer(found);
     setCompareHistory(th || []);
+    setCompareLog(lg || []);
     setCompareLoading(false);
     setCompareLogin('');
   }
@@ -169,6 +211,7 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
   function clearCompare() {
     setComparePlayer(null);
     setCompareHistory([]);
+    setCompareLog([]);
     setCompareError('');
   }
 
@@ -206,7 +249,7 @@ export default function EloChart({ history, currentElo, playerName = 'Ви' }) {
             </div>
 
             {drawableCount === 0 ? (
-              <div className={styles.empty}>Недостатньо турнірів за цей період</div>
+              <div className={styles.empty}>Ще немає ігор з Ело за цей період</div>
             ) : (
               <EloSvgChart series={series} />
             )}
