@@ -1,0 +1,139 @@
+.page {
+  max-width: 560px;
+  margin: 0 auto;
+  padding: 16px 16px 120px;
+}
+
+.back {
+  display: inline-block;
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--navy2);
+  text-decoration: none;
+  margin-bottom: 8px;
+}
+
+.title {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  margin: 0 0 6px;
+}
+
+.lead {
+  font-size: 13px;
+  line-height: 1.45;
+  color: var(--text2);
+  margin-bottom: 14px;
+}
+
+.empty {
+  text-align: center;
+  padding: 24px;
+  color: var(--text2);
+  font-size: 13.75px;
+}
+
+.notice,
+.noticeErr {
+  border-radius: var(--r-sm);
+  padding: 10px 12px;
+  font-size: 13.5px;
+  margin-bottom: 12px;
+}
+
+.notice {
+  background: #e3f6ec;
+  color: #11653f;
+}
+
+.noticeErr {
+  background: #fdecec;
+  color: var(--danger);
+}
+
+.notice a {
+  color: inherit;
+  font-weight: 700;
+}
+
+.list {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.card {
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 14px;
+  box-shadow: var(--shadow-sm);
+}
+
+.cardHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 8px;
+  margin-bottom: 4px;
+}
+
+.name {
+  font-size: 15.5px;
+  font-weight: 700;
+  color: var(--text);
+  min-width: 0;
+}
+
+.badge {
+  flex-shrink: 0;
+  font-size: 10.75px;
+  font-weight: 700;
+  padding: 4px 10px;
+  border-radius: var(--r-pill);
+  background: var(--surface-alt);
+  color: var(--navy2);
+}
+
+.meta {
+  font-size: 12.5px;
+  color: var(--text2);
+  margin-top: 2px;
+}
+
+.actions {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 8px;
+  margin-top: 12px;
+}
+
+.restoreBtn,
+.purgeBtn {
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 13.5px;
+  font-weight: 700;
+  padding: 9px 16px;
+  cursor: pointer;
+}
+
+.restoreBtn {
+  flex: 1;
+  border: none;
+  background: var(--rust);
+  color: #fff;
+  box-shadow: var(--shadow-highlight);
+}
+
+.purgeBtn {
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text2);
+}
+
+.restoreBtn:disabled,
+.purgeBtn:disabled {
+  opacity: 0.6;
+  cursor: default;
+}

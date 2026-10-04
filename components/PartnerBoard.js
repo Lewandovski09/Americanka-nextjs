@@ -94,7 +94,12 @@ export default function PartnerBoard({
 
   const paired = new Set(pairedIds);
   const applied = new Set(appliedIds);
-  const visible = (ads || []).filter((a) => a.users && !paired.has(a.user_id));
+  // A men's league shows only men, a women's league only women — a
+  // notice from the other gender (posted before a gender change, say)
+  // does not belong here.
+  const visible = (ads || []).filter(
+    (a) => a.users && !paired.has(a.user_id) && (isMix || !categoryGender || a.users.gender === categoryGender)
+  );
   const mine = visible.find((a) => a.user_id === player?.id) || null;
   const others = visible.filter((a) => a.user_id !== player?.id);
 
@@ -149,7 +154,10 @@ export default function PartnerBoard({
 
   // Who the viewer could pair with: in a mix — the other gender; in a
   // men's / women's league everyone here is already the right gender.
-  const fitsMe = (u) => (isMix ? u.gender && player?.gender && u.gender !== player.gender : true);
+  const fitsMe = (u) =>
+    isMix
+      ? !!(u.gender && player?.gender && u.gender !== player.gender)
+      : !!player?.gender && (!categoryGender || player.gender === categoryGender) && u.gender === player.gender;
 
   return (
     <section className={styles.card} aria-label="Шукаю пару">

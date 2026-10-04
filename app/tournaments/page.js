@@ -128,6 +128,13 @@ export default function EventsPage() {
         </Link>
       )}
 
+      {/* The admin's folder of deleted tournaments — restore with one tap. */}
+      {player?.is_admin && (
+        <Link href="/tournaments/archive" className={styles.archiveLink}>
+          🗂 Архів видалених турнірів →
+        </Link>
+      )}
+
       {cities.length > 1 && (
         <div className={styles.cityFilter}>
           {[{ id: 'all', name: 'Усі міста' }, ...cities].map((c) => (

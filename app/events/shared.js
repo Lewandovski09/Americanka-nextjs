@@ -171,9 +171,10 @@ export function useEventPost(load) {
   return { post, busy, error };
 }
 
-// «Видалити турнір» — wipes the whole event (categories, matches,
-// rosters, applications) after a confirm; the API refuses events that
-// already awarded rating. Shared by both admin settings pages.
+// «Видалити турнір» — moves the whole event (categories, matches,
+// rosters, applications) into the archive of deleted tournaments after a
+// confirm (migration 052); it can be restored from there. Shared by both
+// admin settings pages.
 export function DeleteEventButton({ event, busy, post }) {
   const router = useRouter();
 
@@ -204,9 +205,9 @@ export function DeleteEventButton({ event, busy, post }) {
       return;
     }
 
-    let text = `Видалити турнір «${event.name}»? Всі категорії, матчі та заявки буде видалено без можливості відновлення.`;
+    let text = `Видалити турнір «${event.name}»? Він переміститься в «Архів видалених» (Турніри → 🗂 Архів) — звідти його можна повернути однією кнопкою.`;
     if (willUndo?.eloRows > 0 || willUndo?.avpRows > 0) {
-      text += '\n\nРазом з ним буде СКАСОВАНО нарахований рейтинг:';
+      text += '\n\nПоки турнір в архіві, його рейтинг скасовано (при відновленні він повернеться):';
       if (willUndo.eloRows > 0) {
         text += `\n• Ело — ${willUndo.eloRows} змін у ${willUndo.eloPlayers} гравців; рейтинги повернуться до значень до турніру`;
       }

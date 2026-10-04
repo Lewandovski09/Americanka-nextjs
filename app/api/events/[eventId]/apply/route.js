@@ -67,6 +67,32 @@ export async function POST(request, { params }) {
     );
   }
 
+  // The player must pick the league they want to apply to.
+  if (!categoryId) {
+    return Response.json({ success: false, error: 'Виберіть лігу для заявки' }, { status: 400 });
+  }
+  const { data: category } = await supabaseAdmin
+    .from('tournament_categories')
+    .select('id, category_label, status, gender')
+    .eq('id', categoryId)
+    .eq('event_id', eventId)
+    .maybeSingle();
+  if (!category) return Response.json({ success: false, error: 'Лігу не знайдено' }, { status: 400 });
+  if (category.status !== 'scheduled') {
+    return Response.json({ success: false, error: 'Реєстрацію в цю лігу закрито' }, { status: 400 });
+  }
+  // A men's league takes men, a women's league women — alone or as a
+  // pair. (A mix has no gender on its categories.)
+  if (category.gender && category.gender !== player.gender) {
+    return Response.json(
+      {
+        success: false,
+        error: category.gender === 'M' ? 'Це чоловіча ліга — заявку можуть подати лише чоловіки' : 'Це жіноча ліга — заявку можуть подати лише жінки',
+      },
+      { status: 400 }
+    );
+  }
+
   // Resolve partner (pair formats)
   let partner = null;
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
@@ -98,21 +124,6 @@ export async function POST(request, { params }) {
       return Response.json({ success: true, joined: true });
     }
     partner = p;
-  }
-
-  // The player must pick the league they want to apply to.
-  if (!categoryId) {
-    return Response.json({ success: false, error: 'Виберіть лігу для заявки' }, { status: 400 });
-  }
-  const { data: category } = await supabaseAdmin
-    .from('tournament_categories')
-    .select('id, category_label, status')
-    .eq('id', categoryId)
-    .eq('event_id', eventId)
-    .maybeSingle();
-  if (!category) return Response.json({ success: false, error: 'Лігу не знайдено' }, { status: 400 });
-  if (category.status !== 'scheduled') {
-    return Response.json({ success: false, error: 'Реєстрацію в цю лігу закрито' }, { status: 400 });
   }
 
   // Always pending — the admin distributes. The chosen league is only a

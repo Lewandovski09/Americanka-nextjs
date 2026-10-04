@@ -53,6 +53,21 @@
   box-shadow: var(--shadow-cta);
 }
 
+/* Admin: link to the archive of deleted tournaments. */
+.archiveLink {
+  display: block;
+  text-align: center;
+  padding: 10px;
+  margin: 0 0 14px;
+  border: 1.5px dashed var(--border-light);
+  border-radius: var(--r-md);
+  font-size: 13.5px;
+  font-weight: 600;
+  color: var(--navy2);
+  text-decoration: none;
+  background: var(--surface);
+}
+
 .empty {
   text-align: center;
   padding: 24px;

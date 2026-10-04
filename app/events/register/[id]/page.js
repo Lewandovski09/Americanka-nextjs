@@ -190,7 +190,10 @@ export default function EventRegisterPage({ params, searchParams }) {
   );
 }
 
-function MyRegistration({ isPair, isMix, me, takenIds = [], categories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
+function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCategories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
+  // A men's league takes men, a women's league women (the server refuses
+  // the rest too) — so only the leagues this player may enter are offered.
+  const categories = allCategories.filter((c) => !c.gender || c.gender === me?.gender);
   const [partner, setPartner] = useState(null);
   const [seeking, setSeeking] = useState(false);
   // Applying alone in a pair format: optionally also post a «Шукаю пару»
@@ -241,6 +244,16 @@ function MyRegistration({ isPair, isMix, me, takenIds = [], categories, initialC
     return (
       <div className={styles.myBox}>
         <div className={styles.myStatus}>🔒 Реєстрацію закрито</div>
+      </div>
+    );
+  }
+
+  if (categories.length === 0) {
+    return (
+      <div className={styles.myBox}>
+        <div className={styles.myStatus}>
+          {me?.gender === 'M' ? 'У цьому турнірі немає чоловічих ліг' : 'У цьому турнірі немає жіночих ліг'}
+        </div>
       </div>
     );
   }
@@ -306,8 +319,9 @@ function MyRegistration({ isPair, isMix, me, takenIds = [], categories, initialC
               </div>
             ) : (
               <PlayerPicker
-                placeholder="Напарник: ім’я, прізвище або нік…"
+                placeholder={isMix ? (me?.gender === 'M' ? 'Напарниця: ім’я, прізвище або нік…' : 'Напарник: ім’я, прізвище або нік…') : me?.gender === 'F' ? 'Напарниця: ім’я, прізвище або нік…' : 'Напарник: ім’я, прізвище або нік…'}
                 excludeIds={takenIds}
+                gender={me?.gender ? (isMix ? (me.gender === 'M' ? 'F' : 'M') : me.gender) : null}
                 onPick={setPartner}
               />
             ))}

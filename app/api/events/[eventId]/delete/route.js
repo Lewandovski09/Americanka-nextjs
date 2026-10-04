@@ -33,6 +33,10 @@ import { PRIMARY_SPORT_ID } from '@/lib/sports';
 //   { confirmRatingRollback: true } → do it
 // A call with rating at stake and no flag is still refused, so the
 // rollback can never happen by accident or by a stray API call.
+//
+// Since migration 052 nothing is lost: before the delete, the event is
+// copied into the archive (deleted_events) and can be restored from
+// there — /api/admin/events/archive/[archiveId]/restore.
 export async function POST(request, { params }) {
   const { eventId } = params;
 
@@ -57,7 +61,7 @@ export async function POST(request, { params }) {
 
   const { data: event } = await supabaseAdmin
     .from('tournament_events')
-    .select('id')
+    .select('id, name, format_kind, scheduled_at, status')
     .eq('id', eventId)
     .maybeSingle();
   if (!event) {
@@ -139,6 +143,44 @@ export async function POST(request, { params }) {
     );
   }
 
+  // ── Archive first (migration 052) ──
+  // The whole event is copied into deleted_events before anything is
+  // touched, so «Відновити» can put it back. No archive — no delete:
+  // a tournament is never lost for good by this button.
+  const { data: snapshot, error: snapErr } = await supabaseAdmin.rpc('archive_event_snapshot', { p_event: eventId });
+  if (snapErr || !snapshot) {
+    console.error('[event delete] archive snapshot:', snapErr?.message);
+    return Response.json(
+      { success: false, error: 'Не вдалося зберегти турнір в архів — його не видалено. Чи виконано SQL міграції 052?' },
+      { status: 500 }
+    );
+  }
+  const { data: archived, error: archErr } = await supabaseAdmin
+    .from('deleted_events')
+    .insert({
+      event_id: eventId,
+      name: event.name,
+      format_kind: event.format_kind,
+      scheduled_at: event.scheduled_at,
+      event_status: event.status,
+      categories_count: (snapshot.tournament_categories || []).length,
+      matches_count: (snapshot.tournament_matches || []).length,
+      deleted_by: authUser.user.id,
+      snapshot,
+    })
+    .select('id')
+    .single();
+  if (archErr || !archived) {
+    console.error('[event delete] archive insert:', archErr?.message);
+    return Response.json(
+      { success: false, error: 'Не вдалося зберегти турнір в архів — його не видалено' },
+      { status: 500 }
+    );
+  }
+  // If the delete below fails, the archive entry must not stay behind
+  // (the tournament would then exist twice).
+  const dropArchive = () => supabaseAdmin.from('deleted_events').delete().eq('id', archived.id);
+
   // ── Roll Ело back, player by player ──
   // Before the rows are deleted: if an update fails we stop with the
   // history intact, so the event stays deletable and nothing is left
@@ -152,6 +194,7 @@ export async function POST(request, { params }) {
       const updErr = await writeRating(supabaseAdmin, userId, sportId, restored);
       if (updErr) {
         console.error('[event delete] elo rollback:', updErr);
+        await dropArchive();
         return Response.json(
           { success: false, error: 'Не вдалося скасувати нараховане Ело — турнір не видалено' },
           { status: 500 }
@@ -168,6 +211,7 @@ export async function POST(request, { params }) {
   const { error } = await supabaseAdmin.from('tournament_events').delete().eq('id', eventId);
   if (error) {
     console.error('[event delete] error:', error.message);
+    await dropArchive();
     return Response.json({ success: false, error: 'Не вдалося видалити турнір' }, { status: 500 });
   }
 
