@@ -200,6 +200,16 @@ export default function TournamentDetailPage({ params }) {
     setCached(`tournament:${id}:rest`, { sibs: sibs || [], tps: tps || [], tt: tt || [], crew, info });
   }, [id, fetchLive]);
 
+  // Start fetching the separately loaded parts right away, alongside the
+  // tournament data — by the time the data is here they are too, so
+  // nothing pops in a moment after the rest of the page.
+  useEffect(() => {
+    import('./BracketFlow');
+    import('./PinchZoom');
+    import('@/components/VotePoll');
+    import('@/components/PartnerBoard');
+  }, []);
+
   useEffect(() => {
     load();
   }, [load]);

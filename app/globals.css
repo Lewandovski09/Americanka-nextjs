@@ -119,6 +119,12 @@ a:active,
   border-radius: var(--r-sm);
 }
 
+/* A popup receives focus itself when it opens (components/DialogA11y) —
+   that is for screen readers and Tab, not something to draw a frame on. */
+[role='dialog']:focus {
+  outline: none;
+}
+
 /* ---------- Entrance animation ----------
    A single shared fade-up used for cards/sections as they appear,
    so the app feels assembled rather than just present. Kept short

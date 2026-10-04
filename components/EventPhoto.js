@@ -121,7 +121,7 @@ export default function EventPhoto({ eventId, photoUrl, canEdit: canEditProp, ow
       {error && <div className={styles.error}>{error}</div>}
 
       {zoom && url && (
-        <div data-dismiss className={styles.lightbox} onClick={() => setZoom(false)}>
+        <div data-dismiss role="dialog" aria-modal="true" aria-label="Фото турніру" className={styles.lightbox} onClick={() => setZoom(false)}>
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img src={url} alt="Фото турніру" className={styles.lightboxImg} />
         </div>

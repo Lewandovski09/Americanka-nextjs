@@ -2,7 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
-import { dropPartnerAds } from '@/lib/server/pairing';
 import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
 
 // A player submits an application to an event, choosing the league
@@ -96,7 +95,6 @@ export async function POST(request, { params }) {
   }
 
   // Resolve partner (pair formats)
-  let partner = null;
   let invitee = null;
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
   if (isPair && partnerId && !seekingPartner) {
@@ -148,7 +146,8 @@ export async function POST(request, { params }) {
   const appRow = {
     event_id: eventId,
     user_id: playerId,
-    partner_id: partner?.id || null,
+    // a partner joins only by accepting an invitation (pairing.joinSeeker)
+    partner_id: null,
     seeking_partner: !!seekingPartner || !!invitee,
     requested_category: category.category_label || null,
     status: 'pending',
@@ -163,9 +162,6 @@ export async function POST(request, { params }) {
     console.error('[apply] application error:', appError.message);
     return Response.json({ success: false, error: 'Не вдалося зберегти заявку' }, { status: 500 });
   }
-
-  // A pair has formed — their «Шукаю пару» notices are no longer needed.
-  if (partner) await dropPartnerAds(supabaseAdmin, eventId, [playerId, partner.id]);
 
   if (invitee) {
     const sent = await sendInvite(supabaseAdmin, request, { eventId, categoryId, from: playerId, to: invitee.id, kind: 'join_inviter' });

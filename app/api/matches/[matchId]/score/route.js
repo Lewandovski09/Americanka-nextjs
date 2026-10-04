@@ -11,6 +11,7 @@ import { stageWeight } from '@/lib/formats/stages';
 import { assignScheduledTimes, cursorsFromMatches } from '@/lib/schedule';
 import { getJudgeRole } from '@/lib/server/judges';
 import { finishCategory, refreshFinishedCategory } from '@/lib/server/finishCategory';
+import { saveScore } from '@/lib/server/matchScore';
 
 export async function POST(request, { params }) {
   const { matchId } = params;
@@ -139,6 +140,12 @@ export async function POST(request, { params }) {
       ? correctEloForAmericanka(supabaseAdmin, match, sets)
       : null,
   ]);
+
+  // A correction may have landed while this first entry was still paying
+  // the game (it then had no Ело history to correct yet, and its bracket
+  // move may have been overwritten by ours). Look at the score as it is
+  // now: if the winner is no longer the one just paid, settle to it.
+  if (firstEntry) await settleToCurrentScore(supabaseAdmin, match, sets);
 
   // Stages advance themselves: once the last game of a King round or of
   // the group stage is entered, the next phase's teams are filled in —
@@ -646,54 +653,22 @@ function validateForMatch(match, sets) {
   return validateSetsFirstTo(sets, target);
 }
 
-// Writes the score and reports what it replaced:
-// { saved, wasPlayed, prev: { set1, set2, set3 } } or { error }.
-// Uses save_match_score (migration 062, row lock). Until that migration
-// is run, falls back to the older claim: the first entry flips
-// played → true atomically, a correction re-reads the row first.
-async function saveScore(supabaseAdmin, match, newSets, allowCorrection) {
-  const { data, error } = await supabaseAdmin.rpc('save_match_score', {
-    p_match: match.id,
-    p_set1: newSets.set1,
-    p_set2: newSets.set2,
-    p_set3: newSets.set3,
-    p_allow_correction: !!allowCorrection,
-  });
-  const missing =
-    error && (error.code === 'PGRST202' || error.code === '42883' || /save_match_score/.test(error.message || ''));
-  if (error && !missing) return { error: error.message };
-  if (!error) {
-    const row = Array.isArray(data) ? data[0] : data;
-    if (!row) return { error: 'match not found' };
-    return {
-      saved: !!row.saved,
-      wasPlayed: !!row.was_played,
-      prev: { set1: row.old_set1, set2: row.old_set2, set3: row.old_set3 },
-    };
-  }
 
-  // ── fallback (before migration 062) ──
-  if (!match.played) {
-    const { data: claimed, error: e1 } = await supabaseAdmin
-      .from('tournament_matches')
-      .update({ ...newSets, played: true, played_at: new Date().toISOString() })
-      .eq('id', match.id)
-      .eq('played', false)
-      .select('id');
-    if (e1) return { error: e1.message };
-    if ((claimed || []).length === 1) return { saved: true, wasPlayed: false, prev: {} };
-    if (!allowCorrection) return { saved: false, wasPlayed: true, prev: {} };
-  }
-  const { data: fresh, error: e2 } = await supabaseAdmin
+// After a first entry: if the stored score now has a different winner
+// than the one this request paid (a correction raced it), re-pay the Ело
+// and re-place the teams in the bracket from the stored score.
+async function settleToCurrentScore(supabaseAdmin, match, paidSets) {
+  const { data: now } = await supabaseAdmin
     .from('tournament_matches')
     .select('set1, set2, set3')
     .eq('id', match.id)
     .maybeSingle();
-  if (e2) return { error: e2.message };
-  const { error: e3 } = await supabaseAdmin
-    .from('tournament_matches')
-    .update({ ...newSets, played: true })
-    .eq('id', match.id);
-  if (e3) return { error: e3.message };
-  return { saved: true, wasPlayed: true, prev: fresh || match };
+  if (!now?.set1) return;
+  const paid = { set1: paidSets[0], set2: paidSets[1] ?? null, set3: paidSets[2] ?? null };
+  if (teamAWon(now) === teamAWon(paid)) return;
+  const currentSets = [now.set1, now.set2, now.set3].filter(Boolean);
+  await Promise.all([
+    propagateBracket(supabaseAdmin, match, currentSets),
+    correctEloForAmericanka(supabaseAdmin, match, currentSets),
+  ]);
 }

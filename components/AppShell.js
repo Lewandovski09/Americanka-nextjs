@@ -33,22 +33,6 @@ export default function AppShell({ children }) {
     }
   }, [loading, player, isGatedPath, router]);
 
-  // Escape closes the top-most popup. Every popup's backdrop carries
-  // data-dismiss and already closes on a tap — Escape just taps it.
-  useEffect(() => {
-    function onKey(e) {
-      if (e.key !== 'Escape') return;
-      const backdrops = document.querySelectorAll('[data-dismiss]');
-      const top = backdrops[backdrops.length - 1];
-      if (top) {
-        e.preventDefault();
-        top.click();
-      }
-    }
-    document.addEventListener('keydown', onKey);
-    return () => document.removeEventListener('keydown', onKey);
-  }, []);
-
   if (isAuthPage) {
     // Auth screens render full-bleed with their own background.
     return <>{children}</>;

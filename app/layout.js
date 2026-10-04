@@ -4,6 +4,7 @@ import RegisterSW from '@/components/RegisterSW';
 import SentryInit from '@/components/SentryInit';
 import { PlayerProvider } from '@/hooks/useCurrentPlayer';
 import { VENUE } from '@/lib/venue';
+import DialogA11y from '@/components/DialogA11y';
 
 // The site's own address, for absolute links in link previews (Open
 // Graph). Vercel provides VERCEL_PROJECT_PRODUCTION_URL; NEXT_PUBLIC_SITE_URL
@@ -52,6 +53,7 @@ export default function RootLayout({ children }) {
       <body>
         <SentryInit />
         <RegisterSW />
+        <DialogA11y />
         <PlayerProvider>
           <AppShell>{children}</AppShell>
         </PlayerProvider>
