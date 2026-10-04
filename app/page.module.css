@@ -111,7 +111,7 @@
 
 .headerBrandName {
   font-size: 15.5px;
-  font-weight: 800;
+  font-weight: 600;
   color: #fff;
   letter-spacing: 0.2px;
 }
@@ -137,8 +137,8 @@
 }
 
 .headerPlayerName {
-  font-size: 16.5px;
-  font-weight: 600;
+  font-size: 15px;
+  font-weight: 500;
   color: #fff;
 }
 
@@ -605,16 +605,16 @@
 }
 
 .headerStatValue {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 600;
   color: #fff;
   line-height: 1.2;
   margin-top: 2px;
 }
 
 .headerStatValueAvp {
-  font-size: 19px;
-  font-weight: 800;
+  font-size: 16px;
+  font-weight: 600;
   color: var(--rust);
   line-height: 1.2;
   margin-top: 2px;
@@ -779,4 +779,36 @@
   color: var(--text2);
   line-height: 1.6;
   margin: 6px 0 30px;
+}
+
+.formatsText p {
+  margin: 0 0 8px;
+}
+
+/* The format in five short facts. */
+.formatsFacts {
+  list-style: none;
+  margin: 0;
+  padding: 0;
+}
+
+.formatsFacts li {
+  position: relative;
+  padding: 5px 0 5px 18px;
+  border-top: 1px solid var(--border-light);
+}
+
+.formatsFacts li:first-child {
+  border-top: none;
+}
+
+.formatsFacts li::before {
+  content: '';
+  position: absolute;
+  left: 2px;
+  top: 13px;
+  width: 7px;
+  height: 7px;
+  border-radius: 50%;
+  background: var(--rust);
 }

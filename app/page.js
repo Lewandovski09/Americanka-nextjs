@@ -12,11 +12,10 @@ import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import HeaderStatCards from '@/components/HeaderStatCards';
 import { useClubSeasons, seasonHeadline } from '@/lib/seasons';
 import { getCached, setCached } from '@/lib/clientCache';
-import { winPluralUk } from '@/lib/pluralize';
 import { VENUE } from '@/lib/venue';
 import VenueName from '@/components/VenueName';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconTrendUp, IconMail, IconChat } from '@/components/Icons';
+import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconMail, IconChat } from '@/components/Icons';
 import styles from './page.module.css';
 
 export default function HomePage() {
@@ -34,7 +33,6 @@ export default function HomePage() {
   // Everything below starts from the last-known values (clientCache), so
   // coming back to Головна shows the page at once and refreshes quietly.
   const [headerStats, setHeaderStats] = useState(null);
-  const winStreak = headerStats?.winStreak || 0;
   const seasons = useClubSeasons();
 
   // Swipe left to jump to the next tab (Турніри) — installed-PWA
@@ -302,14 +300,6 @@ export default function HomePage() {
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>
       )}
 
-      {winStreak >= 2 && (
-        <div className={`${styles.streakCard} riseIn`}>
-          <IconTrendUp size={18} color="var(--rust)" />
-          <div className={styles.streakText}>
-            {winStreak} {winPluralUk(winStreak)} поспіль
-          </div>
-        </div>
-      )}
 
       {announcements.length > 0 && (
         <>
@@ -418,14 +408,33 @@ export default function HomePage() {
         <span className={styles.tgArrow} aria-hidden="true">›</span>
       </a>
 
+      {/* What an Americanka day is — the format the season runs on. */}
       <div className={styles.formatsCard}>
         <div className={styles.formatsIconRow}>
           <IconRocket size={17} color="var(--rust)" />
-          <div className={styles.formatsTitle}>Старт сезону — AMERICANKA</div>
+          <div className={styles.formatsTitle}>Старт сезону 26/27 — формат Americanka 2×2</div>
         </div>
         <div className={styles.formatsText}>
-          Зараз стартує класичний формат <b>AMERICANKA 2x2</b>. Найближчим часом додадуться нові формати: <b>мікс</b>,{' '}
-          <b>чоловічі та жіночі</b>, <b>король корту</b>, <b>випадковий мікс</b> та інші.
+          <p>
+            Заявку на турнір подаєш <b>сам</b> — пара не потрібна: напарники змінюються після кожного раунду.
+          </p>
+          <ul className={styles.formatsFacts}>
+            <li>
+              <b>8 гравців</b> — з кожним ти граєш у парі <b>по одній партії</b>
+            </li>
+            <li>
+              Партія йде <b>до 31 очка в сумі</b> — рахунок може бути 25:6, 19:12 і так далі
+            </li>
+            <li>
+              Разом <b>7 ігор</b> і <b>7 різних напарників</b>
+            </li>
+            <li>
+              Перемагає той, у кого <b>найкраща різниця</b> забитих і пропущених м’ячів
+            </li>
+            <li>
+              На одному корті турнір триває <b>близько 3 годин</b>
+            </li>
+          </ul>
         </div>
       </div>
 
