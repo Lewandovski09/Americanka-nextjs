@@ -812,3 +812,59 @@
   border-radius: 50%;
   background: var(--rust);
 }
+
+/* «Найближчий турнір» — the same banner card as the «Турніри» list. */
+.nextTournamentCard {
+  padding: 0;
+  overflow: hidden;
+  border-radius: 18px;
+  border: 1px solid #d3dbe9;
+  box-shadow:
+    0 3px 0 #cbd4e3,
+    0 6px 16px rgba(16, 27, 51, 0.08);
+}
+
+.nextTop {
+  position: relative;
+  padding: 14px 14px 12px;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.16), transparent 60%),
+    linear-gradient(135deg, #16306b 0%, #2a4d94 60%, #e85d4a 150%);
+}
+
+.nextShine {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+  background-image:
+    radial-gradient(circle at 88% 20%, rgba(255, 220, 120, 0.6) 0 2px, transparent 3px),
+    radial-gradient(circle at 70% 80%, rgba(255, 255, 255, 0.3) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 15% 70%, rgba(255, 170, 150, 0.45) 0 2px, transparent 3px);
+}
+
+.nextTop .nextTournamentTop,
+.nextTop .nextTournamentMeta {
+  position: relative;
+}
+
+.nextTop .nextTournamentName {
+  color: #fff;
+  font-weight: 700;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.3);
+}
+
+.nextTop .nextTournamentMeta {
+  color: rgba(255, 255, 255, 0.85);
+}
+
+.nextTop .statusBadge {
+  background: #22c55e;
+  color: #fff;
+  border: 1px solid #15803d;
+}
+
+.nextBody {
+  padding: 4px 10px 12px;
+  background: var(--surface);
+}

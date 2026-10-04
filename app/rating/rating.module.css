@@ -387,7 +387,7 @@
 
 .clubStatRank {
   font-size: 12.75px;
-  font-weight: 700;
+  font-weight: 400;
   color: var(--text2);
   width: 16px;
   flex-shrink: 0;
@@ -396,7 +396,7 @@
 .clubStatName {
   flex: 1;
   font-size: 13.75px;
-  font-weight: 600;
+  font-weight: 400;
   color: var(--text);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -405,13 +405,13 @@
 
 .clubStatValue {
   font-size: 14.75px;
-  font-weight: 800;
+  font-weight: 500;
   color: var(--navy);
 }
 
 .clubStatValuePositive {
   font-size: 14.75px;
-  font-weight: 800;
+  font-weight: 500;
   color: var(--accent-green, #16a34a);
 }
 

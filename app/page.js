@@ -325,18 +325,23 @@ export default function HomePage() {
       <div className={styles.sectionLabel}>Найближчий турнір</div>
       {nextEvent ? (
         <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
-          <div className={styles.nextTournamentTop}>
-            <div className={styles.nextTournamentName}>{nextEvent.format?.displayName || 'Турнір'}</div>
-            <span className={styles.statusBadge}>{nextEvent.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}</span>
-          </div>
-          <div className={styles.nextTournamentMeta}>
-            {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
-          </div>
-          <div className={styles.nextTournamentMeta}>
-            <VenueName code={nextEvent.location} />
-            {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
+          {/* Banner head + category tiles — the same card as in «Турніри». */}
+          <div className={styles.nextTop}>
+            <span className={styles.nextShine} aria-hidden="true" />
+            <div className={styles.nextTournamentTop}>
+              <div className={styles.nextTournamentName}>{nextEvent.format?.displayName || 'Турнір'}</div>
+              <span className={styles.statusBadge}>{nextEvent.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}</span>
+            </div>
+            <div className={styles.nextTournamentMeta}>
+              {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
+            </div>
+            <div className={styles.nextTournamentMeta}>
+              <VenueName code={nextEvent.location} />
+              {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
+            </div>
           </div>
 
+          <div className={styles.nextBody}>
           {nextCategories.map((c) => (
             <CategoryRow
               key={c.id}
@@ -347,6 +352,7 @@ export default function HomePage() {
               href={c.status === 'scheduled' && nextEvent.id ? `/events/register/${nextEvent.id}?category=${c.id}` : `/tournaments/${c.id}`}
             />
           ))}
+          </div>
         </div>
       ) : (
         <div className={`${styles.emptyTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
