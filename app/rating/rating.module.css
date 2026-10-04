@@ -71,20 +71,27 @@
 
 .genderBtn {
   flex: 1;
-  padding: 12px;
-  border-radius: var(--r-sm);
-  border: none;
-  background: var(--surface);
+  padding: 11px;
+  border-radius: 12px;
+  border: 1px solid #10234a;
+  background: linear-gradient(180deg, #3a5786 0%, #26406b 100%);
   cursor: pointer;
   font-size: 14.75px;
   font-weight: 700;
-  color: var(--text2);
-  box-shadow: var(--shadow-sm);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.25),
+    0 3px 0 #10234a;
 }
 
+/* The chosen one: warm and bright, like the game's yellow button. */
 .genderBtnOn {
-  background: var(--navy);
+  background: linear-gradient(180deg, #ffb39f 0%, #e85d4a 100%);
+  border-color: #a8392a;
   color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.45),
+    0 3px 0 #a8392a;
 }
 
 .chipsRow {
@@ -131,17 +138,26 @@
   display: flex;
   align-items: center;
   gap: 10px;
-  padding: 11px 14px;
-  background: var(--surface);
-  border-radius: var(--r-sm);
+  padding: 8px 10px 8px 8px;
   margin-bottom: 7px;
-  box-shadow: var(--shadow-sm);
   text-decoration: none;
+  border-radius: 14px;
+  /* a raised tile, like a game leaderboard row */
+  background: linear-gradient(180deg, #f7f9fd 0%, #e9eef7 100%);
+  border: 1px solid #d3dbe9;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 0 #cbd4e3,
+    0 3px 8px rgba(16, 27, 51, 0.06);
 }
 
 .meRow {
-  background: var(--rust-tint);
-  box-shadow: var(--shadow-highlight);
+  background: linear-gradient(180deg, #fff3f0 0%, #fde2dc 100%);
+  border-color: #f5b4a7;
+  box-shadow:
+    inset 0 1px 0 #fff,
+    0 2px 0 #f0a594,
+    0 3px 10px rgba(232, 93, 74, 0.18);
 }
 
 .rank {
@@ -167,6 +183,9 @@
 }
 
 .playerMeta {
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
   font-size: 11.75px;
   color: var(--text2);
 }
@@ -466,4 +485,182 @@
   letter-spacing: 0.5px;
   text-align: center;
   margin: 4px 0 8px;
+}
+
+
+/* ── Leaderboard (game-style) ── */
+.rankBadge {
+  width: 34px;
+  height: 34px;
+  flex-shrink: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 10px;
+  font-size: 14px;
+  font-weight: 800;
+  color: #34486e;
+  background: linear-gradient(180deg, #f1f4fa 0%, #d9e0ec 100%);
+  border: 1px solid #b9c4d7;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 0 #b9c4d7;
+}
+
+.rankGold {
+  color: #6b4500;
+  background: linear-gradient(180deg, #ffe58a 0%, #f3b52a 100%);
+  border-color: #c98a12;
+  box-shadow: inset 0 1px 0 #fff6cc, 0 1px 0 #c98a12;
+}
+
+.rankSilver {
+  color: #3c4a60;
+  background: linear-gradient(180deg, #ffffff 0%, #c9d2df 100%);
+  border-color: #9eabbd;
+  box-shadow: inset 0 1px 0 #fff, 0 1px 0 #9eabbd;
+}
+
+.rankBronze {
+  color: #fff;
+  background: linear-gradient(180deg, #f6a46c 0%, #d1692d 100%);
+  border-color: #a14d1c;
+  box-shadow: inset 0 1px 0 #ffd2b0, 0 1px 0 #a14d1c;
+}
+
+.metaUp {
+  color: #15803d;
+  font-weight: 700;
+}
+
+.metaDown {
+  color: var(--danger);
+  font-weight: 700;
+}
+
+.scorePill {
+  display: flex;
+  align-items: center;
+  flex-shrink: 0;
+  background: #26406b;
+  border-radius: 999px;
+  padding: 3px 12px 3px 3px;
+  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+}
+
+.scoreIcon {
+  width: 24px;
+  height: 24px;
+  border-radius: 50%;
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  background: linear-gradient(180deg, #ff8f7a 0%, #e85d4a 100%);
+  box-shadow: 0 0 0 2px #26406b, 0 0 0 3px rgba(255, 255, 255, 0.25);
+  margin-right: 7px;
+}
+
+.scoreIconAvp {
+  background: linear-gradient(180deg, #ffd66b 0%, #f0a91f 100%);
+}
+
+.scoreNum {
+  font-size: 14.5px;
+  font-weight: 700;
+  color: #fff;
+  font-variant-numeric: tabular-nums;
+  min-width: 34px;
+  text-align: right;
+}
+
+/* Season banner above the list */
+.banner {
+  position: relative;
+  overflow: hidden;
+  border-radius: 16px;
+  margin-bottom: 12px;
+  padding: 16px 14px 14px;
+  text-align: center;
+  color: #fff;
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.18), transparent 60%),
+    linear-gradient(135deg, #16306b 0%, #2a4d94 55%, #e85d4a 140%);
+  box-shadow: 0 6px 18px rgba(13, 35, 71, 0.25);
+}
+
+.bannerAvp {
+  background:
+    radial-gradient(120% 90% at 50% 0%, rgba(255, 255, 255, 0.2), transparent 60%),
+    linear-gradient(135deg, #5a2a86 0%, #8b3fb8 55%, #f0a91f 140%);
+}
+
+.bannerShine {
+  position: absolute;
+  inset: 0;
+  background-image:
+    radial-gradient(circle at 12% 30%, rgba(255, 255, 255, 0.35) 0 2px, transparent 3px),
+    radial-gradient(circle at 85% 22%, rgba(255, 220, 120, 0.6) 0 2px, transparent 3px),
+    radial-gradient(circle at 72% 78%, rgba(255, 255, 255, 0.3) 0 1.5px, transparent 2.5px),
+    radial-gradient(circle at 25% 80%, rgba(255, 170, 150, 0.5) 0 2px, transparent 3px);
+  pointer-events: none;
+}
+
+.bannerEmblem {
+  position: relative;
+  display: flex;
+  justify-content: center;
+  filter: drop-shadow(0 4px 10px rgba(0, 0, 0, 0.3));
+}
+
+.bannerRibbon {
+  position: relative;
+  display: inline-block;
+  margin-top: 6px;
+  padding: 6px 22px;
+  font-size: 17px;
+  font-weight: 800;
+  letter-spacing: 0.3px;
+  background: rgba(255, 255, 255, 0.16);
+  border: 1px solid rgba(255, 255, 255, 0.35);
+  border-radius: 10px;
+  text-shadow: 0 1px 2px rgba(0, 0, 0, 0.35);
+}
+
+.bannerSeason {
+  position: relative;
+  margin-top: 8px;
+  font-size: 12px;
+  font-weight: 600;
+  opacity: 0.9;
+}
+
+/* Floating ▲ / ▼ */
+.jumpBtn {
+  position: fixed;
+  left: 50%;
+  transform: translateX(-50%);
+  z-index: 20;
+  width: 64px;
+  height: 34px;
+  border-radius: 12px;
+  border: 1px solid #10234a;
+  background: linear-gradient(180deg, #3f6aa8 0%, #26406b 100%);
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.3),
+    0 3px 0 #10234a,
+    0 6px 14px rgba(0, 0, 0, 0.25);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  cursor: pointer;
+}
+
+.jumpBtn:active {
+  transform: translateX(-50%) translateY(2px) !important;
+}
+
+.jumpUp {
+  top: calc(env(safe-area-inset-top, 0px) + 12px);
+}
+
+.jumpDown {
+  bottom: calc(env(safe-area-inset-bottom, 0px) + 92px); /* above the tab bar */
 }

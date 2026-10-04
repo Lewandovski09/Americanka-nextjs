@@ -445,8 +445,9 @@ export default function RatingPage() {
         </button>
       </div>
 
-      {tab === 'rating' && <SeasonNote season={shownEloSeason} archived={Boolean(eloSeasonId)} />}
-      {tab === 'avp' && <SeasonNote season={shownAvpSeason} />}
+      {tab === 'rating' && <SeasonBanner title="Рейтинг Ело" season={shownEloSeason} archived={Boolean(eloSeasonId)} kind="elo" />}
+      {tab === 'avp' && <SeasonBanner title="Рейтинг AVP" season={shownAvpSeason} kind="avp" />}
+      {(tab === 'rating' || tab === 'avp') && <ScrollJump />}
       {tab === 'stats' && <SeasonNote season={club?.elo} />}
 
       {tab === 'rating' && (
@@ -533,24 +534,25 @@ export default function RatingPage() {
             <a
               key={p.id}
               href={p.id === player?.id ? '/profile' : `/players/${p.id}`}
+              id={p.id === player?.id ? 'rating-me' : undefined}
               className={`${styles.playerRow} ${p.id === player?.id ? styles.meRow : ''}`}
             >
-              <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>{i + 1}</div>
+              <RankBadge n={i + 1} />
               <PlayerAvatar player={p} size={36} />
               <div className={styles.playerInfo}>
                 <div className={styles.playerName}>{highlightMatch(p.full_name, searchTerm.trim())}</div>
                 <div className={styles.playerMeta}>
-                  @{highlightMatch(p.login, searchTerm.trim())} ·{' '}
+                  {categoryForElo(p.elo)?.label} ·{' '}
                   {p.archived ? `${p.games} ігор` : `${p.tournaments_played} турн.`}
                   {p.seasonDelta != null && p.seasonDelta !== 0 && (
-                    <> · {p.seasonDelta > 0 ? `+${p.seasonDelta}` : p.seasonDelta} за сезон</>
+                    <span className={p.seasonDelta > 0 ? styles.metaUp : styles.metaDown}>
+                      {' '}
+                      · {p.seasonDelta > 0 ? `+${p.seasonDelta}` : p.seasonDelta}
+                    </span>
                   )}
                 </div>
               </div>
-              <div className={styles.playerEloBox}>
-                <div className={styles.playerElo}>{p.elo}</div>
-                <div className={styles.playerCat}>{categoryForElo(p.elo)?.label}</div>
-              </div>
+              <ScorePill value={p.elo} kind="elo" />
             </a>
           ))}
 
@@ -603,11 +605,10 @@ export default function RatingPage() {
             <a
               key={r.user_id}
               href={r.user_id === player?.id ? '/profile' : `/players/${r.user_id}`}
+              id={r.user_id === player?.id ? 'rating-me' : undefined}
               className={`${styles.playerRow} ${r.user_id === player?.id ? styles.meRow : ''}`}
             >
-              <div className={styles.rank} style={i === 0 ? { color: 'var(--rust)', fontWeight: 800 } : undefined}>
-                {i + 1}
-              </div>
+              <RankBadge n={i + 1} />
               <PlayerAvatar player={r.player} size={36} />
               <div className={styles.playerInfo}>
                 <div className={styles.playerName}>{highlightMatch(r.player.full_name, searchTerm.trim())}</div>
@@ -615,10 +616,7 @@ export default function RatingPage() {
                   @{highlightMatch(r.player.login, searchTerm.trim())} · {r.tournaments_counted} турн.
                 </div>
               </div>
-              <div className={styles.playerEloBox}>
-                <div className={styles.playerElo}>{r.points}</div>
-                <div className={styles.playerCat}>очок</div>
-              </div>
+              <ScorePill value={r.points} kind="avp" />
             </a>
           ))}
         </>
@@ -766,6 +764,93 @@ export default function RatingPage() {
         </>
       )}
     </div>
+  );
+}
+
+// ── Leaderboard pieces, styled after a game leaderboard ──
+
+// Place badge: gold / silver / bronze for the podium, a plain tile after.
+function RankBadge({ n }) {
+  const tone = n === 1 ? styles.rankGold : n === 2 ? styles.rankSilver : n === 3 ? styles.rankBronze : '';
+  return <div className={`${styles.rankBadge} ${tone}`}>{n}</div>;
+}
+
+// The score on the right: a dark pill with the rating's emblem.
+function ScorePill({ value, kind }) {
+  return (
+    <div className={styles.scorePill}>
+      <span className={`${styles.scoreIcon} ${kind === 'avp' ? styles.scoreIconAvp : ''}`} aria-hidden="true">
+        {kind === 'avp' ? (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff">
+            <path d="M5 4h14v3a5 5 0 0 1-4 4.9V14h2v2H7v-2h2v-2.1A5 5 0 0 1 5 7V4Zm-3 1h2v2a3 3 0 0 0 1 2.2V11A5 5 0 0 1 2 7V5Zm18 0h2v2a5 5 0 0 1-3 4.6V9.2A3 3 0 0 0 20 7V5ZM8 18h8v2H8v-2Z" />
+          </svg>
+        ) : (
+          <svg width="13" height="13" viewBox="0 0 24 24" fill="#fff">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
+          </svg>
+        )}
+      </span>
+      <span className={styles.scoreNum}>{value}</span>
+    </div>
+  );
+}
+
+// The season banner over the list — scrolls away with it.
+function SeasonBanner({ title, season, archived, kind }) {
+  if (!season) return null;
+  return (
+    <div className={`${styles.banner} ${kind === 'avp' ? styles.bannerAvp : ''}`}>
+      <span className={styles.bannerShine} aria-hidden="true" />
+      <div className={styles.bannerEmblem} aria-hidden="true">
+        {kind === 'avp' ? (
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#fff">
+            <path d="M5 4h14v3a5 5 0 0 1-4 4.9V14h2v2H7v-2h2v-2.1A5 5 0 0 1 5 7V4Zm-3 1h2v2a3 3 0 0 0 1 2.2V11A5 5 0 0 1 2 7V5Zm18 0h2v2a5 5 0 0 1-3 4.6V9.2A3 3 0 0 0 20 7V5ZM8 18h8v2H8v-2Z" />
+          </svg>
+        ) : (
+          <svg width="40" height="40" viewBox="0 0 24 24" fill="#fff">
+            <path d="M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2Z" />
+          </svg>
+        )}
+      </div>
+      <div className={styles.bannerRibbon}>{title}</div>
+      <div className={styles.bannerSeason}>
+        {season.name} · {seasonDates(season)}
+        {archived ? ' · архів' : season.ends_on === null ? ' · поточний' : ''}
+      </div>
+    </div>
+  );
+}
+
+// Floating arrows: ▲ back to the top once the list is scrolled, ▼ down to
+// the viewer's own row (or the end of the list if they are not in it).
+function ScrollJump() {
+  const [showUp, setShowUp] = useState(false);
+  useEffect(() => {
+    const onScroll = () => setShowUp(window.scrollY > 320);
+    onScroll();
+    window.addEventListener('scroll', onScroll, { passive: true });
+    return () => window.removeEventListener('scroll', onScroll);
+  }, []);
+  function down() {
+    const me = document.getElementById('rating-me');
+    if (me) me.scrollIntoView({ behavior: 'smooth', block: 'center' });
+    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
+  }
+  return (
+    <>
+      {showUp && (
+        <button className={`${styles.jumpBtn} ${styles.jumpUp}`} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Догори">
+          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 15l6-6 6 6" />
+          </svg>
+        </button>
+      )}
+      <button className={`${styles.jumpBtn} ${styles.jumpDown}`} onClick={down} aria-label="До мене в рейтингу">
+        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
+          <path d="M6 9l6 6 6-6" />
+        </svg>
+      </button>
+    </>
   );
 }
 
