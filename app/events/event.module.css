@@ -188,10 +188,6 @@
   flex-wrap: wrap;
 }
 
-.regVs {
-  color: var(--text2);
-}
-
 /* Заявки of a pair format as a two-column table: one half of the pair
    per column (mix — the man left, the woman right), each name behind its
    ♂/♀ badge. On a phone the row's controls drop under the two names
@@ -867,4 +863,44 @@
   font: inherit;
   font-size: 13.5px;
   color: var(--text);
+}
+
+/* «Обслуговування» on a finished tournament's settings. */
+.maintBox {
+  margin-top: 16px;
+  padding: 12px;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+}
+
+.maintTitle {
+  font-size: 11.5px;
+  font-weight: 800;
+  letter-spacing: 1px;
+  text-transform: uppercase;
+  color: var(--text2);
+  margin-bottom: 8px;
+}
+
+.maintRow {
+  display: flex;
+  gap: 8px;
+}
+
+.maintBtn {
+  flex: 1;
+  padding: 9px 8px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-sm);
+  background: var(--surface-alt);
+  color: var(--navy2);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.maintBtn:disabled {
+  opacity: 0.6;
 }

@@ -4,7 +4,7 @@ import { getFormat } from '@/lib/formats';
 import { validateSumTo, validateSetsFirstTo, pointsTargetForStage } from '@/lib/formats/scoring';
 import { teamAWon } from '@/lib/formats/sets';
 import { matchDeltas } from '@/lib/elo';
-import { readRatings, writeRating } from '@/lib/server/ratings';
+import { readRatings, addRating } from '@/lib/server/ratings';
 import { buildKingRound, rankGroupDetailed, kingAdvancers } from '@/lib/formats/kingOfBeach';
 import { computeGroupRanking, buildCrossesPlayoff, buildByeCrossesPlayoff } from '@/lib/formats/brackets';
 import { stageWeight } from '@/lib/formats/stages';
@@ -43,6 +43,12 @@ export async function POST(request, { params }) {
   }
   if (!match) {
     return Response.json({ success: false, error: 'Матч не знайдено' }, { status: 404 });
+  }
+  // A placeholder of a later round (no teams yet) has nothing to score —
+  // a score there used to stall the King of the Beach for good and push
+  // empty teams through a bracket.
+  if (!(match.team_a_players?.length > 0) || !(match.team_b_players?.length > 0)) {
+    return Response.json({ success: false, error: 'Гра ще не сформована — немає обох команд' }, { status: 400 });
   }
 
   // A score is entered by the crew running the day — an admin or a judge
@@ -148,8 +154,12 @@ export async function POST(request, { params }) {
   // the group stage is entered, the next phase's teams are filled in —
   // there is no manual "next stage" step.
   if (!categoryDone) {
-    await autoAdvanceKing(supabaseAdmin, match);
-    await autoBuildCrossesPlayoff(supabaseAdmin, match);
+    // One builder at a time per category: two courts finishing the last
+    // group games at the same moment used to build the next stage twice.
+    await withStageLock(supabaseAdmin, match.category_id, async () => {
+      await autoAdvanceKing(supabaseAdmin, match);
+      await autoBuildCrossesPlayoff(supabaseAdmin, match);
+    });
   }
 
   // A finished tournament: everything that was paid out from its results
@@ -245,6 +255,37 @@ async function checkStillCurrentStage(supabaseAdmin, match) {
 // King of the Beach: when the round this match belongs to is complete,
 // rank the groups and fill the next round's placeholder matches (or
 // finish the category if this was the final four).
+// A short-lived lock row per category (migration 056): the stage
+// builders run one after another, never side by side. The builders are
+// safe to run twice in a row (they re-read every game and only fill or
+// rebuild what is not played yet) — what broke was running them AT THE
+// SAME TIME, when both saw «no playoff yet» and both inserted it. A
+// request that finds the lock taken waits for it and then builds itself,
+// so the game it just saved is always taken into account. A lock older
+// than a minute is a crashed run and is cleared. Before the migration
+// runs, the builder runs unlocked, as it always did.
+async function withStageLock(supabaseAdmin, categoryId, fn) {
+  if (!categoryId) return fn();
+  await supabaseAdmin
+    .from('stage_build_locks')
+    .delete()
+    .eq('category_id', categoryId)
+    .lt('locked_at', new Date(Date.now() - 60000).toISOString());
+  for (let attempt = 0; attempt < 30; attempt++) {
+    const { error } = await supabaseAdmin.from('stage_build_locks').insert({ category_id: categoryId });
+    if (!error) {
+      try {
+        return await fn();
+      } finally {
+        await supabaseAdmin.from('stage_build_locks').delete().eq('category_id', categoryId);
+      }
+    }
+    if (error.code !== '23505') return fn(); // no lock table yet
+    await new Promise((r) => setTimeout(r, 150));
+  }
+  return fn(); // waited ~4.5 s — build anyway rather than never
+}
+
 async function autoAdvanceKing(supabaseAdmin, match) {
   const kr = /^kr(\d+)$/.exec(match.stage || '');
   if (!kr) return;
@@ -484,13 +525,15 @@ async function autoUpdateEloForAmericanka(supabaseAdmin, match, sets) {
   // (this used to be eight requests one after another).
   const results = await Promise.all(
     allIds.map(async (playerId, i) => {
-      const before = eloById.get(playerId);
-      const after = before + deltas[i];
-      const updateError = await writeRating(supabaseAdmin, playerId, sportId, after);
-      if (updateError) {
+      // Added in the database (add_elo), not written back from what was
+      // read: two games of the same player entered at the same moment
+      // must not overwrite each other's change.
+      const { elo: after, error: updateError } = await addRating(supabaseAdmin, playerId, sportId, deltas[i]);
+      if (updateError || after == null) {
         console.error('[auto-elo] rating update:', updateError);
         return null;
       }
+      const before = after - deltas[i];
       // No category_id: since migration 042 the row names only the game,
       // and the category is reached through it. sport_id: since 043.
       const row = {
@@ -541,14 +584,12 @@ async function correctEloForAmericanka(supabaseAdmin, match, sets) {
   const aWon = teamAWon({ set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null });
   const b = (id) => byUser.get(id).elo_before;
   const deltas = matchDeltas([b(teamA[0]), b(teamA[1])], [b(teamB[0]), b(teamB[1])], aWon);
-  const current = await readRatings(supabaseAdmin, allIds, sportId);
-
   await Promise.all(
     allIds.map(async (id, i) => {
       const row = byUser.get(id);
       const diff = deltas[i] - row.delta;
       if (diff === 0) return;
-      const err = await writeRating(supabaseAdmin, id, sportId, current.get(id) + diff);
+      const { error: err } = await addRating(supabaseAdmin, id, sportId, diff);
       if (err) {
         console.error('[elo-correction] rating update:', err);
         return;

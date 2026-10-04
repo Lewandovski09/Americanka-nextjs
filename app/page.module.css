@@ -125,45 +125,11 @@
   margin-bottom: 18px;
 }
 
-.headerPlayerRow {
-  display: flex;
-  align-items: center;
-  gap: 12px;
-}
-
-.headerPlayerInfo {
-  flex: 1;
-  min-width: 0;
-}
-
-.headerPlayerName {
-  font-size: 15px;
-  font-weight: 500;
-  color: #fff;
-}
-
 .headerPlayerSub {
   font-size: 12.75px;
   color: rgba(255, 255, 255, 0.5);
   margin-top: 2px;
   font-weight: 600;
-}
-
-.headerElo {
-  text-align: right;
-}
-
-.headerEloValue {
-  font-size: 19px;
-  font-weight: 800;
-  color: var(--rust);
-  line-height: 1.1;
-}
-
-.headerEloLabel {
-  font-size: 9.75px;
-  color: rgba(255, 255, 255, 0.35);
-  letter-spacing: 0.5px;
 }
 
 .guestRow {
@@ -374,29 +340,6 @@
   border-top: 1px solid var(--border-light);
   padding-top: 12px;
   margin-top: 12px;
-}
-
-.categoryRowTop {
-  display: flex;
-  align-items: center;
-  flex-wrap: wrap;
-  gap: 6px;
-}
-
-.categoryRowLabel {
-  font-size: 14.75px;
-  font-weight: 800;
-  color: var(--text);
-}
-
-.categoryRowGender,
-.categoryRowSystem {
-  font-size: 11.25px;
-  font-weight: 700;
-  color: var(--text2);
-  background: var(--surface-alt);
-  padding: 2px 8px;
-  border-radius: var(--r-lg);
 }
 
 .ctaBtn {
@@ -884,6 +827,7 @@
 .recentPhoto {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   background: var(--surface-alt);

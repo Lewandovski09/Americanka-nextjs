@@ -22,6 +22,28 @@ const PlayerContext = createContext(null);
  * round trips and a skeleton before anything could show. Now a page
  * reads the already-loaded row from context and renders at once.
  */
+// The last loaded profile is kept on the device, so a cold start of the
+// app can draw the signed-in UI at once instead of a skeleton; the fresh
+// row replaces it a moment later. Wrapped in try/catch: private mode and
+// blocked storage simply skip it.
+const ME_KEY = 'americanka:me';
+function readMe() {
+  try {
+    const raw = window.localStorage.getItem(ME_KEY);
+    return raw ? JSON.parse(raw) : null;
+  } catch {
+    return null;
+  }
+}
+function writeMe(p) {
+  try {
+    if (p) window.localStorage.setItem(ME_KEY, JSON.stringify(p));
+    else window.localStorage.removeItem(ME_KEY);
+  } catch {
+    /* ignore */
+  }
+}
+
 export function PlayerProvider({ children }) {
   const [player, setPlayer] = useState(null);
   const [loading, setLoading] = useState(true);
@@ -36,47 +58,61 @@ export function PlayerProvider({ children }) {
     const supabase = createClient();
     let isMounted = true;
 
+    const done = (p) => {
+      if (!isMounted) return;
+      setPlayer(p);
+      setLoading(false);
+      writeMe(p);
+    };
+
     async function load() {
       try {
-        const authResult = await withTimeout(
-          supabase.auth.getUser(),
-          8000,
-          { data: { user: null }, error: { message: 'timeout' } }
-        );
-        const { data: authData, error: authError } = authResult;
-
-        if (authError || !authData?.user) {
-          if (authError?.message === 'timeout') {
-            console.error('[useCurrentPlayer] auth.getUser() timed out after 8s');
-          }
-          if (isMounted) {
-            setPlayer(null);
-            setLoading(false);
-          }
+        // getSession() is read from the device — no network. It gives the
+        // user id at once, so the profile request starts immediately; the
+        // server-verified getUser() runs alongside and wins if the session
+        // turns out to be gone.
+        const { data: sessionData } = await supabase.auth.getSession();
+        const sessionUser = sessionData?.session?.user || null;
+        if (!sessionUser) {
+          done(null);
           return;
         }
 
-        const profileResult = await withTimeout(
-          supabase.from('users').select('*').eq('id', authData.user.id).maybeSingle(),
-          8000,
-          { data: null, error: { message: 'timeout' } }
-        );
-        const { data: profile, error: profileError } = profileResult;
+        // The cached row first (same account only), then the fresh one.
+        const cachedMe = readMe();
+        if (cachedMe && cachedMe.id === sessionUser.id && isMounted) {
+          setPlayer(cachedMe);
+          setLoading(false);
+        }
 
+        const [authResult, profileResult] = await Promise.all([
+          withTimeout(supabase.auth.getUser(), 8000, { data: { user: null }, error: { message: 'timeout' } }),
+          withTimeout(
+            supabase.from('users').select('*').eq('id', sessionUser.id).maybeSingle(),
+            8000,
+            { data: null, error: { message: 'timeout' } }
+          ),
+        ]);
+
+        const { data: authData, error: authError } = authResult;
+        if (authError?.message === 'timeout') {
+          console.error('[useCurrentPlayer] auth.getUser() timed out after 8s');
+        }
+        if (!authError && !authData?.user) {
+          done(null); // the session was revoked on the server
+          return;
+        }
+
+        const { data: profile, error: profileError } = profileResult;
         if (profileError) {
           console.error('[useCurrentPlayer] Failed to load profile:', profileError.message);
+          if (isMounted) setLoading(false);
+          return;
         }
-
-        if (isMounted) {
-          setPlayer(profile || null);
-          setLoading(false);
-        }
+        done(profile || null);
       } catch (err) {
         console.error('[useCurrentPlayer] Unexpected error:', err.message);
-        if (isMounted) {
-          setPlayer(null);
-          setLoading(false);
-        }
+        done(null);
       }
     }
 
@@ -86,6 +122,7 @@ export function PlayerProvider({ children }) {
     // event duplicates the load above, and the hourly token refresh does
     // not change the player.
     const { data: listener } = supabase.auth.onAuthStateChange((event) => {
+      if (event === 'SIGNED_OUT') writeMe(null);
       if (event === 'SIGNED_IN' || event === 'SIGNED_OUT' || event === 'USER_UPDATED') load();
     });
     return () => {

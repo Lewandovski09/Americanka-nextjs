@@ -90,6 +90,12 @@ const nextConfig = {
           },
         ],
       },
+      {
+        // App icons never change under the same name — let the phone
+        // keep them instead of asking again on every start.
+        source: '/icons/:path*',
+        headers: [{ key: 'Cache-Control', value: 'public, max-age=2592000, stale-while-revalidate=86400' }],
+      },
     ];
   },
 };

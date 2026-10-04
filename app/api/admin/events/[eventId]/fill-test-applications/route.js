@@ -73,7 +73,6 @@ export async function POST(request, { params }) {
       const gender = format?.hasGender ? category.gender : i % 2 === 0 ? 'M' : 'F';
       const suffix = `${Date.now().toString(36)}${i}`;
       const login = `testbot_${suffix}`;
-      const fullName = `Тест Бот ${suffix.slice(-4)}`;
 
       const { data: authCreated, error: authError } = await supabaseAdmin.auth.admin.createUser({
         email: emailForLogin(login),
@@ -89,7 +88,9 @@ export async function POST(request, { params }) {
       const { error: playerError } = await supabaseAdmin.from('users').insert({
         id: authCreated.user.id,
         login,
-        full_name: fullName,
+        // full_name is generated from first_name + last_name (migration 018).
+        first_name: 'Тест',
+        last_name: `Бот ${suffix.slice(-4)}`,
         gender,
         elo: 1200 + Math.floor(Math.random() * 400),
         approval_status: 'approved',

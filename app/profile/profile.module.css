@@ -204,31 +204,6 @@
   flex-shrink: 0;
 }
 
-.heroEloRow {
-  display: flex;
-  align-items: flex-end;
-  justify-content: space-between;
-  margin-top: 18px;
-}
-
-.heroEloBlock {
-  line-height: 1.1;
-}
-
-.heroEloValue {
-  font-size: 34px;
-  font-weight: 800;
-  color: var(--rust);
-}
-
-.heroEloLabel {
-  font-size: 10.75px;
-  font-weight: 700;
-  letter-spacing: 0.5px;
-  color: rgba(255, 255, 255, 0.4);
-  margin-top: 2px;
-}
-
 .headerStatsRow {
   display: flex;
   gap: 8px;
@@ -353,26 +328,6 @@
   margin: 18px 0 10px;
 }
 
-.sectionLabelRow {
-  display: flex;
-  align-items: center;
-  gap: 6px;
-  margin: 18px 0 10px;
-}
-
-.sectionLabelRow .sectionLabel {
-  margin: 0;
-}
-
-.infoBtn {
-  display: flex;
-  background: none;
-  border: none;
-  padding: 0;
-  cursor: pointer;
-  color: var(--text2);
-}
-
 .calcInfoText {
   font-size: 13.75px;
   color: var(--text2);
@@ -387,39 +342,6 @@
   margin-bottom: 0;
 }
 
-.statSquares {
-  display: grid;
-  grid-template-columns: 1fr 1fr;
-  gap: 10px;
-  margin-bottom: 4px;
-}
-
-.statSquare {
-  background: var(--surface);
-  border-radius: var(--r-lg);
-  box-shadow: var(--shadow-sm);
-  padding: 18px;
-  display: flex;
-  flex-direction: column;
-  align-items: center;
-  gap: 4px;
-}
-
-.statSquareValue {
-  font-size: 24px;
-  font-weight: 800;
-  color: var(--navy);
-  margin-top: 2px;
-}
-
-.statSquareLabel {
-  font-size: 11.75px;
-  color: var(--text2);
-  text-transform: uppercase;
-  font-weight: 700;
-  letter-spacing: 0.3px;
-}
-
 .card {
   background: var(--surface);
   border-radius: var(--r-md);
@@ -428,49 +350,9 @@
   box-shadow: var(--shadow-sm);
 }
 
-.sliderLabel {
-  font-size: 13.75px;
-  color: var(--text2);
-  margin-bottom: 6px;
-}
-
-.sliderLabel b {
-  color: var(--text);
-}
-
 .slider {
   width: 100%;
   accent-color: var(--sand2);
-}
-
-.calcGrid {
-  display: grid;
-  grid-template-columns: 1fr 1fr 1fr;
-  gap: 8px;
-  margin-top: 12px;
-}
-
-.calcBox {
-  padding: 10px;
-  border-radius: var(--r-sm);
-  text-align: center;
-  background: var(--bg-light);
-}
-
-.calcIcon {
-  display: flex;
-  justify-content: center;
-  margin-bottom: 2px;
-}
-
-.calcValue {
-  font-size: 15.5px;
-  font-weight: 800;
-}
-
-.calcLabel {
-  font-size: 10.75px;
-  color: var(--text2);
 }
 
 .empty {
@@ -494,58 +376,10 @@
   font-size: 14.75px;
 }
 
-.searchBtn {
-  padding: 10px 16px;
-  background: var(--rust);
-  color: #fff;
-  border: none;
-  border-radius: var(--r-sm);
-  font-weight: 700;
-  cursor: pointer;
-}
-
 .searchError {
   font-size: 12.75px;
   color: #b91c1c;
   margin-bottom: 10px;
-}
-
-.suggestionsDropdown {
-  position: absolute;
-  top: 100%;
-  left: 0;
-  right: 64px;
-  margin-top: 4px;
-  background: var(--surface);
-  border-radius: var(--r-sm);
-  box-shadow: var(--shadow-lg);
-  border: 1px solid var(--border-light);
-  z-index: 50;
-  max-height: 260px;
-  overflow-y: auto;
-}
-
-.suggestionRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  padding: 9px 12px;
-  cursor: pointer;
-}
-
-.suggestionRow:hover {
-  background: var(--bg-light);
-}
-
-.suggestionName {
-  font-size: 13.75px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.suggestionLogin {
-  font-size: 11.75px;
-  color: var(--text2);
 }
 
 .matchHighlight {
@@ -553,58 +387,11 @@
   font-weight: 800;
 }
 
-.partnerRow {
-  display: flex;
-  align-items: center;
-  gap: 8px;
-  padding: 10px 0;
-  border-bottom: 1px solid var(--border-light);
-  cursor: pointer;
-}
-
-.partnerRow:last-child {
-  border-bottom: none;
-}
-
 .partnerName {
   flex: 1;
   font-size: 14.75px;
   font-weight: 700;
   color: var(--text);
-}
-
-.partnerMeta {
-  font-size: 12.75px;
-  color: var(--text2);
-}
-
-.historyCard {
-  display: flex;
-  justify-content: space-between;
-  align-items: center;
-  background: var(--surface);
-  border-radius: var(--r-sm);
-  padding: 14px;
-  margin-bottom: 8px;
-  cursor: pointer;
-  box-shadow: var(--shadow-sm);
-}
-
-.historyName {
-  font-size: 14.75px;
-  font-weight: 700;
-  color: var(--text);
-}
-
-.historyMeta {
-  font-size: 11.75px;
-  color: var(--text2);
-  margin-top: 2px;
-}
-
-.historyPlace {
-  font-size: 11.75px;
-  color: var(--text2);
 }
 
 .positive {
@@ -617,39 +404,6 @@
   font-size: 16.5px;
   font-weight: 800;
   color: var(--danger);
-}
-
-.eloLogRow {
-  display: flex;
-  align-items: center;
-  gap: 10px;
-  background: var(--surface);
-  border-radius: var(--r-sm);
-  padding: 11px 14px;
-  margin-bottom: 6px;
-  box-shadow: var(--shadow-sm);
-}
-
-.eloLogDate {
-  font-size: 11.75px;
-  color: var(--text2);
-  width: 56px;
-  flex-shrink: 0;
-}
-
-.eloLogName {
-  font-size: 13.75px;
-  font-weight: 600;
-  color: var(--text);
-  flex: 1;
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-}
-
-.eloLogRow .positive,
-.eloLogRow .negative {
-  font-size: 14.75px;
 }
 
 .supportCard {
@@ -681,10 +435,6 @@
 
 .supportIcon {
   font-size: 16.5px;
-}
-
-.editProfileBtnRow {
-  display: flex;
 }
 
 /* ── Modals (kept on navy for visual punch, matching the brand) ── */

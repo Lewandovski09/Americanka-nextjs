@@ -26,12 +26,17 @@ export async function POST(request, { params }) {
   // response so the admin sees who was actually deleted.
   const { data: target } = await supabaseAdmin
     .from('users')
-    .select('login')
+    .select('login, is_admin')
     .eq('id', playerId)
     .maybeSingle();
 
   if (!target) {
     return Response.json({ success: false, error: 'Гравця не знайдено' }, { status: 404 });
+  }
+  // An admin account is never deleted from here (a mis-tap would lock
+  // the club out of its own admin).
+  if (target.is_admin) {
+    return Response.json({ success: false, error: 'Адміністратора не можна видалити звідси' }, { status: 400 });
   }
 
   // Deleting the auth user cascades to the players row (FK with ON DELETE

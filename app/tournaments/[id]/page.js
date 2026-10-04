@@ -16,7 +16,7 @@ import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import PlayerPicker from '@/components/PlayerPicker';
 import BracketFlow from './BracketFlow';
-import { getCached, setCached } from '@/lib/clientCache';
+import { getCached, setCached, invalidate } from '@/lib/clientCache';
 import PinchZoom from './PinchZoom';
 import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
 import EventPhoto from '@/components/EventPhoto';
@@ -677,6 +677,10 @@ export default function TournamentDetailPage({ params }) {
       return;
     }
     if (data.warning) window.alert(data.warning);
+    // Profiles / «Твоя форма» shown in this tab must not keep the old
+    // game list for their one-minute cache.
+    invalidate('games:');
+    invalidate('profile:');
     // Straight away, not debounced: the Ело the game just paid should
     // appear next to the players at once.
     fetchLive(createClient());

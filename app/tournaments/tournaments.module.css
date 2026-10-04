@@ -106,16 +106,6 @@
   font-weight: 700;
 }
 
-.badgeM {
-  background: #dbeafe;
-  color: var(--accent-blue);
-}
-
-.badgeF {
-  background: #fce7f3;
-  color: var(--accent-pink);
-}
-
 .cardMeta {
   font-size: 12.75px;
   color: var(--text2);
@@ -168,15 +158,6 @@
   gap: 6px;
 }
 
-.catChip {
-  font-size: 11.75px;
-  font-weight: 700;
-  padding: 4px 10px;
-  border-radius: var(--r-lg);
-  background: var(--bg-light);
-  color: var(--text);
-}
-
 /* Header actions (badge + admin gear) on event cards. */
 .headerRight {
   display: flex;
@@ -198,31 +179,9 @@
 
 /* Scheduled card: a stretched link overlay makes the whole card open the
    registration page while the admin gear stays clickable above it. */
-.cardWrap {
-  position: relative;
-}
-
-.cardLink {
-  position: absolute;
-  inset: 0;
-  z-index: 1;
-  border-radius: inherit;
-}
 
 /* Clickable category chip → opens that league's play view. Sits above
    the whole-card overlay link so a chip tap wins over the card. */
-.catChipLink {
-  position: relative;
-  z-index: 2;
-  font-size: 11.75px;
-  font-weight: 700;
-  padding: 6px 12px;
-  border-radius: var(--r-lg);
-  background: var(--navy);
-  color: #fff;
-  text-decoration: none;
-  cursor: pointer;
-}
 
 /* City filter — shown only once the club runs events in more than one
    city (cities come from the venues table, migration 043). */
@@ -322,7 +281,23 @@
 .cardPhoto {
   display: block;
   width: 100%;
+  height: auto;
   aspect-ratio: 16 / 9;
   object-fit: cover;
   background: var(--surface-alt);
+}
+
+.moreBtn {
+  display: block;
+  width: 100%;
+  padding: 12px;
+  margin-bottom: 12px;
+  border: 1px solid var(--border-light);
+  border-radius: var(--r-md);
+  background: var(--surface);
+  color: var(--navy2);
+  font: inherit;
+  font-size: 14px;
+  font-weight: 700;
+  cursor: pointer;
 }

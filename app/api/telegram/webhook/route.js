@@ -13,7 +13,7 @@
 
 import { timingSafeEqual } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
+import { trySendTelegramMessage, escapeHtml, telegramApi } from '@/lib/telegram';
 
 const UNIQUE_VIOLATION = '23505';
 
@@ -25,13 +25,13 @@ function isFromTelegram(request) {
   const expected = process.env.TELEGRAM_WEBHOOK_SECRET;
 
   if (!expected) {
-    // Not configured (yet) — let the update through so a missing env
-    // var can't take the bot down, but make the gap loud rather than
-    // running an unauthenticated webhook silently.
-    console.error(
-      '[Telegram webhook] TELEGRAM_WEBHOOK_SECRET is not set — updates are NOT authenticated'
-    );
-    return true;
+    // Not configured — refuse everything. An unauthenticated webhook
+    // would let anyone forge a «/start <nonce>» from any Telegram id and
+    // take over an account through the password reset. The admin's
+    // «Telegram» panel refuses to register the webhook without the
+    // secret anyway, so a working bot always has it.
+    console.error('[Telegram webhook] TELEGRAM_WEBHOOK_SECRET is not set — every update is refused');
+    return false;
   }
 
   const received = Buffer.from(request.headers.get('x-telegram-bot-api-secret-token') || '');
@@ -204,6 +204,38 @@ async function confirmPasswordReset(supabaseAdmin, nonce, from) {
 }
 
 /**
+ * Step one of a password reset in the bot: the nonce is NOT confirmed by
+ * opening the link. The bot first says plainly which account's password
+ * is about to be reset and asks for a button press — so a reset link
+ * passed off as «confirm your registration» can't silently hand someone
+ * else your account.
+ *
+ * Returns null when the nonce isn't a pending reset.
+ */
+async function previewPasswordReset(supabaseAdmin, nonce, from) {
+  const { data: reset, error } = await supabaseAdmin
+    .from('password_resets')
+    .select('nonce, expires_at, confirmed_at')
+    .eq('nonce', nonce)
+    .maybeSingle();
+  if (error) return { status: 'error' };
+  if (!reset) return null;
+  if (reset.confirmed_at) return { status: 'already_pending' };
+  if (new Date(reset.expires_at) < new Date()) return { status: 'expired' };
+
+  const { data: owner } = await supabaseAdmin
+    .from('users')
+    .select('id, login')
+    .eq('telegram_user_id', from.id)
+    .maybeSingle();
+  if (!owner) {
+    await supabaseAdmin.from('password_resets').update({ no_account_at: new Date().toISOString() }).eq('nonce', nonce);
+    return { status: 'no_account' };
+  }
+  return { status: 'ask', login: owner.login };
+}
+
+/**
  * Consume a one-time nonce and attach this Telegram account to a player
  * who ALREADY has an account (expired link, or they blocked the bot).
  */
@@ -296,6 +328,35 @@ export async function POST(request) {
     return Response.json({ ok: true });
   }
 
+  // «Так, скинути пароль» — the button under the reset question.
+  const cq = update.callback_query;
+  if (cq) {
+    const data = cq.data || '';
+    if (data.startsWith('rp:') && cq.message?.chat?.type === 'private' && cq.from) {
+      const result = await confirmPasswordReset(supabaseAdmin, data.slice(3), cq.from);
+      const text =
+        result?.status === 'reset_confirmed'
+          ? '✅ <b>Підтверджено.</b>\n\nПоверніться у застосунок, щоб побачити свій логін і встановити новий пароль.'
+          : result?.status === 'expired'
+          ? 'Посилання застаріло ⏳ Почніть відновлення в застосунку ще раз.'
+          : result?.status === 'already_pending'
+          ? 'Уже підтверджено ✅ Поверніться у застосунок.'
+          : result?.status === 'no_account'
+          ? 'До цього Telegram не привʼязано жодного акаунта AMERICANKA 🤔'
+          : 'Не вдалося підтвердити 😔 Спробуйте ще раз.';
+      await telegramApi('answerCallbackQuery', { callback_query_id: cq.id });
+      await telegramApi('editMessageText', {
+        chat_id: cq.message.chat.id,
+        message_id: cq.message.message_id,
+        text,
+        parse_mode: 'HTML',
+      });
+    } else {
+      await telegramApi('answerCallbackQuery', { callback_query_id: cq.id });
+    }
+    return Response.json({ ok: true });
+  }
+
   const message = update.message;
   if (!message || !message.chat || !message.from) {
     return Response.json({ ok: true }); // ignore other update types
@@ -324,7 +385,22 @@ export async function POST(request) {
     // in that order, each falling through to the next when it's not
     // theirs.
     const pendingResult = await confirmPendingRegistration(supabaseAdmin, startPayload, from);
-    const resetResult = pendingResult ?? (await confirmPasswordReset(supabaseAdmin, startPayload, from));
+    const resetResult = pendingResult ?? (await previewPasswordReset(supabaseAdmin, startPayload, from));
+
+    // A password reset is never confirmed by the link alone — ask first.
+    if (resetResult?.status === 'ask') {
+      await telegramApi('sendMessage', {
+        chat_id: chatId,
+        parse_mode: 'HTML',
+        text:
+          `🔐 <b>Скидання пароля</b> для акаунта <b>${escapeHtml(resetResult.login)}</b>.\n\n` +
+          'Натискайте кнопку, лише якщо <b>ви самі</b> щойно почали відновлення пароля в застосунку. ' +
+          'Якщо вам просто надіслали це посилання — нічого не натискайте: так можна втратити акаунт.',
+        reply_markup: { inline_keyboard: [[{ text: 'Так, скинути пароль', callback_data: `rp:${startPayload}` }]] },
+      });
+      return Response.json({ ok: true });
+    }
+
     const { status } = resetResult ?? (await linkByNonce(supabaseAdmin, startPayload, from));
 
     const replies = {

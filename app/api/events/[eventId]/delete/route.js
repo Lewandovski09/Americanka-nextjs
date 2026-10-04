@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { readRatings, writeRating } from '@/lib/server/ratings';
+import { addRating } from '@/lib/server/ratings';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
 
 // Delete a whole event with everything under it: categories, matches,
@@ -170,6 +170,12 @@ export async function POST(request, { params }) {
     })
     .select('id')
     .single();
+  if (archErr?.code === '23505') {
+    // A second tap while the first delete is running (migration 056 keeps
+    // one archive entry per event): stop here, or the Ело would come off
+    // twice.
+    return Response.json({ success: false, error: 'Турнір уже видаляється — оновіть сторінку' }, { status: 409 });
+  }
   if (archErr || !archived) {
     console.error('[event delete] archive insert:', archErr?.message);
     return Response.json(
@@ -182,24 +188,27 @@ export async function POST(request, { params }) {
   const dropArchive = () => supabaseAdmin.from('deleted_events').delete().eq('id', archived.id);
 
   // ── Roll Ело back, player by player ──
-  // Before the rows are deleted: if an update fails we stop with the
-  // history intact, so the event stays deletable and nothing is left
-  // half-undone.
+  // Each change is an atomic add in the database (add_elo). If one fails,
+  // the ones already done are put back, so a retry starts from where the
+  // ratings were — nothing is subtracted twice.
+  const done = [];
+  const undo = async () => {
+    for (const d of done) await addRating(supabaseAdmin, d.userId, d.sportId, d.delta);
+  };
   for (const [sportId, deltaByUser] of deltaBySport) {
-    // readRatings falls back to the same start value the score route
-    // assumed when it moved a player who had no rating yet.
-    const current = await readRatings(supabaseAdmin, [...deltaByUser.keys()], sportId);
     for (const [userId, delta] of deltaByUser) {
-      const restored = current.get(userId) - delta;
-      const updErr = await writeRating(supabaseAdmin, userId, sportId, restored);
+      if (!delta) continue;
+      const { error: updErr } = await addRating(supabaseAdmin, userId, sportId, -delta);
       if (updErr) {
         console.error('[event delete] elo rollback:', updErr);
+        await undo();
         await dropArchive();
         return Response.json(
           { success: false, error: 'Не вдалося скасувати нараховане Ело — турнір не видалено' },
           { status: 500 }
         );
       }
+      done.push({ userId, sportId, delta });
     }
   }
 
@@ -211,6 +220,7 @@ export async function POST(request, { params }) {
   const { error } = await supabaseAdmin.from('tournament_events').delete().eq('id', eventId);
   if (error) {
     console.error('[event delete] error:', error.message);
+    await undo();
     await dropArchive();
     return Response.json({ success: false, error: 'Не вдалося видалити турнір' }, { status: 500 });
   }

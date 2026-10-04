@@ -1,6 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { readRatings, writeRating } from '@/lib/server/ratings';
+import { addRating } from '@/lib/server/ratings';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
 
 // «Відновити» — puts a deleted tournament back from the archive
@@ -72,9 +72,9 @@ export async function POST(request, { params }) {
   }
   let eloFailed = 0;
   for (const [sportId, deltaByUser] of deltaBySport) {
-    const current = await readRatings(supabaseAdmin, [...deltaByUser.keys()], sportId);
     for (const [userId, delta] of deltaByUser) {
-      const err = await writeRating(supabaseAdmin, userId, sportId, current.get(userId) + delta);
+      if (!delta) continue;
+      const { error: err } = await addRating(supabaseAdmin, userId, sportId, delta);
       if (err) {
         console.error('[archive restore] elo:', err);
         eloFailed += 1;
@@ -82,7 +82,9 @@ export async function POST(request, { params }) {
     }
   }
 
-  await supabaseAdmin.from('deleted_events').delete().eq('id', entry.id);
+  // The archive entry goes only when everything came back — otherwise it
+  // stays as the record of which ratings still need the admin's hand.
+  if (eloFailed === 0) await supabaseAdmin.from('deleted_events').delete().eq('id', entry.id);
 
   return Response.json({
     success: true,

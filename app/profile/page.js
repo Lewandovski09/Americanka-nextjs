@@ -15,11 +15,11 @@ import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import { loadPlayerGames, partnerStatsFrom } from '@/lib/playerGames';
+import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
 import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
 import { inSeason } from '@/lib/seasons';
 import HeaderStatCards from '@/components/HeaderStatCards';
-import { getCached, setCached } from '@/lib/clientCache';
+import { getCached, setCached, invalidate } from '@/lib/clientCache';
 import { winPluralUk } from '@/lib/pluralize';
 import styles from './profile.module.css';
 
@@ -81,7 +81,7 @@ export default function ProfilePage() {
       const [{ data: th }, { data: elog }, gameList, header] = await Promise.all([
         supabase.rpc('get_user_tournament_history', { p_user_id: player.id }),
         supabase.rpc('get_user_elo_log', { p_user_id: player.id }),
-        loadPlayerGames(supabase, player.id),
+        loadPlayerGamesShared(supabase, player.id),
         loadPlayerHeaderStats(supabase, player),
       ]);
       const fresh = { th: th || [], elog: elog || [], games: gameList, header };
@@ -234,6 +234,9 @@ export default function ProfilePage() {
   async function confirmLogout() {
     const supabase = createClient();
     await supabase.auth.signOut();
+    // Nothing of this account may show up for the next one in this tab
+    // (home data, «am I the owner», cached profiles).
+    invalidate('');
     router.push('/');
   }
 
@@ -581,18 +584,6 @@ export default function ProfilePage() {
           </div>
         </div>
       )}
-    </div>
-  );
-}
-
-function CalcBox({ value, label, color, icon }) {
-  return (
-    <div className={styles.calcBox}>
-      {icon && <div className={styles.calcIcon}>{icon}</div>}
-      <div className={styles.calcValue} style={{ color }}>
-        {value}
-      </div>
-      <div className={styles.calcLabel}>{label}</div>
     </div>
   );
 }

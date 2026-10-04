@@ -60,7 +60,7 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
     avpSeason
       ? supabase.from('avp_standings').select('user_id, points').eq('season_id', avpSeason.id).order('points', { ascending: false })
       : none,
-    // AVP is ranked by gender everywhere else in the app (AvpSeasonCard,
+    // AVP is ranked by gender everywhere else in the app (ProfileTabs,
     // the AVP tab) — the header must agree with them.
     avpSeason && player.gender ? supabase.from('users').select('id').eq('gender', player.gender) : none,
     // Win streak: newest played games first by played_at (a bracket's

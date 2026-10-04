@@ -60,7 +60,11 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   // The season an event belongs to is the one its DATE falls in — not
   // the one it was finished in. A result entered late (or corrected next
   // week) still counts where it was played.
-  const playedOn = (event?.scheduled_at || '').slice(0, 10);
+  // The day in Kyiv time — an event at 00:30 Kyiv is still the previous
+  // day in UTC.
+  const playedOn = event?.scheduled_at
+    ? new Date(event.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
+    : '';
   if (!playedOn) return { ok: false, error: 'У події немає дати' };
 
   //

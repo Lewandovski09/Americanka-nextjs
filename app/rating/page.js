@@ -9,7 +9,8 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { PRIMARY_SPORT_ID, getSport } from '@/lib/sports';
 import { getFormat } from '@/lib/formats';
 import { loadClubSeasons, seasonDates } from '@/lib/seasons';
-import { getCached, setCached } from '@/lib/clientCache';
+import { getCached, setCached, memoize } from '@/lib/clientCache';
+import { gamesUk } from '@/lib/pluralize';
 import styles from './rating.module.css';
 
 // Seasons are scoped by sport and optionally by city (migration 043), so
@@ -268,14 +269,20 @@ export default function RatingPage() {
       setSeasons(setCached('rating:seasons', allSeasons || []));
       setSeasonId((prev) => prev || clubSeasons.avp?.id || (allSeasons || []).find((s) => (s.kind || 'avp') === 'avp')?.id || null);
 
-      loadEloCurrent(supabase, clubSeasons.elo).then((rows) => {
-        setCached('rating:elo:current', rows);
-        if (alive) setEloByKey((m) => ({ ...m, 'rating:elo:current': rows }));
-      });
-      loadClubStats(supabase, clubSeasons.elo).then((st) => {
-        setCached('rating:stats', st);
-        if (alive) setClubStats(st);
-      });
+      // The table first; the heavier club statistics right after it (so
+      // the two don't compete for the first paint). Both are reused for a
+      // few minutes when the page is opened again.
+      memoize('rating:elo:current:fresh', 2 * 60 * 1000, () => loadEloCurrent(supabase, clubSeasons.elo))
+        .then((rows) => {
+          setCached('rating:elo:current', rows);
+          if (alive) setEloByKey((m) => ({ ...m, 'rating:elo:current': rows }));
+        })
+        .finally(() =>
+          memoize('rating:stats:fresh', 5 * 60 * 1000, () => loadClubStats(supabase, clubSeasons.elo)).then((st) => {
+            setCached('rating:stats', st);
+            if (alive) setClubStats(st);
+          })
+        );
     })();
     return () => {
       alive = false;
@@ -542,7 +549,7 @@ export default function RatingPage() {
                 <div className={styles.playerName}>{highlightMatch(p.full_name, searchTerm.trim())}</div>
                 <div className={styles.playerMeta}>
                   {categoryForElo(p.elo)?.label} ·{' '}
-                  {p.archived ? `${p.games} ігор` : `${p.tournaments_played} турн.`}
+                  {p.archived ? gamesUk(p.games) : `${p.tournaments_played} турн.`}
                   {p.seasonDelta != null && p.seasonDelta !== 0 && (
                     <span className={p.seasonDelta > 0 ? styles.metaUp : styles.metaDown}>
                       {' '}
@@ -863,11 +870,11 @@ function CompareResult({ playerA, playerB, statsA, statsB }) {
             <div className={styles.compareStatsGrid}>
               <div className={styles.compareStatCol}>
                 <div className={styles.compareStatBig}>{winRateA}%</div>
-                <div className={styles.compareStatSmall}>{a?.tournaments_played ?? 0} турн. · {a?.games_played ?? 0} ігор</div>
+                <div className={styles.compareStatSmall}>{a?.tournaments_played ?? 0} турн. · {gamesUk(a?.games_played ?? 0)}</div>
               </div>
               <div className={styles.compareStatCol}>
                 <div className={styles.compareStatBig}>{winRateB}%</div>
-                <div className={styles.compareStatSmall}>{b?.tournaments_played ?? 0} турн. · {b?.games_played ?? 0} ігор</div>
+                <div className={styles.compareStatSmall}>{b?.tournaments_played ?? 0} турн. · {gamesUk(b?.games_played ?? 0)}</div>
               </div>
             </div>
           </div>

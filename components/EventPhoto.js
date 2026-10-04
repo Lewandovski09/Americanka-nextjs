@@ -5,6 +5,7 @@
 // tap to see it full-screen. The admin and the judges get the buttons to
 // add, replace or remove it (the server checks the same).
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { toJpegDataUrl } from '@/lib/photo';
@@ -84,8 +85,7 @@ export default function EventPhoto({ eventId, photoUrl, canEdit, onChange }) {
     <div className={styles.wrap}>
       {url ? (
         <button type="button" className={styles.photoBtn} onClick={() => setZoom(true)} aria-label="Відкрити фото турніру">
-          {/* eslint-disable-next-line @next/next/no-img-element */}
-          <img src={url} alt="Фото турніру" className={styles.photo} />
+          <Image src={url} alt="Фото турніру" width={1200} height={750} sizes="(max-width: 600px) 100vw, 560px" className={styles.photo} />
         </button>
       ) : null}
 

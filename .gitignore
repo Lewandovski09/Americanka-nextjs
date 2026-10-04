@@ -11,3 +11,9 @@ node_modules/
 tsconfig.tsbuildinfo
 
 *.zip
+
+# added in patch 96
+!.env.example
+*.tsbuildinfo
+coverage/
+.vscode/

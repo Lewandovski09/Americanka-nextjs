@@ -30,18 +30,26 @@ export async function POST(request, { params }) {
 
   const { data: before } = await supabaseAdmin.from('users').select('elo').eq('id', playerId).single();
 
-  await supabaseAdmin
+  const { error: updErr } = await supabaseAdmin
     .from('users')
     .update({ elo, category: categoryForElo(elo)?.id })
     .eq('id', playerId);
+  if (updErr) {
+    console.error('[edit-elo] update:', updErr.message);
+    return Response.json({ success: false, error: 'Не вдалося зберегти Ело' }, { status: 500 });
+  }
 
-  await supabaseAdmin.from('elo_history').insert({
+  // A player without a rating yet starts from the club's start value —
+  // not from 0, which would log a «+1500» correction.
+  const was = before?.elo ?? 1200;
+  const { error: histErr } = await supabaseAdmin.from('elo_history').insert({
     user_id: playerId,
-    delta: elo - (before?.elo || 0),
-    elo_before: before?.elo || 0,
+    delta: elo - was,
+    elo_before: was,
     elo_after: elo,
     reason: 'admin_adjustment',
   });
+  if (histErr) console.error('[edit-elo] history:', histErr.message);
 
   return Response.json({ success: true });
 }

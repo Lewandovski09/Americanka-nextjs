@@ -1,6 +1,7 @@
 'use client';
 
-import { useEffect, useState } from 'react';
+import Image from 'next/image';
+import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
@@ -23,6 +24,7 @@ const isFresh = (finishedAt) => !!finishedAt && Date.now() - new Date(finishedAt
 export default function HomePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
+  const homeStarted = useRef(false);
   const [nextEvent, setNextEvent] = useState(null);
   // A tournament that ended less than a day ago — shown INSTEAD of the
   // next one for that day, with its photo and winners.
@@ -87,7 +89,6 @@ export default function HomePage() {
   }, []);
 
   useEffect(() => {
-    if (loading) return;
     const supabase = createClient();
     const remember = (patch) => setCached('home:data', { ...(getCached('home:data') || {}), ...patch });
 
@@ -231,11 +232,16 @@ export default function HomePage() {
       remember({ communityCount: count || 0, recentJoiners: recent || [] });
     }
 
-    loadNextTournament();
-    loadRecentTournament();
-    loadAnnouncements();
-    loadCommunity();
-  }, [loading, player]);
+    // The club's data does not depend on who is signed in — it starts at
+    // once; the announcements wait for the player (their dismissals).
+    if (!homeStarted.current) {
+      homeStarted.current = true;
+      loadNextTournament();
+      loadRecentTournament();
+      loadCommunity();
+    }
+    if (!loading) loadAnnouncements();
+  }, [loading, player?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   async function dismissAnnouncement(notificationId) {
     setAnnouncements((prev) => prev.filter((a) => a.id !== notificationId));
@@ -367,8 +373,14 @@ export default function HomePage() {
           <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
             {recentEvent.photo_url && (
               <a href={recentEvent.categories?.[0] ? `/tournaments/${recentEvent.categories[0].id}` : '/tournaments'}>
-                {/* eslint-disable-next-line @next/next/no-img-element */}
-                <img src={recentEvent.photo_url} alt={`Фото: ${recentEvent.name}`} className={styles.recentPhoto} />
+                <Image
+                  src={recentEvent.photo_url}
+                  alt={`Фото: ${recentEvent.name}`}
+                  width={1200}
+                  height={675}
+                  sizes="(max-width: 600px) 100vw, 560px"
+                  className={styles.recentPhoto}
+                />
               </a>
             )}
             <div className={styles.nextTop}>

@@ -10,7 +10,7 @@ import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { teamAWon } from '@/lib/formats/sets';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import { getCached, setCached } from '@/lib/clientCache';
+import { getCached, setCached, memoize } from '@/lib/clientCache';
 import styles from './HeroesOfMonth.module.css';
 
 const DAYS = 30;
@@ -120,7 +120,9 @@ export default function HeroesOfMonth() {
 
   useEffect(() => {
     let alive = true;
-    loadHeroes(createClient()).then((d) => {
+    // Fresh at most every 10 minutes: the month's podium hardly moves,
+    // and this used to scan 30 days of games on every visit to the home.
+    memoize('home:heroes:fresh', 10 * 60 * 1000, () => loadHeroes(createClient())).then((d) => {
       setCached(KEY, d);
       if (alive) setData(d);
     });

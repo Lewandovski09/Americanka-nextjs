@@ -100,16 +100,29 @@ export async function commitCategoryStart(supabaseAdmin: SupabaseAdmin, category
   // than in each generator: one place, every format.
   const ordered = rows.map((m, i) => ({ ...m, order_index: i }));
 
+  // Claim the start first, atomically: only the request that moves the
+  // category from «scheduled» to «live» goes on. A double tap on
+  // «Запустити» (or two admins at once) used to pass the status check
+  // twice and insert every game twice.
+  const { data: claimed, error: claimErr } = await supabaseAdmin
+    .from('tournament_categories')
+    .update({ status: 'live', started_at: new Date().toISOString() })
+    .eq('id', category.id)
+    .eq('status', 'scheduled')
+    .select('id');
+  if (claimErr) {
+    console.error('[start] claim:', claimErr.message);
+    return { error: 'Не вдалося запустити категорію' };
+  }
+  if (!claimed || claimed.length === 0) return { error: 'Категорію вже розпочато' };
+
   const { error: insErr } = await supabaseAdmin.from('tournament_matches').insert(ordered);
   if (insErr) {
     console.error('[start] matches insert:', insErr.message);
+    // Give the start back, so it can simply be tried again.
+    await supabaseAdmin.from('tournament_categories').update({ status: 'scheduled', started_at: null }).eq('id', category.id);
     return { error: 'Не вдалося створити матчі' };
   }
-
-  await supabaseAdmin
-    .from('tournament_categories')
-    .update({ status: 'live', started_at: new Date().toISOString() })
-    .eq('id', category.id);
 
   // Starting any category closes the event's registration and moves the
   // event "live" the first time (so it surfaces under Активні).

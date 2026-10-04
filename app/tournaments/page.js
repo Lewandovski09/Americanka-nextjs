@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import { useEffect, useState } from 'react';
 import { getCached, setCached } from '@/lib/clientCache';
 import Link from 'next/link';
@@ -14,6 +15,7 @@ import VenueName from '@/components/VenueName';
 import { useVenues, findVenue } from '@/hooks/useVenues';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
+const DONE_PAGE = 15;
 
 export default function EventsPage() {
   const { player } = useCurrentPlayer();
@@ -35,6 +37,7 @@ export default function EventsPage() {
   const venues = useVenues();
   const cities = [...new Map(venues.filter((v) => v.city).map((v) => [v.city.id, v.city])).values()];
   const [cityId, setCityId] = useState('all');
+  const [doneLimit, setDoneLimit] = useState(DONE_PAGE);
   const visibleEvents =
     cityId === 'all' ? events : events.filter((ev) => findVenue(venues, ev.location)?.city?.id === cityId);
 
@@ -95,7 +98,10 @@ export default function EventsPage() {
            tournament_categories(id, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
-        .order('scheduled_at', { ascending: tab === 'done' ? false : true });
+        .order('scheduled_at', { ascending: tab === 'done' ? false : true })
+        // Finished ones come in pages: the list (and its per-event slot
+        // counting) used to download every tournament ever played.
+        .limit(tab === 'done' ? doneLimit : 200);
 
       // One enrichment pass per event (not per category) — different
       // events can be different formats, which decides whether slots
@@ -131,7 +137,7 @@ export default function EventsPage() {
     return () => {
       alive = false;
     };
-  }, [tab]);
+  }, [tab, doneLimit]);
 
   return (
     <div className={styles.page}>
@@ -213,8 +219,14 @@ export default function EventsPage() {
                   className={styles.cardPhotoLink}
                   aria-label="Фото турніру"
                 >
-                  {/* eslint-disable-next-line @next/next/no-img-element */}
-                  <img src={ev.photo_url} alt={`Фото: ${ev.name}`} className={styles.cardPhoto} loading="lazy" />
+                  <Image
+                    src={ev.photo_url}
+                    alt={`Фото: ${ev.name}`}
+                    width={1200}
+                    height={675}
+                    sizes="(max-width: 600px) 100vw, 560px"
+                    className={styles.cardPhoto}
+                  />
                 </Link>
               )}
               <div className={styles.cardTop}>
@@ -253,6 +265,12 @@ export default function EventsPage() {
             </div>
           );
         })}
+
+      {!loading && tab === TABS.DONE && events.length >= doneLimit && (
+        <button type="button" className={styles.moreBtn} onClick={() => setDoneLimit((n) => n + DONE_PAGE)}>
+          Показати ще
+        </button>
+      )}
     </div>
   );
 }

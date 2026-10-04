@@ -1,6 +1,4 @@
-New-Item -ItemType Directory -Force supabase\one-off
-Move-Item "D:\VoleyBall\Americanka-october\Americanka-nextjs-main\fix-mix-2026-08-01-pro-avp500.sql" supabase\one-off\ -Force
-Test-Path supabase\one-off\fix-mix-2026-08-01-pro-avp500.sql-- ============================================================
+-- ============================================================
 -- Разовое исправление: микс 1 августа 2026
 --   Pro           → AVP 500
 --   Medium, Light → AVP 250

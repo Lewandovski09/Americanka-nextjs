@@ -293,18 +293,6 @@
   margin-top: 6px;
 }
 
-.codeInput {
-  width: 100%;
-  text-align: center;
-  padding: 12px 0;
-  font-size: 28px;
-  font-weight: 700;
-  letter-spacing: 10px;
-  border: 1.5px solid #ddd0a8;
-  border-radius: 12px;
-  margin-bottom: 10px;
-}
-
 .modalOverlay {
   position: fixed;
   inset: 0;
@@ -326,23 +314,11 @@
   box-shadow: 0 20px 60px rgba(0, 0, 0, 0.4);
 }
 
-.modalIcon {
-  font-size: 44px;
-  margin-bottom: 12px;
-}
-
 .modalTitle {
   font-size: 18px;
   font-weight: 800;
   color: #0d2347;
   margin-bottom: 12px;
-}
-
-.modalText {
-  font-size: 13px;
-  color: #4a4a4a;
-  line-height: 1.6;
-  margin-bottom: 18px;
 }
 
 .modalLinkBtn {
@@ -356,17 +332,6 @@
   font-weight: 700;
   text-decoration: none;
   margin-bottom: 10px;
-}
-
-.modalCancelBtn {
-  width: 100%;
-  padding: 10px;
-  background: transparent;
-  color: #6b6b6b;
-  border: none;
-  font-size: 13px;
-  cursor: pointer;
-  margin-top: 4px;
 }
 
 .passwordWrap {

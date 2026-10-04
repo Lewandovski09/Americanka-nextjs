@@ -15,6 +15,7 @@ self.addEventListener('activate', (event) => {
   event.waitUntil(self.clients.claim());
 });
 
-self.addEventListener('fetch', () => {
-  // Intentionally not intercepting — everything goes to the network.
-});
+// No «fetch» listener on purpose: an empty one still makes the browser
+// start this worker for every request and navigation (slower, and
+// Chrome warns about it). Without it everything goes straight to the
+// network, which is what the app wants.

@@ -22,7 +22,7 @@ export async function POST() {
     return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }
 
-  const { data: bots } = await supabaseAdmin.from('users').select('id, login').ilike('login', 'testbot_%');
+  const { data: bots } = await supabaseAdmin.from('users').select('id, login').like('login', 'testbot\\_%');
 
   let removed = 0;
   const errors = [];

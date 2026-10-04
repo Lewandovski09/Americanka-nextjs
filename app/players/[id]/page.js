@@ -11,7 +11,7 @@ import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import { loadPlayerGames, partnerStatsFrom } from '@/lib/playerGames';
+import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
 import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
 import { inSeason } from '@/lib/seasons';
 import HeaderStatCards from '@/components/HeaderStatCards';
@@ -56,7 +56,7 @@ export default function PlayerProfilePage() {
       // Everything else needs only the id — the five loads run at once.
       const [{ data: th }, gameList, { data: elog }, header] = await Promise.all([
         supabase.rpc('get_user_tournament_history', { p_user_id: data.id }),
-        loadPlayerGames(supabase, data.id),
+        loadPlayerGamesShared(supabase, data.id),
         supabase.rpc('get_user_elo_log', { p_user_id: data.id }),
         loadPlayerHeaderStats(supabase, data),
       ]);

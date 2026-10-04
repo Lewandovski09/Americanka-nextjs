@@ -1,7 +1,6 @@
 'use client';
 
 import { useEffect } from 'react';
-import * as Sentry from '@sentry/nextjs';
 
 // App Router's error boundary — catches any render/data error thrown by
 // a page or its children and replaces just that segment with this UI,
@@ -12,7 +11,9 @@ export default function Error({ error, reset }) {
     // handlers) tags this as a caught boundary error, and it still
     // logs to the console even before a Sentry DSN is configured.
     console.error('[error boundary]', error);
-    Sentry.captureException(error);
+    // Sentry is loaded only here, on an actual error — not in every
+    // page's bundle.
+    import('@sentry/nextjs').then((Sentry) => Sentry.captureException(error)).catch(() => {});
   }, [error]);
 
   return (

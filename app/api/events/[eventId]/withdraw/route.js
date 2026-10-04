@@ -31,6 +31,33 @@ export async function POST(request, { params }) {
   const format = getFormat(event.format_kind);
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
 
+  // Already playing in a league that has started? Then leaving is not
+  // possible here — the application would end up «withdrawn» while the
+  // player is still in the live bracket.
+  const { data: liveCats } = await supabaseAdmin
+    .from('tournament_categories')
+    .select('id')
+    .eq('event_id', eventId)
+    .neq('status', 'scheduled');
+  const liveIds = (liveCats || []).map((c) => c.id);
+  if (liveIds.length > 0) {
+    const [{ data: inSolo }, { data: inTeam }] = await Promise.all([
+      supabaseAdmin.from('tournament_players').select('id').in('category_id', liveIds).eq('user_id', playerId).limit(1),
+      supabaseAdmin
+        .from('tournament_teams')
+        .select('id')
+        .in('category_id', liveIds)
+        .or(`user1_id.eq.${playerId},user2_id.eq.${playerId}`)
+        .limit(1),
+    ]);
+    if ((inSolo || []).length > 0 || (inTeam || []).length > 0) {
+      return Response.json(
+        { success: false, error: 'Ваша ліга вже грає — знятися можна лише через адміна' },
+        { status: 400 }
+      );
+    }
+  }
+
   // Only categories that have NOT started yet — you can't leave a
   // category whose matches are already generated.
   const { data: cats } = await supabaseAdmin

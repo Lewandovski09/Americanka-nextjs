@@ -1,5 +1,6 @@
 'use client';
 
+import Image from 'next/image';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -45,7 +46,8 @@ function ProfileIcon({ active, photoUrl }) {
           border: '1.5px solid rgba(16,27,51,0.15)',
         }}
       >
-        <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {/* next/image: a 26 px copy instead of the full profile photo. */}
+        <Image src={photoUrl} alt="" width={22} height={22} sizes="26px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </span>
     );
   }

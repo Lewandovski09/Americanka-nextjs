@@ -8,7 +8,7 @@
 
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { loadPlayerGames, partnerStatsFrom } from '@/lib/playerGames';
+import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
 import { categoryForElo, eloForecast, SKILL_CATEGORIES } from '@/lib/elo';
 import { getCached, setCached } from '@/lib/clientCache';
 import styles from './FormCard.module.css';
@@ -30,7 +30,7 @@ export default function FormCard({ player }) {
   useEffect(() => {
     if (!player?.id) return;
     let alive = true;
-    loadPlayerGames(createClient(), player.id).then(({ games, people }) => {
+    loadPlayerGamesShared(createClient(), player.id).then(({ games, people }) => {
       const last5 = [...games].sort((a, b) => new Date(b.played_at) - new Date(a.played_at)).slice(0, 5).reverse();
       // Best partner: the most wins together, at least 2 games.
       const partners = partnerStatsFrom(games, people).filter((p) => p.games_together >= 2);

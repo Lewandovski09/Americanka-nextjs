@@ -61,3 +61,31 @@ export async function writeRating(
     .upsert({ user_id: userId, sport_id: sport, elo, updated_at: new Date().toISOString() }, { onConflict: 'user_id,sport_id' });
   return error ? error.message : null;
 }
+
+/**
+ * Move a user's Ело in a sport by `delta`, atomically, in the database
+ * (migration 056, add_elo): two games of the same player entered at the
+ * same moment can no longer overwrite each other's change. Returns the
+ * new rating. Before that migration runs it falls back to read + write.
+ */
+export async function addRating(
+  supabaseAdmin: SupabaseAdmin,
+  userId: string,
+  sportId: string | null | undefined,
+  delta: number
+): Promise<{ elo: number | null; error: string | null }> {
+  const sport = sportId || PRIMARY_SPORT_ID;
+  const { data, error } = await supabaseAdmin.rpc('add_elo', {
+    p_user: userId,
+    p_sport: sport,
+    p_delta: delta,
+    p_start: DEFAULT_START_ELO,
+  });
+  if (!error) return { elo: typeof data === 'number' ? data : Number(data), error: null };
+  const missing = error.code === 'PGRST202' || /add_elo/.test(error.message || '');
+  if (!missing) return { elo: null, error: error.message };
+  const current = await readRatings(supabaseAdmin, [userId], sport);
+  const next = (current.get(userId) ?? DEFAULT_START_ELO) + delta;
+  const err = await writeRating(supabaseAdmin, userId, sport, next);
+  return err ? { elo: null, error: err } : { elo: next, error: null };
+}

@@ -8,7 +8,7 @@
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
-import { buildPoints, buildPointsFromLog } from '@/components/EloChart';
+import { buildPoints, buildPointsFromLog } from '@/lib/eloSeries';
 import { IconX } from '@/components/Icons';
 import styles from './EloTrend.module.css';
 

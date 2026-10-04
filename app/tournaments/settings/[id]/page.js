@@ -260,6 +260,37 @@ function MainTab({ event, category, format, isPair, busy, post }) {
         </Link>
       )}
 
+      {/* Maintenance: rebuild this tournament's places and AVP from its
+          games (the same code that runs when a category finishes). Needed
+          only after a manual fix in the database. */}
+      {event.status === 'done' && (
+        <div className={styles.maintBox}>
+          <div className={styles.maintTitle}>Обслуговування</div>
+          <div className={styles.maintRow}>
+            <button
+              type="button"
+              className={styles.maintBtn}
+              disabled={busy}
+              onClick={async () => {
+                if (await post('/api/admin/placements/recalc', { eventId: event.id })) window.alert('Місця перераховано');
+              }}
+            >
+              Перерахувати місця
+            </button>
+            <button
+              type="button"
+              className={styles.maintBtn}
+              disabled={busy}
+              onClick={async () => {
+                if (await post('/api/admin/avp/recalc', { eventId: event.id })) window.alert('AVP перераховано');
+              }}
+            >
+              Перерахувати AVP
+            </button>
+          </div>
+        </div>
+      )}
+
       <DeleteEventButton event={event} busy={busy} post={post} />
     </div>
   );
