@@ -10,7 +10,7 @@ import { toJpegDataUrl } from '@/lib/photo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import CityPicker from '@/components/CityPicker';
 import { IconEdit, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
-import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
+import ProfileHighlights from '@/components/ProfileHighlights';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
 import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
@@ -344,7 +344,17 @@ export default function ProfilePage() {
 
       <div className="riseIn" style={{ animationDelay: '0.06s' }}>
         <ProfileSeasonPicker seasons={seasons} value={scope} onChange={setPickedScope} />
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} games={gameData.games} season={scopeSeason} />
+        <ProfileHighlights
+          history={tournamentHistory}
+          eloLog={eloGameLog}
+          games={gameData.games}
+          people={gameData.people}
+          season={scopeSeason}
+          gender={player.gender}
+          onOpenTournament={openTournamentDetails}
+          onOpenPartner={(p) => openPartnerHistory(p, 'together')}
+          onOpenOpponent={(p) => openPartnerHistory(p, 'against')}
+        />
       </div>
 
       <div className={styles.sectionLabel}>Рейтинг AVP</div>

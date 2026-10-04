@@ -6,7 +6,7 @@ import { createClient } from '@/lib/supabase/client';
 import { categoryForElo, eloForecast } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
-import TournamentStatsBreakdown from '@/components/TournamentStatsBreakdown';
+import ProfileHighlights from '@/components/ProfileHighlights';
 import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
 import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
@@ -165,7 +165,16 @@ export default function PlayerProfilePage() {
 
       <div className="riseIn" style={{ animationDelay: '0.06s' }}>
         <ProfileSeasonPicker seasons={seasons} value={scope} onChange={setPickedScope} />
-        <TournamentStatsBreakdown history={tournamentHistory} gender={player.gender} games={gameData.games} season={scopeSeason} />
+        <ProfileHighlights
+          history={tournamentHistory}
+          eloLog={eloGameLog}
+          games={gameData.games}
+          people={gameData.people}
+          season={scopeSeason}
+          gender={player.gender}
+          onOpenTournament={goToTournament}
+          onOpenPartner={goToPartner}
+        />
       </div>
 
       {player.telegram_username && (
