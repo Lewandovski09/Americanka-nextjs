@@ -4,8 +4,7 @@
 // order:
 //   1. «Шафа трофеїв» — shelves of cups for 1st / 2nd / 3rd places
 //      (replaces the old list «Турнірів зіграно · 1-і · 2-і · 3-і місця»);
-//   2. «Особисті рекорди» — peak Ело, longest win streak, best
-//      tournament, best score, most games in a day;
+//   2. two tiles: peak Ело and the longest win streak;
 //   3. «Напарники й суперники» — best partner, the opponent you lose to
 //      most, the one you beat most.
 // Everything follows the season switch (a season or all time) and is
@@ -172,65 +171,24 @@ function records({ games, history, eloLog, people }) {
   return { peak, streak, bestT, bestS, partnerName, bestDay };
 }
 
-function Records({ games, history, eloLog, people, scopeLabel }) {
+function Records({ games, history, eloLog, people }) {
   const r = records({ games, history, eloLog, people });
-  if (games.length === 0 && !r.peak) {
-    return (
-      <section className={styles.card}>
-        <div className={styles.head}>
-          <span className={styles.label}>Особисті рекорди · {scopeLabel}</span>
-        </div>
-        <div className={styles.empty}>Рекорди з’являться після перших ігор</div>
-      </section>
-    );
-  }
+  // Just two tiles, no heading: the peak rating and the longest run of wins.
   return (
-    <section className={styles.card}>
-      <div className={styles.head}>
-        <span className={styles.label}>Особисті рекорди · {scopeLabel}</span>
+    <div className={styles.rec}>
+      <div className={`${styles.tile} ${styles.tBlue}`}>
+        <span className={styles.tEmoji}>📈</span>
+        <div className={styles.tK}>Пік Ело</div>
+        <div className={styles.tV}>{r.peak ? r.peak.elo : '—'}</div>
+        <div className={styles.tM}>{r.peak ? shortDate(r.peak.at) : 'ще немає ігор з Ело'}</div>
       </div>
-      <div className={styles.rec}>
-        <div className={`${styles.tile} ${styles.tBlue}`}>
-          <span className={styles.tEmoji}>📈</span>
-          <div className={styles.tK}>Пік Ело</div>
-          <div className={styles.tV}>{r.peak ? r.peak.elo : '—'}</div>
-          <div className={styles.tM}>{r.peak ? shortDate(r.peak.at) : 'ще немає ігор з Ело'}</div>
-        </div>
-        <div className={`${styles.tile} ${styles.tCoral}`}>
-          <span className={styles.tEmoji}>🔥</span>
-          <div className={styles.tK}>Серія перемог</div>
-          <div className={styles.tV}>{r.streak.n}</div>
-          <div className={styles.tM}>{r.streak.n > 0 ? `поспіль · ${shortDate(r.streak.at)}` : 'ще попереду'}</div>
-        </div>
-        <div className={`${styles.tile} ${styles.tGreen}`}>
-          <span className={styles.tEmoji}>⚡</span>
-          <div className={styles.tK}>Найкращий турнір</div>
-          <div className={styles.tV}>{r.bestT ? `+${r.bestT.elo_delta}` : '—'}</div>
-          <div className={styles.tM}>{r.bestT ? `Ело · ${r.bestT.tournament_name || 'турнір'}` : 'ще немає'}</div>
-        </div>
-        <div className={`${styles.tile} ${styles.tPurple}`}>
-          <span className={styles.tEmoji}>💥</span>
-          <div className={styles.tK}>Найкращий рахунок</div>
-          <div className={`${styles.tV} ${r.bestS && (r.bestS.g.score || '').length > 6 ? styles.tVSmall : ''}`}>
-            {r.bestS ? r.bestS.g.score : '—'}
-          </div>
-          <div className={styles.tM}>
-            {r.bestS ? (r.partnerName ? `напарник ${r.partnerName} · ${shortDate(r.bestS.g.played_at)}` : shortDate(r.bestS.g.played_at)) : 'ще немає перемог'}
-          </div>
-        </div>
-        {r.bestDay && (
-          <div className={`${styles.tile} ${styles.tGold} ${styles.tWide}`}>
-            <span className={styles.tBig}>🏐</span>
-            <div>
-              <div className={styles.tK}>Ігор за один день · {shortDate(r.bestDay.at)}</div>
-              <div className={styles.tV} style={{ fontSize: 21 }}>
-                {r.bestDay.n} {gamesWord(r.bestDay.n)} · {r.bestDay.w} {winsWord(r.bestDay.w)}
-              </div>
-            </div>
-          </div>
-        )}
+      <div className={`${styles.tile} ${styles.tCoral}`}>
+        <span className={styles.tEmoji}>🔥</span>
+        <div className={styles.tK}>Серія перемог</div>
+        <div className={styles.tV}>{r.streak.n}</div>
+        <div className={styles.tM}>{r.streak.n > 0 ? `поспіль · ${shortDate(r.streak.at)}` : 'ще попереду'}</div>
       </div>
-    </section>
+    </div>
   );
 }
 
@@ -354,7 +312,7 @@ export default function ProfileHighlights({ history, eloLog, games, people, seas
   return (
     <div className={styles.wrap}>
       <TrophyCabinet history={h} games={g} scopeLabel={scopeLabel} onOpenTournament={onOpenTournament} />
-      <Records games={g} history={h} eloLog={l} people={people || {}} scopeLabel={scopeLabel} />
+      <Records games={g} history={h} eloLog={l} people={people || {}} />
       <Rivals
         games={g}
         people={people || {}}

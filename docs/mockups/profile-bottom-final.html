@@ -1,0 +1,256 @@
+<!doctype html><html><head><meta charset=utf-8><style>:root{--navy:#0d2347;--navy2:#1a3a7a;--rust:#e85d4a;--rust-dark:#c8432f;--rust-tint:#fceae6;--bg:#f3f6fb;--surface:#fff;--surface-alt:#eef1f7;--text:#101b33;--text2:#5a6476;--border:#e6eaf2;--green:#1ea672;--gold:#f0a91f}
+*{box-sizing:border-box;margin:0;padding:0}
+body{font-family:-apple-system,"SF Pro Text","Segoe UI",Roboto,sans-serif;background:var(--bg);color:var(--text);width:390px;-webkit-font-smoothing:antialiased;font-variant-numeric:tabular-nums}
+.page{padding:0 16px 24px}
+.cap{margin:26px 0 4px;font-size:17px;font-weight:800;color:var(--text)}
+.cap i{font-style:normal;display:inline-block;background:var(--rust);color:#fff;border-radius:8px;padding:1px 8px;margin-right:6px;font-size:14px}
+.capSub{font-size:12.5px;line-height:1.45;color:var(--text2);margin-bottom:10px}
+.capSub b{color:var(--text)}
+.new{display:inline-block;font-size:10px;font-weight:800;color:#fff;background:var(--green);border-radius:6px;padding:1px 6px;margin-left:4px;vertical-align:1px}
+.card{background:#fff;border-radius:20px;box-shadow:0 2px 12px rgba(13,35,71,.07);padding:14px}
+.lbl{font-size:11.5px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2)}
+.row{display:flex;align-items:center;gap:8px}
+.sb{justify-content:space-between}
+.small{font-size:12px;color:var(--text2)}
+.pills{display:flex;gap:8px;margin:14px 0 12px}
+.pill{padding:9px 16px;border-radius:999px;font-size:13.5px;font-weight:700;background:#fff;color:var(--text2);border:1px solid var(--border)}
+.pill.on{background:var(--navy);color:#fff;border-color:var(--navy)}
+/* header */
+.hdr{background:var(--navy);margin:0 -16px;padding:18px 16px 26px;border-radius:0 0 26px 26px;color:#fff}
+.hdrTop{display:flex;align-items:center;gap:12px}
+.ava{width:58px;height:58px;border-radius:50%;background:linear-gradient(135deg,#c9a27a,#6b4a2f);border:2px solid rgba(255,255,255,.3);flex-shrink:0}
+.hName{font-size:19px;font-weight:800}.hCat{font-size:13px;opacity:.6;font-weight:600;margin-top:2px}
+.hStats{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:14px}
+.hs{background:rgba(255,255,255,.08);border-radius:14px;padding:10px 12px}
+.hs .k{font-size:10.5px;font-weight:800;letter-spacing:.8px;opacity:.55;text-transform:uppercase}
+.hs .v{font-size:24px;font-weight:800;margin-top:3px}.hs .v.r{color:#ff7a66}
+.hs .m{font-size:11.5px;opacity:.55;margin-top:2px}
+.title{font-size:12px;font-weight:800;letter-spacing:1px;text-transform:uppercase;color:var(--text2);margin:6px 2px 8px}
+/* V1 trophy cabinet */
+.shelf{position:relative;padding:10px 4px 0;margin-top:8px}
+.shelfHead{display:flex;justify-content:space-between;align-items:center;font-size:12.5px;font-weight:700;color:var(--text);margin-bottom:6px}
+.shelfHead b{font-size:15px}
+.cups{display:flex;gap:8px;min-height:74px;align-items:flex-end;padding:0 4px 8px}
+.cup{width:76px;text-align:center}
+.cupIco{font-size:34px;line-height:1;filter:drop-shadow(0 3px 3px rgba(0,0,0,.18))}
+.cupName{font-size:10.5px;font-weight:700;color:var(--text);margin-top:4px;line-height:1.15}
+.cupDate{font-size:9.5px;color:var(--text2)}
+.slot{width:76px;height:60px;border:1.5px dashed #d5dbe7;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:10px;color:#a3abba;text-align:center}
+.plank{height:9px;border-radius:5px;margin:0 -2px}
+.pg{background:linear-gradient(180deg,#ffe08a,#e2a52a);box-shadow:0 3px 0 #b07a14}
+.ps{background:linear-gradient(180deg,#eef1f6,#b9c2d0);box-shadow:0 3px 0 #8d97a8}
+.pb{background:linear-gradient(180deg,#f2c39b,#c47a43);box-shadow:0 3px 0 #96562a}
+.cabFoot{display:flex;gap:8px;margin-top:14px}
+.cabFoot div{flex:1;background:var(--surface-alt);border-radius:12px;padding:8px;text-align:center;font-size:11px;color:var(--text2)}
+.cabFoot b{display:block;font-size:17px;color:var(--text)}
+/* V2 trophy road */
+.road{background:linear-gradient(170deg,#1f3f80 0%,#14306a 60%,#2a1f55 100%);border-radius:20px;color:#fff;padding:14px;box-shadow:0 6px 18px rgba(13,35,71,.25);overflow:hidden}
+.roadTrack{position:relative;margin:18px 0 6px;height:120px}
+.roadLine{position:absolute;left:14px;right:14px;top:44px;height:10px;border-radius:6px;background:rgba(255,255,255,.14)}
+.roadFill{position:absolute;left:14px;top:44px;height:10px;border-radius:6px;background:linear-gradient(90deg,#ffd66b,#f0a91f);box-shadow:0 0 10px rgba(255,214,107,.6)}
+.node{position:absolute;top:28px;width:42px;margin-left:-21px;text-align:center}
+.nodeB{width:42px;height:42px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-weight:900;font-size:16px;border:2px solid rgba(255,255,255,.5);box-shadow:inset 0 2px 0 rgba(255,255,255,.35),0 3px 0 rgba(0,0,0,.35)}
+.nodeB.done{background:linear-gradient(180deg,#ffd66b,#e2a52a);color:#4a3300;border-color:#fff2c4}
+.nodeB.lock{background:rgba(255,255,255,.1);color:rgba(255,255,255,.75)}
+.nodeB.chest{font-size:20px}
+.nodeL{font-size:10px;font-weight:700;margin-top:6px;opacity:.85;white-space:nowrap}
+.nodeE{font-size:9.5px;opacity:.55}
+.me{position:absolute;top:-6px;margin-left:-26px;width:52px;text-align:center}
+.meB{background:#e85d4a;border-radius:9px;font-size:12px;font-weight:800;padding:3px 0;box-shadow:0 2px 0 #a8392a}
+.meA{width:0;height:0;border-left:6px solid transparent;border-right:6px solid transparent;border-top:7px solid #e85d4a;margin:0 auto}
+.roadNext{display:flex;align-items:center;gap:10px;background:rgba(255,255,255,.08);border:1px solid rgba(255,255,255,.14);border-radius:14px;padding:9px 11px;margin-top:6px}
+.roadNext .ico{font-size:26px}
+.roadNext b{font-size:13.5px}.roadNext span{font-size:11.5px;opacity:.7;display:block}
+/* V3 FUT card */
+.fut{display:flex;gap:12px;align-items:center}
+.futCard{width:150px;flex-shrink:0;border-radius:16px 16px 40px 40px;padding:10px 10px 14px;background:linear-gradient(160deg,#fff3c4 0%,#f3cd63 35%,#d9a332 100%);color:#4a3300;text-align:center;box-shadow:0 8px 18px rgba(176,122,20,.35),inset 0 1px 0 #fff;border:2px solid #fff1bd}
+.futTop{display:flex;justify-content:space-between;text-align:left}
+.futOvr{font-size:34px;font-weight:900;line-height:1}
+.futPos{font-size:11px;font-weight:800}
+.futAv{width:62px;height:62px;border-radius:50%;background:linear-gradient(135deg,#c9a27a,#6b4a2f);margin:0 auto;border:2px solid #fff6d6}
+.futName{font-size:12.5px;font-weight:900;text-transform:uppercase;border-top:1px solid rgba(74,51,0,.3);border-bottom:1px solid rgba(74,51,0,.3);padding:3px 0;margin-top:6px;letter-spacing:.5px}
+.futStats{display:grid;grid-template-columns:1fr 1fr;gap:3px 8px;font-size:11px;font-weight:800;margin-top:6px;text-align:left}
+.futStats span b{font-size:13px;margin-right:3px}
+.bars{flex:1;display:flex;flex-direction:column;gap:9px}
+.bar{font-size:12px;color:var(--text)}.bar b{float:right}
+.bar .t{height:6px;border-radius:4px;background:var(--surface-alt);margin-top:4px;overflow:hidden}.bar .t i{display:block;height:100%;border-radius:4px;background:linear-gradient(90deg,#ffd66b,#f0a91f)}
+.share{margin-top:12px;display:flex;gap:8px}
+.btn3d{flex:1;text-align:center;padding:10px;border-radius:12px;font-size:13.5px;font-weight:800;color:#fff;background:linear-gradient(180deg,#ff8a75,#e85d4a);box-shadow:0 3px 0 #a8392a}
+.btn3dN{background:linear-gradient(180deg,#3a5786,#26406b);box-shadow:0 3px 0 #10234a}
+/* V4 achievements */
+.ach{display:grid;grid-template-columns:repeat(3,1fr);gap:9px;margin-top:10px}
+.a{border-radius:14px;padding:10px 6px 9px;text-align:center;position:relative}
+.a.on{background:linear-gradient(180deg,#fff6dc,#ffe7a8);box-shadow:inset 0 1px 0 #fff,0 3px 0 #e2b851;border:1px solid #f3d47f}
+.a.off{background:var(--surface-alt);border:1px solid var(--border)}
+.aI{font-size:28px;line-height:1}
+.a.off .aI{filter:grayscale(1);opacity:.4}
+.aN{font-size:11px;font-weight:800;margin-top:5px;line-height:1.15}
+.aD{font-size:9.5px;color:var(--text2);margin-top:2px}
+.aP{height:5px;border-radius:3px;background:#dde3ee;margin:6px 4px 0;overflow:hidden}.aP i{display:block;height:100%;background:var(--rust)}
+.check{position:absolute;top:5px;right:6px;width:16px;height:16px;border-radius:50%;background:var(--green);color:#fff;font-size:10px;font-weight:900;display:flex;align-items:center;justify-content:center}
+/* V5 sofascore last tournaments */
+.ss{display:flex;gap:8px;margin:10px 0 6px}
+.ss div{flex:1;background:var(--surface-alt);border-radius:12px;padding:8px;text-align:center;font-size:10.5px;color:var(--text2)}
+.ss b{display:block;font-size:17px;color:var(--text)}
+.lt{display:flex;align-items:center;gap:10px;padding:10px 2px;border-top:1px solid var(--border)}
+.ltD{width:38px;text-align:center;font-size:10.5px;color:var(--text2);line-height:1.2}.ltD b{display:block;font-size:15px;color:var(--text)}
+.ltB{flex:1;min-width:0}.ltN{font-size:13.5px;font-weight:700}.ltM{font-size:11.5px;color:var(--text2);margin-top:1px}
+.place{width:28px;height:28px;border-radius:8px;display:flex;align-items:center;justify-content:center;font-weight:800;font-size:13px}
+.p1{background:#fff1c2;color:#8a5a00}.p2{background:#eef1f6;color:#5a6476}.p4{background:var(--surface-alt);color:var(--text2)}
+.rate{min-width:36px;text-align:center;padding:4px 0;border-radius:7px;font-weight:800;font-size:13px;color:#fff}
+.r9{background:#1d4ed8}.r8{background:#1ea672}.r7{background:#63b54b}.r6{background:#e9a23b}
+.dEl{font-size:12px;font-weight:700;width:34px;text-align:right}.up{color:var(--green)}.dn{color:var(--rust)}
+/* V6 heatmap */
+.hm{display:flex;gap:10px;margin-top:10px}
+.mon{flex:1}
+.monN{font-size:11px;font-weight:700;color:var(--text2);margin-bottom:5px}
+.grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px}
+.grid span{aspect-ratio:1;border-radius:3px;background:var(--surface-alt)}
+.grid .g1{background:#bfe9d3}.grid .g2{background:#5fd38d}.grid .g3{background:#1ea672}.grid .l1{background:#f7c4bb}.grid .x{background:transparent}
+.grid .today{outline:1.5px solid var(--navy);outline-offset:0}
+.hmLeg{display:flex;align-items:center;gap:4px;justify-content:flex-end;font-size:10px;color:var(--text2);margin-top:8px}
+.hmLeg span{width:10px;height:10px;border-radius:2px;display:inline-block}
+.streak{display:flex;gap:8px;margin-top:12px}
+.streak div{flex:1;border-radius:12px;padding:9px 10px;background:var(--surface-alt);font-size:11px;color:var(--text2)}
+.streak b{display:block;font-size:16px;color:var(--text)}
+/* V7 rings */
+.rings{display:flex;align-items:center;gap:14px;margin-top:8px}
+.rw{position:relative;width:132px;height:132px;flex-shrink:0}
+.rw svg{width:132px;height:132px;transform:rotate(-90deg)}
+.rl{flex:1;display:flex;flex-direction:column;gap:10px}
+.ri{font-size:12px;color:var(--text2)}.ri b{display:block;font-size:17px;color:var(--text)}
+.dot{display:inline-block;width:9px;height:9px;border-radius:50%;margin-right:5px;vertical-align:0}
+/* V8 rivals */
+.riv{display:flex;flex-direction:column;gap:8px;margin-top:10px}
+.rv{display:flex;align-items:center;gap:10px;border-radius:14px;padding:10px;border:1px solid var(--border)}
+.rvI{width:40px;height:40px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:20px;flex-shrink:0}
+.rvAv{width:34px;height:34px;border-radius:50%;background:#dde3ee;display:flex;align-items:center;justify-content:center;font-size:11px;font-weight:800;color:var(--navy);flex-shrink:0}
+.rvB{flex:1;min-width:0}.rvT{font-size:10.5px;font-weight:800;letter-spacing:.6px;text-transform:uppercase}
+.rvN{font-size:14px;font-weight:700;margin-top:1px}.rvM{font-size:11.5px;color:var(--text2)}
+.rvS{text-align:right;font-weight:800;font-size:15px}.rvS span{display:block;font-size:10.5px;font-weight:600;color:var(--text2)}
+.tG{background:#e3f6ec}.tG .rvT{color:#11653f}
+.tR{background:#fdecec}.tR .rvT{color:#b42318}
+.tB{background:#e8eefc}.tB .rvT{color:var(--navy2)}
+/* V9 records */
+.rec{display:grid;grid-template-columns:1fr 1fr;gap:8px;margin-top:10px}
+.rc{border-radius:16px;padding:11px;color:#fff;position:relative;overflow:hidden}
+.rc .k{font-size:11px;font-weight:700;opacity:.9}
+.rc .v{font-size:25px;font-weight:900;line-height:1.1;margin-top:3px}
+.rc .m{font-size:10.5px;opacity:.85;margin-top:2px}
+.rc .e{position:absolute;right:8px;top:8px;font-size:20px;opacity:.9}
+.c1{background:linear-gradient(150deg,#e85d4a,#ff9f7a)}.c2{background:linear-gradient(150deg,#1a3a7a,#3f6fd1)}.c3{background:linear-gradient(150deg,#1ea672,#5fd38d)}.c4{background:linear-gradient(150deg,#8b3fb8,#c27ae0)}
+.wide{grid-column:span 2;display:flex;align-items:center;gap:12px}
+.c5{background:linear-gradient(150deg,#f0a91f,#ffd66b);color:#4a3300}
+.lt2{display:flex;align-items:center;gap:10px;padding:9px 8px;border-radius:12px;font-size:13.5px}
+.lt2 .n{width:22px;text-align:center;font-weight:800;color:var(--text2)}
+.lt2 .nm{flex:1;font-weight:600}.lt2 .pt{font-weight:800}
+.lt2.meR{background:#e8eefc}.lt2.meR .n{color:var(--navy2)}
+.zoneL{width:3px;align-self:stretch;border-radius:2px;background:var(--green)}
+.gap{font-size:11.5px;color:var(--text2);text-align:center;margin-top:8px}
+.pass{background:linear-gradient(170deg,#1f3f80 0%,#14306a 60%,#2a1f55 100%);border-radius:20px;color:#fff;padding:14px;box-shadow:0 6px 18px rgba(13,35,71,.25)}
+.pTrack{display:flex;gap:6px;margin-top:12px;overflow:hidden}
+.tier{flex:0 0 58px;text-align:center}
+.tierB{height:58px;border-radius:12px;display:flex;align-items:center;justify-content:center;font-size:24px;border:2px solid rgba(255,255,255,.4);box-shadow:inset 0 2px 0 rgba(255,255,255,.3),0 3px 0 rgba(0,0,0,.35)}
+.tierB.ok{background:linear-gradient(180deg,#ffd66b,#e2a52a);border-color:#fff2c4}
+.tierB.lk{background:rgba(255,255,255,.1)}
+.tierL{font-size:10.5px;font-weight:700;margin-top:5px;opacity:.85}
+.pBar{height:10px;border-radius:6px;background:rgba(255,255,255,.14);margin-top:12px;overflow:hidden}.pBar i{display:block;height:100%;background:linear-gradient(90deg,#ffd66b,#f0a91f)}
+.big{font-size:34px;font-weight:800;line-height:1}
+.delta{font-size:13px;font-weight:700;color:var(--green);background:#e3f6ec;border-radius:999px;padding:3px 9px}
+.chips{display:flex;gap:6px;margin-top:10px}
+.chipx{flex:1;text-align:center;padding:6px 0;border-radius:999px;font-size:12px;font-weight:700;background:var(--surface-alt);color:var(--text2)}
+.chipx.on{background:var(--navy);color:#fff}
+.lvl{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.lv{text-align:center;padding:9px 0;border-radius:12px;font-weight:800;font-size:15px;background:linear-gradient(180deg,#3a5786,#26406b);color:#fff;box-shadow:0 3px 0 #10234a}
+.lv span{display:block;font-size:10px;font-weight:600;opacity:.7}
+.lv.on{background:linear-gradient(180deg,#ff8a75,#e85d4a);box-shadow:0 3px 0 #a8392a}
+.wp{display:flex;height:34px;border-radius:10px;overflow:hidden;margin-top:12px;font-size:12.5px;font-weight:800;color:#fff}
+.wp div{display:flex;align-items:center;padding:0 10px}
+.out{display:flex;gap:8px;margin-top:10px}
+.out div{flex:1;border-radius:12px;padding:9px;text-align:center;font-size:11.5px;color:var(--text2)}
+.out b{display:block;font-size:19px}
+.seg{display:flex;background:var(--surface-alt);border-radius:12px;padding:3px;margin-bottom:10px}
+.seg span{flex:1;text-align:center;padding:8px 0;border-radius:10px;font-size:13px;font-weight:700;color:var(--text2)}
+.seg span.on{background:#fff;color:var(--text);box-shadow:0 1px 4px rgba(0,0,0,.08)}
+.feed{display:flex;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.feed:first-of-type{border-top:none}
+.res{width:30px;height:30px;border-radius:9px;display:flex;align-items:center;justify-content:center;font-weight:800;color:#fff;font-size:13px;flex-shrink:0}
+.W{background:#22c55e;box-shadow:0 2px 0 #15803d}.L{background:#e85d4a;box-shadow:0 2px 0 #a8392a}
+.fB{flex:1;min-width:0}.fT{font-size:13.5px;font-weight:700}.fM{font-size:11.5px;color:var(--text2);margin-top:1px}
+.fS{text-align:right;font-weight:800;font-size:14px}.fS span{display:block;font-size:11.5px}
+.avpTop{display:flex;align-items:flex-end;justify-content:space-between;margin-top:6px}
+.avpBig{font-size:38px;font-weight:800;color:var(--rust);line-height:1}
+.avpRank{font-size:13px;font-weight:700;color:var(--text)}
+.avpRank span{display:block;font-size:11.5px;font-weight:500;color:var(--text2);text-align:right}
+.avpRow{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.avpRow:first-of-type{border-top:none}
+.avpD{width:36px;text-align:center;font-size:10.5px;color:var(--text2);line-height:1.2}.avpD b{display:block;font-size:15px;color:var(--text)}
+.avpB{flex:1;min-width:0}.avpN{font-size:13.5px;font-weight:700}.avpM{font-size:11.5px;color:var(--text2);margin-top:1px}
+.avpP{font-weight:800;font-size:15px;color:var(--rust);text-align:right}.avpP span{display:block;font-size:10.5px;font-weight:600;color:var(--text2)}
+.avpSub{font-size:11px;font-weight:800;letter-spacing:.8px;text-transform:uppercase;color:var(--text2);margin:14px 0 2px}
+.avpNo{font-size:12px;color:var(--text2);background:var(--surface-alt);border-radius:10px;padding:8px 10px;margin-top:8px}
+.sl{margin-top:12px}
+.slH{display:flex;justify-content:space-between;font-size:13px;color:var(--text2)}.slH b{color:var(--text)}
+.track{position:relative;height:6px;border-radius:4px;background:var(--surface-alt);margin:12px 4px 6px}
+.track i{position:absolute;left:0;top:0;bottom:0;border-radius:4px;background:var(--rust)}
+.knob{position:absolute;top:50%;width:24px;height:24px;margin:-12px 0 0 -12px;border-radius:50%;background:#fff;box-shadow:0 1px 6px rgba(0,0,0,.25)}
+.lvl2{display:grid;grid-template-columns:repeat(4,1fr);gap:6px;margin-top:10px}
+.lv2{text-align:center;padding:7px 0;border-radius:11px;font-weight:800;font-size:14px;background:var(--surface-alt);color:var(--text2);border:1px solid var(--border)}
+.lv2 span{display:block;font-size:10px;font-weight:600}
+.lv2.on{background:linear-gradient(180deg,#ff8a75,#e85d4a);color:#fff;border-color:#c8432f;box-shadow:0 3px 0 #a8392a}
+.team{display:flex;gap:8px;margin-top:12px}
+.tm{flex:1;border-radius:14px;padding:9px 10px;background:var(--surface-alt);font-size:11px;color:var(--text2)}
+.tm b{display:block;font-size:17px;color:var(--text);margin-top:1px}
+.tm.us{background:#e8eefc}.tm.us b{color:var(--navy2)}
+.vs{align-self:center;font-weight:800;color:var(--text2);font-size:12px}
+.chance{display:flex;align-items:center;gap:12px;margin-top:12px}
+.chN{font-size:34px;font-weight:800;color:var(--navy);line-height:1}
+.chL{font-size:11.5px;color:var(--text2)}
+.toggle{display:flex;align-items:center;justify-content:space-between;margin-top:12px;padding:9px 11px;border-radius:12px;border:1px dashed #cbd3e1;font-size:12.5px;color:var(--text2)}
+.sw{width:36px;height:21px;border-radius:999px;background:var(--rust);position:relative}.sw:after{content:'';position:absolute;right:2px;top:2px;width:17px;height:17px;border-radius:50%;background:#fff}
+.tabsNote{font-size:11.5px;color:var(--text2);margin:-2px 2px 8px}
+.gm{padding:10px 0;border-top:1px solid var(--border)}
+.gm:first-of-type{border-top:none}
+.gmTop{display:flex;align-items:center;gap:10px}
+.gmVs{display:grid;grid-template-columns:1fr auto 1fr;gap:6px;align-items:center;margin:6px 0 0 40px;font-size:12px}
+.side{background:var(--surface-alt);border-radius:9px;padding:5px 7px;line-height:1.3}
+.side.mine{background:#e8eefc}
+.side small{display:block;color:var(--text2);font-size:10.5px}
+.sc{font-weight:800;font-size:14px;text-align:center}
+.dayH{font-size:11px;font-weight:800;letter-spacing:.6px;text-transform:uppercase;color:var(--text2);margin:12px 0 2px}
+.tr{display:flex;align-items:center;gap:10px;padding:10px 0;border-top:1px solid var(--border)}
+.trS{text-align:right;font-size:12px;color:var(--text2);line-height:1.35}.trS b{font-size:13px}
+.ptab{width:100%;border-collapse:collapse;font-size:12.5px;margin-top:4px}
+.ptab th{font-size:10.5px;color:var(--text2);font-weight:700;text-align:right;padding:6px 4px;text-transform:uppercase;letter-spacing:.4px}
+.ptab th:first-child,.ptab td:first-child{text-align:left}
+.ptab td{padding:8px 4px;border-top:1px solid var(--border);text-align:right}
+.ptab td:first-child{display:flex;align-items:center;gap:7px;font-weight:600}
+.mini{width:24px;height:24px;border-radius:50%;background:#dde3ee;flex-shrink:0}
+.pct{display:inline-block;min-width:40px;padding:2px 0;border-radius:6px;text-align:center;font-weight:800;color:#fff}
+.calc2 .slH{font-size:13px}
+.calc2 .track{margin:14px 6px 4px}
+.res3{display:flex;align-items:stretch;margin-top:12px;background:var(--surface-alt);border-radius:14px;overflow:hidden}
+.res3 div{flex:1;text-align:center;padding:9px 4px;font-size:11px;color:var(--text2)}
+.res3 div+div{border-left:1px solid #dfe4ee}
+.res3 b{display:block;font-size:19px;font-weight:800}
+</style></head><body><div class=page><div class=capSub style="margin-top:16px">Новий варіант нижньої частини профілю після твоїх правок. Перемикач <b>«Сезон 26/27 · Весь час»</b> зверху керує <b>усіма</b> блоками нижче.</div>
+<div class=pills style="margin-top:6px"><span class="pill on">Сезон 26/27 · зараз</span><span class=pill>Весь час</span></div><div class=cap style="font-size:15px">1 · Рейтинг AVP — з розбивкою по турнірах</div><div class=capSub>Сума і місце в сезоні + список: у якому турнірі скільки AVP отримав, за яке місце і з якого рівня турніру. Турніри без очок теж видно — з причиною.</div>
+<div class=card><div class="row sb"><span class=lbl>AVP · Сезон 26/27</span><span class=small>з 1 серп. 2026</span></div>
+<div class=avpTop><div><span class=avpBig>500</span> <span style="font-weight:700">очок</span></div><div class=avpRank>1-е місце<span>з 38 гравців</span></div></div>
+<div class=avpSub>Очки за турніри · 2</div>
+<div class=avpRow><div class=avpD><b>27</b>вер</div><span class="place p1">1</span><div class=avpB><div class=avpN>Americanka · Лайт</div><div class=avpM>рівень AVP 500 · 1-е місце</div></div><div class=avpP>+500<span>AVP</span></div></div>
+<div class=avpRow><div class=avpD><b>13</b>вер</div><span class="place p4">5</span><div class=avpB><div class=avpN>Americanka · Медіум</div><div class=avpM>рівень AVP 250 · за 5-е місце очок немає</div></div><div class=avpP style="color:var(--text2)">0<span>AVP</span></div></div>
+<div class=avpNo>У залік сезону йдуть очки з усіх турнірів сезону · Вся таблиця AVP →</div></div><div class=cap style="font-size:15px">2 · Калькулятор Ело — простий</div><div class=capSub>Один повзунок — середнє Ело пари суперників (як у справжній грі Americanka). Під ним одразу три числа: шанс, скільки дасть перемога і скільки забере поразка.</div>
+<div class="card calc2"><div class="row sb"><span class=lbl>Калькулятор Ело ⓘ</span></div>
+<div class=sl><div class=slH><span>Середнє Ело суперників</span><b>1850</b></div><div class=track><i style="width:87%"></i><span class=knob style="left:87%"></span></div></div>
+<div class=res3><div><b style="color:var(--navy)">50%</b>шанс</div><div><b style="color:#1ea672">+12</b>перемога</div><div><b style="color:#dc2626">−12</b>поразка</div></div></div><div class=cap style="font-size:15px">3 · Графік Ело одразу на сторінці (C)</div><div class=capSub>Лінія видна без натискання. Період: 1М · 3М · Сезон · Все; ⇄ — порівняти з іншим гравцем (як зараз у вікні графіка).</div>
+<div class=card><div class="row sb"><span class=lbl>Ело · Сезон 26/27</span><span class=delta>▲ +48 за сезон</span></div>
+<div class="row" style="margin-top:6px;align-items:baseline"><span class=big>1849</span><span class=small>пік 1862 · 27 вер · 12 ігор</span></div>
+<svg viewBox="0 0 330 90" style="width:100%;height:96px;margin-top:8px;overflow:visible"><defs><linearGradient id=g x1=0 y1=0 x2=0 y2=1><stop offset=0 stop-color="#e85d4a" stop-opacity=".25"/><stop offset=1 stop-color="#e85d4a" stop-opacity="0"/></linearGradient></defs><polygon points="0,90 0,76 30,74 60,79 90,64 120,56 150,61 180,44 210,36 240,49 270,29 300,11 330,25 330,90" fill="url(#g)"/><polyline points="0,76 30,74 60,79 90,64 120,56 150,61 180,44 210,36 240,49 270,29 300,11 330,25" fill=none stroke="#e85d4a" stroke-width=2.5 stroke-linejoin=round stroke-linecap=round /><line x1="300" y1="0" x2="300" y2="90" stroke="#101b33" stroke-opacity=".25" stroke-dasharray="3 3"/><circle cx="300" cy="11" r=4.5 fill="#e85d4a" stroke="#fff" stroke-width=2 /></svg>
+<div class=small style="text-align:right;margin-top:-4px">27 вер · гра 7 · <b style="color:var(--text)">1862</b> <span class=up>+9</span></div>
+<div class=chips><span class=chipx>1М</span><span class=chipx>3М</span><span class="chipx on">Сезон</span><span class=chipx>Все</span><span class=chipx>⇄</span></div></div><div class=cap style="font-size:15px">4 · Вкладки «Ігри · Турніри · Напарники» (E)</div><div class=capSub>Вся інформація з трьох списків, нічого не втрачено: кожна гра — з ким, проти кого, рахунок, середнє Ело обох пар, зміна Ело, турнір і раунд. Все ділиться по сезонах перемикачем зверху (лічильники на вкладках теж).</div><div class=card><div class=seg><span class="on">Ігри · 12</span><span class="">Турніри · 2</span><span class="">Напарники · 6</span></div><div class=tabsNote>Сезон 26/27 · 10 перемог · 2 поразки · 83%</div><div class=dayH>27 вер · Americanka Лайт · 1-е місце</div><div class=gm><div class=gmTop><span class="res W">W</span><div class=fB><div class=fT>Перемога</div><div class=fM>Раунд 7 · корт 2</div></div><div class=fS><span class=up style="font-size:14px">+9</span><span style="color:var(--text2);font-weight:600">Ело</span></div></div>
+<div class=gmVs><div class="side mine">Ти + Кудріч<small>сер. Ело 1790</small></div><div class=sc>25:6</div><div class=side>Савчук / Мельник<small>сер. Ело 1712</small></div></div></div><div class=gm><div class=gmTop><span class="res L">L</span><div class=fB><div class=fT>Поразка</div><div class=fM>Раунд 6 · корт 1</div></div><div class=fS><span class=dn style="font-size:14px">−14</span><span style="color:var(--text2);font-weight:600">Ело</span></div></div>
+<div class=gmVs><div class="side mine">Ти + Олійник<small>сер. Ело 1745</small></div><div class=sc>12:19</div><div class=side>Мельник / Бондар<small>сер. Ело 1768</small></div></div></div><div class=gm><div class=gmTop><span class="res W">W</span><div class=fB><div class=fT>Перемога</div><div class=fM>Раунд 5 · корт 2</div></div><div class=fS><span class=up style="font-size:14px">+7</span><span style="color:var(--text2);font-weight:600">Ело</span></div></div>
+<div class=gmVs><div class="side mine">Ти + Савчук<small>сер. Ело 1801</small></div><div class=sc>20:11</div><div class=side>Коваль / Ткач<small>сер. Ело 1690</small></div></div></div><div class=small style="text-align:center;margin-top:8px">Ще 9 ігор →</div></div><div class=cap style="font-size:15px">Вкладка «Турніри»</div><div class=capSub>Кожен турнір сезону: місце, ігри (W–L), різниця очок, зміна Ело і AVP. Натиснув — відкрилися всі твої ігри цього турніру.</div><div class=card><div class=seg><span class="">Ігри · 12</span><span class="on">Турніри · 2</span><span class="">Напарники · 6</span></div>
+<div class=tr style="border-top:none"><div class=ltD><b>27</b>вер</div><span class="place p1">1</span><div class=ltB><div class=ltN>Americanka · Лайт</div><div class=ltM>7 ігор · 6–1 · +58 очок</div></div><div class=trS><b class=up>+38</b> Ело<br><b style="color:var(--rust)">+500</b> AVP</div></div>
+<div class=tr><div class=ltD><b>13</b>вер</div><span class="place p4">5</span><div class=ltB><div class=ltN>Americanka · Медіум</div><div class=ltM>5 ігор · 4–1 · +21 очко</div></div><div class=trS><b class=up>+10</b> Ело<br><b>0</b> AVP</div></div></div><div class=cap style="font-size:15px">Вкладка «Напарники»</div><div class=capSub>Таблиця напарників сезону: ігри разом, W–L, % перемог кольором. Натиснув — ваші спільні ігри і ігри одне проти одного.</div><div class=card><div class=seg><span class="">Ігри · 12</span><span class="">Турніри · 2</span><span class="on">Напарники · 6</span></div><table class=ptab><tr><th>Напарник</th><th>Ігри</th><th>W–L</th><th>%</th></tr><tr><td><span class=mini></span>Кудріч Д.</td><td>3</td><td>3–0</td><td><span class=pct style="background:#1d4ed8">100%</span></td></tr><tr><td><span class=mini></span>Савчук І.</td><td>2</td><td>2–0</td><td><span class=pct style="background:#1d4ed8">100%</span></td></tr><tr><td><span class=mini></span>Олійник А.</td><td>2</td><td>1–1</td><td><span class=pct style="background:#e9a23b">50%</span></td></tr><tr><td><span class=mini></span>Коваль М.</td><td>2</td><td>2–0</td><td><span class=pct style="background:#1d4ed8">100%</span></td></tr><tr><td><span class=mini></span>Ткач С.</td><td>2</td><td>1–1</td><td><span class=pct style="background:#e9a23b">50%</span></td></tr><tr><td><span class=mini></span>Бондар В.</td><td>1</td><td>1–0</td><td><span class=pct style="background:#1ea672">100%</span></td></tr></table></div></div></body></html>

@@ -24,7 +24,7 @@ function monthsAgo(n) {
 // Turns tournament history (each with elo_delta + finished_at) into
 // a chronological series of actual ELO values — working backward
 // from the current rating, since the RPC only stores deltas.
-function buildPoints(history, currentElo) {
+export function buildPoints(history, currentElo) {
   const sorted = (history || [])
     .filter((h) => h.elo_delta !== null && h.elo_delta !== undefined && h.finished_at)
     .slice()
@@ -44,7 +44,7 @@ function buildPoints(history, currentElo) {
 // first one. This is what «Весь час» draws now — the old per-tournament
 // series needed finished tournaments with a stored delta, so a player
 // with one tournament (or a running one) got «недостатньо турнірів».
-function buildPointsFromLog(log) {
+export function buildPointsFromLog(log) {
   const rows = (log || [])
     .filter((r) => r.created_at && r.elo_after != null)
     .slice()

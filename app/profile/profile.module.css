@@ -843,3 +843,11 @@
   margin-top: 14px;
   margin-bottom: 8px;
 }
+
+/* AVP · calculator · Ело line · tabs — one column with even gaps. */
+.blocks {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+  margin-top: 12px;
+}

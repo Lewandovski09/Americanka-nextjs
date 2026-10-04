@@ -77,13 +77,16 @@ export default function AvpSeasonCard({ playerId, gender, scope }) {
 
       const mine = (standings || []).find((s) => s.user_id === playerId) || null;
       let rank = null;
-      if (mine && sameGender) {
+      let field = null; // how many of the same gender have points this season
+      if (sameGender) {
         const ids = new Set(sameGender.map((p) => p.id));
-        const idx = (standings || []).filter((s) => ids.has(s.user_id)).findIndex((s) => s.user_id === playerId);
+        const board = (standings || []).filter((s) => ids.has(s.user_id));
+        field = board.length;
+        const idx = mine ? board.findIndex((s) => s.user_id === playerId) : -1;
         rank = idx >= 0 ? idx + 1 : null;
       }
 
-      const result = { season, total: mine, rank, rows: sortRows(breakdown || []) };
+      const result = { season, total: mine, rank, field, rows: sortRows(breakdown || []) };
       setCached(cacheKey, result);
       if (!cancelled) setData(result);
     }
@@ -95,65 +98,90 @@ export default function AvpSeasonCard({ playerId, gender, scope }) {
   }, [playerId, gender, cacheKey]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!data) return <div className={styles.empty}>Завантаження...</div>;
-  const { season, total, rank, rows } = data;
+  const { season, total, rank, field, rows } = data;
   if (!season) return <div className={styles.empty}>Сезон ще не створено</div>;
   const allTime = season === 'all';
 
   return (
-    <>
-      <button className={styles.card} onClick={() => setExpanded((e) => !e)} disabled={rows.length === 0}>
-        <div className={styles.seasonName}>{allTime ? 'За весь час' : `${season.name} · ${seasonDates(season)}`}</div>
-        <div className={styles.totalRow}>
-          <div className={styles.total}>{total?.points ?? 0}</div>
-          <div className={styles.totalLabel}>
-            очок AVP
-            {rank ? ` · ${rank}-е місце` : ''}
+    <section className={styles.card}>
+      <div className={styles.head}>
+        <span className={styles.label}>{allTime ? 'AVP · За весь час' : `AVP · ${season.name}`}</span>
+        {!allTime && <span className={styles.dates}>{seasonDates(season)}</span>}
+      </div>
+      <div className={styles.topRow}>
+        <div>
+          <span className={styles.total}>{total?.points ?? 0}</span>
+          <span className={styles.totalLabel}> очок</span>
+        </div>
+        {rank ? (
+          <div className={styles.rank}>
+            {rank}-е місце
+            {field ? <span>з {field} {field % 10 === 1 && field % 100 !== 11 ? 'гравця' : 'гравців'}</span> : null}
           </div>
-          {rows.length > 0 && (
-            <span className={`${styles.arrow} ${expanded ? styles.arrowOpen : ''}`}>
-              <IconChevronDown size={13} />
-            </span>
+        ) : (
+          !allTime && <div className={styles.rankNone}>ще без місця</div>
+        )}
+      </div>
+
+      {rows.length > 0 ? (
+        <button type="button" className={styles.toggle} onClick={() => setExpanded((e) => !e)} aria-expanded={expanded}>
+          <span>
+            Очки за турніри · {rows.length}
+          </span>
+          <span className={`${styles.arrow} ${expanded ? styles.arrowOpen : ''}`}>
+            <IconChevronDown size={13} />
+          </span>
+        </button>
+      ) : (
+        <div className={styles.sub}>
+          {allTime ? 'Ще немає зарахованих турнірів' : 'Ще немає зарахованих турнірів у цьому сезоні'}
+        </div>
+      )}
+
+      {expanded && (
+        <div className={styles.list}>
+          {rows.map((r) => {
+            const when = r.tournament_events?.scheduled_at ? new Date(r.tournament_events.scheduled_at) : null;
+            const placeCls = r.place === 1 ? styles.p1 : r.place === 2 ? styles.p2 : r.place === 3 ? styles.p3 : styles.pN;
+            return (
+              <Link key={r.id} href={`/tournaments/${r.category_id}`} className={styles.row}>
+                <span className={styles.d}>
+                  <b>{when ? when.getDate() : '—'}</b>
+                  {when ? when.toLocaleDateString('uk', { month: 'short', ...(allTime ? { year: '2-digit' } : {}) }) : ''}
+                </span>
+                <span className={`${styles.place} ${placeCls}`}>{r.place}</span>
+                <span className={styles.rowMain}>
+                  <span className={styles.rowName}>
+                    {r.tournament_events?.name || 'Турнір'}
+                    {r.tournament_categories?.category_label ? ` · ${r.tournament_categories.category_label}` : ''}
+                  </span>
+                  <span className={styles.rowMeta}>
+                    рівень AVP {r.tier} · {r.points > 0 ? `${r.place}-е місце` : `за ${r.place}-е місце очок немає`}
+                  </span>
+                </span>
+                <span className={r.points > 0 ? styles.points : styles.pointsZero}>
+                  {r.points > 0 ? `+${r.points}` : 0}
+                  <small>AVP</small>
+                </span>
+              </Link>
+            );
+          })}
+          {!allTime && (
+            <Link href="/rating" className={styles.all} onClick={() => setCached('rating:tab', 'avp')}>
+              Вся таблиця AVP →
+            </Link>
           )}
         </div>
-        <div className={styles.sub}>
-          {total?.tournaments_counted
-            ? `Турнірів у заліку: ${total.tournaments_counted}`
-            : allTime
-            ? 'Ще немає зарахованих турнірів'
-            : 'Ще немає зарахованих турнірів у цьому сезоні'}
-        </div>
-      </button>
-
-      {expanded &&
-        rows.map((r) => (
-          <Link key={r.id} href={`/tournaments/${r.category_id}`} className={styles.row}>
-            <div className={styles.rowMain}>
-              <div className={styles.rowName}>
-                {r.tournament_events?.name || 'Турнір'}
-                {r.tournament_categories?.category_label ? ` · ${r.tournament_categories.category_label}` : ''}
-              </div>
-              <div className={styles.rowMeta}>
-                {r.tournament_events?.scheduled_at
-                  ? new Date(r.tournament_events.scheduled_at).toLocaleDateString('uk', {
-                      day: 'numeric',
-                      month: 'short',
-                      ...(allTime ? { year: 'numeric' } : {}),
-                    })
-                  : '—'}{' '}
-                · AVP {r.tier} · {r.place}-є місце
-              </div>
-            </div>
-            <div className={r.points > 0 ? styles.points : styles.pointsZero}>+{r.points}</div>
-          </Link>
-        ))}
-    </>
+      )}
+    </section>
   );
 }
 
+// Newest tournament first — the list reads like a history.
 function sortRows(list) {
   return [...list].sort(
     (a, b) =>
-      b.points - a.points ||
-      new Date(b.tournament_events?.scheduled_at || 0) - new Date(a.tournament_events?.scheduled_at || 0)
+      new Date(b.tournament_events?.scheduled_at || 0) - new Date(a.tournament_events?.scheduled_at || 0) ||
+      b.points - a.points
   );
 }

@@ -7,9 +7,10 @@ import { categoryForElo, eloForecast } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import ProfileHighlights from '@/components/ProfileHighlights';
-import EloChart from '@/components/EloChart';
 import AvpSeasonCard from '@/components/AvpSeasonCard';
-import PlayerHistoryAccordion from '@/components/PlayerHistoryAccordion';
+import ProfileTabs from '@/components/ProfileTabs';
+import EloTrend from '@/components/EloTrend';
+import EloCalculator from '@/components/EloCalculator';
 import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
 import { loadPlayerGames, partnerStatsFrom } from '@/lib/playerGames';
 import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
@@ -192,74 +193,31 @@ export default function PlayerProfilePage() {
         </a>
       )}
 
-      <div className={styles.sectionLabel}>Рейтинг AVP</div>
-      <AvpSeasonCard playerId={player.id} gender={player.gender} scope={seasons ? scope : undefined} />
-
-      {showCalculator && (
-        <>
-          <div className={styles.sectionLabelRow}>
-            <div className={styles.sectionLabel}>Калькулятор Ело</div>
-            <button className={styles.infoBtn} onClick={() => setCalcInfoOpen(true)} aria-label="Як користуватись">
-              <IconInfo size={15} color="var(--text2)" />
-            </button>
-          </div>
-          <div className={`${styles.card} riseIn`} style={{ animationDelay: '0.1s' }}>
-            <div className={styles.sliderLabel}>
-              Середнє Ело суперників: <b>{opponentElo}</b>
-            </div>
-            <input
-              type="range"
-              min={800}
-              max={2000}
-              step={10}
-              value={opponentElo}
-              onChange={(ev) => setOpponentElo(Number(ev.target.value))}
-              className={styles.slider}
-              aria-label="Середнє Ело суперників"
-            />
-            <div className={styles.calcGrid}>
-              <div className={styles.calcBox}>
-                <div className={styles.calcValue} style={{ color: 'var(--navy)' }}>
-                  {Math.round(e * 100)}%
-                </div>
-                <div className={styles.calcLabel}>шанс</div>
-              </div>
-              <div className={styles.calcBox}>
-                <div className={styles.calcIcon}>
-                  <IconTrendUp size={14} color="var(--accent-green)" />
-                </div>
-                <div className={styles.calcValue} style={{ color: 'var(--accent-green)' }}>
-                  +{winGain}
-                </div>
-                <div className={styles.calcLabel}>перемога</div>
-              </div>
-              <div className={styles.calcBox}>
-                <div className={styles.calcIcon}>
-                  <IconTrendDown size={14} color="var(--danger)" />
-                </div>
-                <div className={styles.calcValue} style={{ color: 'var(--danger)' }}>
-                  {lossDelta}
-                </div>
-                <div className={styles.calcLabel}>поразка</div>
-              </div>
-            </div>
-          </div>
-        </>
-      )}
-
-      <div className="riseIn" style={{ animationDelay: '0.12s' }}>
-        <EloChart history={tournamentHistory} log={eloGameLog} currentElo={player.elo} playerName={player.full_name} />
+      {/* AVP (tournament-by-tournament list on demand), the calculator,
+          the Ело line and the «Ігри · Турніри · Напарники» tabs — all of
+          them follow the season switch above. */}
+      <div className={styles.blocks}>
+        <AvpSeasonCard playerId={player.id} gender={player.gender} scope={seasons ? scope : undefined} />
+        {showCalculator && <EloCalculator elo={player.elo} onInfo={() => setCalcInfoOpen(true)} />}
+        <EloTrend
+          log={eloGameLog}
+          history={tournamentHistory}
+          currentElo={player.elo}
+          season={scopeSeason || seasons?.current || null}
+          playerName={player.full_name}
+        />
+        <ProfileTabs
+          games={gameData.games}
+          people={gameData.people}
+          eloLog={eloGameLog}
+          history={tournamentHistory}
+          partners={partners}
+          season={scopeSeason}
+          userId={player.id}
+          onOpenPartner={goToPartner}
+          onOpenTournament={goToTournament}
+        />
       </div>
-
-      <PlayerHistoryAccordion
-        partners={partners}
-        tournamentHistory={scopedHistory}
-        eloGameLog={scopedEloLog}
-        scopeLabel={scopeSeason ? scopeSeason.name : 'Весь час'}
-        userId={player.id}
-        onOpenPartner={goToPartner}
-        onOpenTournament={goToTournament}
-      />
 
       {photoLightbox && player.photo_url && (
         <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
