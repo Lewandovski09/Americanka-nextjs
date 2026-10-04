@@ -53,13 +53,17 @@ function TrophyCabinet({ history, games, scopeLabel, onOpenTournament }) {
   const podiums = history.filter((h) => h.placement >= 1 && h.placement <= 3).length;
   const podiumPct = history.length > 0 ? Math.round((podiums / history.length) * 100) : 0;
 
+  const tWord = history.length === 1 ? 'турнір' : history.length >= 2 && history.length <= 4 ? 'турніри' : 'турнірів';
+
+  // Compact: one low shelf per medal — the medal and the count on the
+  // left, the cups (a small icon and the tournament's name) on the plank.
   return (
-    <section className={styles.card}>
+    <section className={`${styles.card} ${styles.cabinet}`}>
       <div className={styles.head}>
         <span className={styles.label}>Шафа трофеїв · {scopeLabel}</span>
         {games.length > 0 && (
           <span className={styles.headNote}>
-            {games.length} {gamesWord(games.length)} · {winPct}% перемог
+            {games.length} {gamesWord(games.length)} · {winPct}%
           </span>
         )}
       </div>
@@ -69,34 +73,28 @@ function TrophyCabinet({ history, games, scopeLabel, onOpenTournament }) {
           .filter((h) => h.placement === s.place)
           .slice()
           .sort((a, b) => new Date(b.scheduled_at) - new Date(a.scheduled_at));
-        const empty = Math.max(0, 3 - items.length);
         return (
           <div key={s.place} className={styles.shelf}>
-            <div className={styles.shelfHead}>
-              <span>
-                {s.medal} {s.title}
+            <div className={styles.shelfRow}>
+              <span className={styles.shelfMedal}>
+                {s.medal}
+                <b>{items.length}</b>
               </span>
-              <b>{items.length}</b>
-            </div>
-            <div className={`${styles.cups} ${items.length === 0 ? styles.cupsEmpty : ''}`}>
-              {items.map((h) => (
-                <button
-                  key={h.category_id}
-                  type="button"
-                  className={styles.cup}
-                  onClick={() => onOpenTournament?.(h.category_id)}
-                  title={h.tournament_name}
-                >
-                  <span className={styles.cupIco}>{s.cup}</span>
-                  <span className={styles.cupName}>{h.tournament_name || 'Турнір'}</span>
-                  <span className={styles.cupDate}>{shortDate(h.finished_at || h.scheduled_at)}</span>
-                </button>
-              ))}
-              {Array.from({ length: empty }).map((_, i) => (
-                <span key={`e${i}`} className={styles.slot}>
-                  {i === 0 ? (items.length === 0 ? 'ще немає' : 'наступний') : ''}
-                </span>
-              ))}
+              <div className={styles.cups}>
+                {items.map((h) => (
+                  <button
+                    key={h.category_id}
+                    type="button"
+                    className={styles.cup}
+                    onClick={() => onOpenTournament?.(h.category_id)}
+                    title={`${h.tournament_name || 'Турнір'} · ${shortDate(h.finished_at || h.scheduled_at)}`}
+                  >
+                    <span className={styles.cupIco}>{s.cup}</span>
+                    <span className={styles.cupName}>{h.tournament_name || 'Турнір'}</span>
+                  </button>
+                ))}
+                {items.length === 0 && <span className={styles.slot}>ще немає</span>}
+              </div>
             </div>
             <div className={`${styles.plank} ${styles[s.plank]}`} />
           </div>
@@ -104,16 +102,7 @@ function TrophyCabinet({ history, games, scopeLabel, onOpenTournament }) {
       })}
 
       <div className={styles.foot}>
-        <div>
-          <b>{history.length}</b>
-          {history.length === 1 ? 'турнір' : history.length >= 2 && history.length <= 4 ? 'турніри' : 'турнірів'}
-        </div>
-        <div>
-          <b>{podiums}</b>у призах
-        </div>
-        <div>
-          <b>{podiumPct}%</b>подіумів
-        </div>
+        <b>{history.length}</b> {tWord} · <b>{podiums}</b> у призах · <b>{podiumPct}%</b> подіумів
       </div>
     </section>
   );
@@ -173,20 +162,28 @@ function records({ games, history, eloLog, people }) {
 
 function Records({ games, history, eloLog, people }) {
   const r = records({ games, history, eloLog, people });
-  // Just two tiles, no heading: the peak rating and the longest run of wins.
+  // Two small tiles, no heading: the peak rating and the longest run of wins.
   return (
     <div className={styles.rec}>
-      <div className={`${styles.tile} ${styles.tBlue}`}>
+      <div className={styles.tile}>
         <span className={styles.tEmoji}>📈</span>
-        <div className={styles.tK}>Пік Ело</div>
-        <div className={styles.tV}>{r.peak ? r.peak.elo : '—'}</div>
-        <div className={styles.tM}>{r.peak ? shortDate(r.peak.at) : 'ще немає ігор з Ело'}</div>
+        <div className={styles.tBody}>
+          <div className={styles.tK}>Пік Ело</div>
+          <div className={styles.tV}>
+            {r.peak ? r.peak.elo : '—'}
+            {r.peak && <small>{shortDate(r.peak.at)}</small>}
+          </div>
+        </div>
       </div>
-      <div className={`${styles.tile} ${styles.tCoral}`}>
+      <div className={styles.tile}>
         <span className={styles.tEmoji}>🔥</span>
-        <div className={styles.tK}>Серія перемог</div>
-        <div className={styles.tV}>{r.streak.n}</div>
-        <div className={styles.tM}>{r.streak.n > 0 ? `поспіль · ${shortDate(r.streak.at)}` : 'ще попереду'}</div>
+        <div className={styles.tBody}>
+          <div className={styles.tK}>Серія перемог</div>
+          <div className={styles.tV}>
+            {r.streak.n}
+            <small>{r.streak.n > 0 ? 'поспіль' : 'ще попереду'}</small>
+          </div>
+        </div>
       </div>
     </div>
   );

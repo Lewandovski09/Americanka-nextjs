@@ -7,7 +7,6 @@ import { categoryForElo, eloForecast } from '@/lib/elo';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconArrowLeft, IconChat, IconTrendUp, IconTrendDown, IconInfo, IconX } from '@/components/Icons';
 import ProfileHighlights from '@/components/ProfileHighlights';
-import AvpSeasonCard from '@/components/AvpSeasonCard';
 import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
@@ -193,11 +192,10 @@ export default function PlayerProfilePage() {
         </a>
       )}
 
-      {/* AVP (tournament-by-tournament list on demand), the calculator,
-          the Ело line and the «Ігри · Турніри · Напарники» tabs — all of
-          them follow the season switch above. */}
+      {/* The calculator, the Ело line and the «Ігри · Турніри · AVP ·
+          Напарники» tiles (each opens in a sheet) — all of them follow the
+          season switch above. AVP per tournament lives in «Турніри». */}
       <div className={styles.blocks}>
-        <AvpSeasonCard playerId={player.id} gender={player.gender} scope={seasons ? scope : undefined} />
         {showCalculator && <EloCalculator elo={player.elo} onInfo={() => setCalcInfoOpen(true)} />}
         <EloTrend
           log={eloGameLog}
@@ -213,6 +211,8 @@ export default function PlayerProfilePage() {
           history={tournamentHistory}
           partners={partners}
           season={scopeSeason}
+          seasons={seasons?.list || []}
+          gender={player.gender}
           userId={player.id}
           onOpenPartner={goToPartner}
           onOpenTournament={goToTournament}

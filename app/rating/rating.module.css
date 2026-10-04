@@ -73,25 +73,26 @@
   flex: 1;
   padding: 11px;
   border-radius: 12px;
-  border: 1px solid #10234a;
-  background: linear-gradient(180deg, #3a5786 0%, #26406b 100%);
+  border: 1px solid #081638;
+  background: linear-gradient(180deg, #1f3b80 0%, #0f2457 100%);
   cursor: pointer;
   font-size: 14.75px;
   font-weight: 700;
   color: #fff;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.25),
-    0 3px 0 #10234a;
+    inset 0 1px 0 rgba(255, 255, 255, 0.18),
+    0 3px 0 #081638;
 }
 
-/* The chosen one: warm and bright, like the game's yellow button. */
+/* The chosen one: bright red-coral with a soft glow («Глибокий нічний»). */
 .genderBtnOn {
-  background: linear-gradient(180deg, #ffb39f 0%, #e85d4a 100%);
-  border-color: #a8392a;
+  background: linear-gradient(180deg, #ff6a52 0%, #e8341c 100%);
+  border-color: #a51f0c;
   color: #fff;
   box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.45),
-    0 3px 0 #a8392a;
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 3px 0 #a51f0c,
+    0 6px 16px rgba(232, 52, 28, 0.45);
 }
 
 .chipsRow {
@@ -499,31 +500,30 @@
   border-radius: 10px;
   font-size: 14px;
   font-weight: 800;
-  color: #34486e;
-  background: linear-gradient(180deg, #f1f4fa 0%, #d9e0ec 100%);
-  border: 1px solid #b9c4d7;
-  box-shadow: inset 0 1px 0 #fff, 0 1px 0 #b9c4d7;
+  color: #1f3b80;
+  background: #eef2fa;
+  border: 1px solid #c7d2e6;
 }
 
 .rankGold {
-  color: #6b4500;
-  background: linear-gradient(180deg, #ffe58a 0%, #f3b52a 100%);
-  border-color: #c98a12;
-  box-shadow: inset 0 1px 0 #fff6cc, 0 1px 0 #c98a12;
+  color: #5a3a00;
+  background: linear-gradient(180deg, #ffe25a 0%, #f5a400 100%);
+  border-color: #b86d00;
+  box-shadow: inset 0 1px 0 #fff3b0, 0 2px 0 #b86d00, 0 0 12px rgba(255, 190, 0, 0.65);
 }
 
 .rankSilver {
-  color: #3c4a60;
-  background: linear-gradient(180deg, #ffffff 0%, #c9d2df 100%);
-  border-color: #9eabbd;
-  box-shadow: inset 0 1px 0 #fff, 0 1px 0 #9eabbd;
+  color: #253552;
+  background: linear-gradient(180deg, #ffffff 0%, #b9c8de 100%);
+  border-color: #7f93b5;
+  box-shadow: inset 0 1px 0 #fff, 0 2px 0 #7f93b5, 0 0 10px rgba(150, 175, 215, 0.6);
 }
 
 .rankBronze {
   color: #fff;
-  background: linear-gradient(180deg, #f6a46c 0%, #d1692d 100%);
-  border-color: #a14d1c;
-  box-shadow: inset 0 1px 0 #ffd2b0, 0 1px 0 #a14d1c;
+  background: linear-gradient(180deg, #ff9a55 0%, #d65a12 100%);
+  border-color: #8f3a08;
+  box-shadow: inset 0 1px 0 #ffd2b0, 0 2px 0 #8f3a08, 0 0 10px rgba(240, 120, 47, 0.55);
 }
 
 .metaUp {
@@ -540,10 +540,10 @@
   display: flex;
   align-items: center;
   flex-shrink: 0;
-  background: #26406b;
+  background: linear-gradient(180deg, #1f3b80 0%, #0f2457 100%);
   border-radius: 999px;
   padding: 3px 12px 3px 3px;
-  box-shadow: inset 0 1px 2px rgba(0, 0, 0, 0.25);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.15);
 }
 
 .scoreIcon {
@@ -553,13 +553,14 @@
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  background: linear-gradient(180deg, #ff8f7a 0%, #e85d4a 100%);
-  box-shadow: 0 0 0 2px #26406b, 0 0 0 3px rgba(255, 255, 255, 0.25);
+  background: linear-gradient(180deg, #ff7a5f 0%, #e8341c 100%);
+  box-shadow: 0 0 0 2px #0f2457, 0 0 8px rgba(255, 90, 60, 0.8);
   margin-right: 7px;
 }
 
 .scoreIconAvp {
-  background: linear-gradient(180deg, #ffd66b 0%, #f0a91f 100%);
+  background: linear-gradient(180deg, #ffe25a 0%, #f5a400 100%);
+  box-shadow: 0 0 0 2px #0f2457, 0 0 8px rgba(255, 190, 0, 0.75);
 }
 
 .scoreNum {

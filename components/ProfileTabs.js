@@ -46,8 +46,9 @@ function pctColor(p) {
   return '#dc2626';
 }
 
-export default function ProfileTabs({ games, people, eloLog, history, partners, season, userId, onOpenPartner, onOpenTournament }) {
-  const [tab, setTab] = useState('games');
+export default function ProfileTabs({ games, people, eloLog, history, partners, season, seasons = [], gender, userId, onOpenPartner, onOpenTournament }) {
+  // Closed by default: three tiles; a tap opens that list in a sheet.
+  const [tab, setTab] = useState(null);
   const [shown, setShown] = useState(PAGE);
   useEffect(() => setShown(PAGE), [season?.id]);
 
@@ -93,27 +94,58 @@ export default function ProfileTabs({ games, people, eloLog, history, partners, 
   }, [userId, logIds]); // eslint-disable-line react-hooks/exhaustive-deps
 
   // AVP per tournament — one small request.
-  const avpKey = userId ? `avpbycat:${userId}` : null;
+  const avpKey = userId ? `avpbycat2:${userId}` : null;
   const [avpByCat, setAvpByCat] = useState(() => (avpKey && getCached(avpKey)) || null);
   useEffect(() => {
     if (!userId) return;
     let alive = true;
     createClient()
       .from('avp_points')
-      .select('category_id, points')
+      .select('category_id, points, season_id')
       .eq('user_id', userId)
       .then(({ data }) => {
         const m = {};
+        const bySeason = {};
         (data || []).forEach((r) => {
           m[r.category_id] = (m[r.category_id] || 0) + (r.points || 0);
+          if (r.season_id) bySeason[r.season_id] = (bySeason[r.season_id] || 0) + (r.points || 0);
         });
-        setCached(avpKey, m);
-        if (alive) setAvpByCat(m);
+        const value = { byCat: m, bySeason };
+        setCached(avpKey, value);
+        if (alive) setAvpByCat(value);
       });
     return () => {
       alive = false;
     };
   }, [userId]); // eslint-disable-line react-hooks/exhaustive-deps
+
+  // The AVP place in each season shown in «Турніри» — among the same
+  // gender, exactly like the AVP leaderboard. Loaded when the list opens.
+  const seasonIds = (season ? [season] : seasons).map((x) => x.id).join(',');
+  const [ranks, setRanks] = useState({});
+  useEffect(() => {
+    if (tab !== 'tournaments' || !userId || !seasonIds) return;
+    let alive = true;
+    const supabase = createClient();
+    Promise.all([
+      supabase.from('avp_standings').select('season_id, user_id, points').in('season_id', seasonIds.split(',')),
+      gender ? supabase.from('users').select('id').eq('gender', gender) : Promise.resolve({ data: null }),
+    ]).then(([{ data: st }, { data: same }]) => {
+      const ids = same ? new Set(same.map((u) => u.id)) : null;
+      const out = {};
+      seasonIds.split(',').forEach((sid) => {
+        const board = (st || [])
+          .filter((r) => r.season_id === sid && (!ids || ids.has(r.user_id)))
+          .sort((a, b) => b.points - a.points);
+        const i = board.findIndex((r) => r.user_id === userId);
+        out[sid] = { rank: i >= 0 ? i + 1 : null, field: board.length };
+      });
+      if (alive) setRanks(out);
+    });
+    return () => {
+      alive = false;
+    };
+  }, [tab, userId, seasonIds, gender]);
 
   const wins = scopedGames.filter((g) => g.won).length;
   const losses = scopedGames.length - wins;
@@ -126,47 +158,103 @@ export default function ProfileTabs({ games, people, eloLog, history, partners, 
     { key: 'partners', label: 'Напарники', count: partners.length },
   ];
 
+  const titles = { games: 'Ігри', tournaments: 'Турніри та AVP', partners: 'Напарники' };
+
+  // The page behind the sheet must not scroll with it.
+  useEffect(() => {
+    if (!tab) return;
+    const prev = document.body.style.overflow;
+    document.body.style.overflow = 'hidden';
+    const onKey = (e) => e.key === 'Escape' && setTab(null);
+    window.addEventListener('keydown', onKey);
+    return () => {
+      document.body.style.overflow = prev;
+      window.removeEventListener('keydown', onKey);
+    };
+  }, [tab]);
+
   return (
-    <section className={styles.card}>
-      <div className={styles.seg} role="tablist">
+    <>
+      <section className={styles.tiles} aria-label="Ігри, турніри, напарники">
         {tabs.map((t) => (
-          <button
-            key={t.key}
-            type="button"
-            role="tab"
-            aria-selected={tab === t.key}
-            className={`${styles.segBtn} ${tab === t.key ? styles.segOn : ''}`}
-            onClick={() => setTab(t.key)}
-          >
-            {t.label} · {t.count}
+          <button key={t.key} type="button" className={styles.tileBtn} onClick={() => setTab(t.key)}>
+            <span className={styles.tileN}>{t.count}</span>
+            <span className={styles.tileL}>{t.key === 'tournaments' ? 'Турніри · AVP' : t.label}</span>
           </button>
         ))}
-      </div>
+      </section>
 
-      {tab === 'games' && (
-        <GamesFeed
-          games={scopedGames}
-          log={scopedLog}
-          shown={shown}
-          onMore={() => setShown((n) => n + PAGE * 2)}
-          people={people || {}}
-          eloByMatch={eloByMatch}
-          historyByCat={historyByCat}
-          details={details?.byMatch || null}
-          summary={
-            scopedGames.length > 0
-              ? `${scopeName} · ${wins} ${plural(wins, 'перемога', 'перемоги', 'перемог')} · ${losses} ${plural(losses, 'поразка', 'поразки', 'поразок')} · ${winPct}%`
-              : null
-          }
-        />
+      {tab && (
+        <div className={styles.overlay} onClick={() => setTab(null)}>
+          <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titles[tab]}>
+            <div className={styles.sheetHead}>
+              <div>
+                <div className={styles.sheetTitle}>{titles[tab]}</div>
+                <div className={styles.sheetSub}>{scopeName}</div>
+              </div>
+              <button type="button" className={styles.close} onClick={() => setTab(null)} aria-label="Закрити">
+                ✕
+              </button>
+            </div>
+            <div className={styles.seg} role="tablist">
+              {tabs.map((t) => (
+                <button
+                  key={t.key}
+                  type="button"
+                  role="tab"
+                  aria-selected={tab === t.key}
+                  className={`${styles.segBtn} ${tab === t.key ? styles.segOn : ''}`}
+                  onClick={() => setTab(t.key)}
+                >
+                  {t.label} · {t.count}
+                </button>
+              ))}
+            </div>
+            <div className={styles.sheetBody}>
+              {tab === 'games' && (
+                <GamesFeed
+                  games={scopedGames}
+                  log={scopedLog}
+                  shown={shown}
+                  onMore={() => setShown((n) => n + PAGE * 2)}
+                  people={people || {}}
+                  eloByMatch={eloByMatch}
+                  historyByCat={historyByCat}
+                  details={details?.byMatch || null}
+                  summary={
+                    scopedGames.length > 0
+                      ? `${wins} ${plural(wins, 'перемога', 'перемоги', 'перемог')} · ${losses} ${plural(losses, 'поразка', 'поразки', 'поразок')} · ${winPct}%`
+                      : null
+                  }
+                />
+              )}
+              {tab === 'tournaments' && (
+                <Tournaments
+                  history={scopedHistory}
+                  games={games || []}
+                  avp={avpByCat}
+                  seasons={season ? [season] : seasons}
+                  ranks={ranks}
+                  onOpen={(id) => {
+                    setTab(null);
+                    onOpenTournament?.(id);
+                  }}
+                />
+              )}
+              {tab === 'partners' && (
+                <Partners
+                  partners={partners}
+                  onOpen={(p) => {
+                    setTab(null);
+                    onOpenPartner?.(p);
+                  }}
+                />
+              )}
+            </div>
+          </div>
+        </div>
       )}
-
-      {tab === 'tournaments' && (
-        <Tournaments history={scopedHistory} games={games || []} avpByCat={avpByCat} onOpen={onOpenTournament} />
-      )}
-
-      {tab === 'partners' && <Partners partners={partners} onOpen={onOpenPartner} />}
-    </section>
+    </>
   );
 }
 
@@ -300,63 +388,98 @@ function GamesFeed({ games, log, shown, onMore, people, eloByMatch, historyByCat
 
 // ── Турніри ───────────────────────────────────────────────────────
 
-function Tournaments({ history, games, avpByCat, onOpen }) {
+function Tournaments({ history, games, avp, seasons, ranks, onOpen }) {
   if (history.length === 0) return <div className={styles.empty}>Ще немає турнірів за цей період</div>;
+  const byCat = avp?.byCat || null;
+
+  // Grouped by season, each with its AVP total and place; tournaments
+  // outside every known season go last.
+  const groups = [];
+  const rest = [];
+  const seen = new Set();
+  for (const s of seasons) {
+    const list = history.filter((h) => !seen.has(h.category_id) && inSeason(h.scheduled_at, s));
+    list.forEach((h) => seen.add(h.category_id));
+    if (list.length > 0) groups.push({ season: s, list });
+  }
+  history.forEach((h) => !seen.has(h.category_id) && rest.push(h));
+  if (rest.length > 0) groups.push({ season: null, list: rest });
+
   return (
     <div>
-      {history.map((h, i) => {
-        const gs = games.filter((g) => g.category_id === h.category_id);
-        const w = gs.filter((g) => g.won).length;
-        const diff = gs.reduce((s, g) => s + ((g.pointsFor ?? 0) - (g.pointsAgainst ?? 0)), 0);
-        const avp = avpByCat ? avpByCat[h.category_id] ?? 0 : null;
-        const when = h.finished_at || h.scheduled_at;
-        const placeCls = h.placement === 1 ? styles.p1 : h.placement === 2 ? styles.p2 : h.placement === 3 ? styles.p3 : styles.pN;
+      {groups.map(({ season: s, list }) => {
+        const pts = s ? avp?.bySeason?.[s.id] ?? (byCat ? 0 : null) : null;
+        const r = s ? ranks?.[s.id] : null;
         return (
-          <button
-            key={h.category_id}
-            type="button"
-            className={`${styles.tr} ${i === 0 ? styles.trFirst : ''}`}
-            onClick={() => onOpen?.(h.category_id)}
-          >
-            <span className={styles.trD}>
-              <b>{when ? new Date(when).toLocaleDateString('uk', { day: 'numeric', timeZone: KYIV }) : '—'}</b>
-              {when ? new Date(when).toLocaleDateString('uk', { month: 'short', timeZone: KYIV }) : ''}
-            </span>
-            <span className={`${styles.place} ${placeCls}`}>{h.placement || '…'}</span>
-            <span className={styles.trB}>
-              <span className={styles.trN}>
-                {h.tournament_name || 'Турнір'}
-                {h.category ? ` · Кат. ${h.category}` : ''}
-              </span>
-              <span className={styles.trM}>
-                {gs.length > 0
-                  ? `${gs.length} ${plural(gs.length, 'гра', 'гри', 'ігор')} · ${w}–${gs.length - w} · ${diff >= 0 ? '+' : ''}${diff} ${plural(Math.abs(diff), 'очко', 'очки', 'очок')}`
-                  : h.status === 'done'
-                  ? 'без ігор'
-                  : 'ще не зіграно'}
-                {!h.placement && h.status !== 'done' ? ' · в процесі' : ''}
-              </span>
-            </span>
-            <span className={styles.trS}>
-              {h.elo_delta != null && (
-                <span>
-                  <b className={h.elo_delta >= 0 ? styles.plus : styles.minus}>
-                    {h.elo_delta >= 0 ? '+' : ''}
-                    {h.elo_delta}
-                  </b>{' '}
-                  Ело
+          <div key={s?.id || 'rest'} className={styles.seasonGroup}>
+            <div className={styles.seasonHead}>
+              <span className={styles.seasonName}>{s ? s.name : 'Поза сезонами'}</span>
+              {s && (
+                <span className={styles.seasonAvp}>
+                  {pts != null && (
+                    <>
+                      <b>{pts}</b> AVP
+                    </>
+                  )}
+                  {r?.rank ? ` · ${r.rank}-е місце${r.field ? ` з ${r.field}` : ''}` : ''}
                 </span>
               )}
-              {avp != null && (
-                <span>
-                  <b className={avp > 0 ? styles.avp : ''}>{avp > 0 ? `+${avp}` : 0}</b> AVP
-                </span>
-              )}
-            </span>
-          </button>
+            </div>
+            {list.map((h, i) => (
+              <TournamentRow key={h.category_id} h={h} first={i === 0} games={games} byCat={byCat} onOpen={onOpen} />
+            ))}
+          </div>
         );
       })}
     </div>
+  );
+}
+
+function TournamentRow({ h, first, games, byCat, onOpen }) {
+  const gs = games.filter((g) => g.category_id === h.category_id);
+  const w = gs.filter((g) => g.won).length;
+  const diff = gs.reduce((s, g) => s + ((g.pointsFor ?? 0) - (g.pointsAgainst ?? 0)), 0);
+  const avp = byCat ? byCat[h.category_id] ?? 0 : null;
+  const when = h.finished_at || h.scheduled_at;
+  const placeCls = h.placement === 1 ? styles.p1 : h.placement === 2 ? styles.p2 : h.placement === 3 ? styles.p3 : styles.pN;
+  return (
+    <button type="button" className={`${styles.tr} ${first ? styles.trFirst : ''}`} onClick={() => onOpen?.(h.category_id)}>
+      <span className={styles.trD}>
+        <b>{when ? new Date(when).toLocaleDateString('uk', { day: 'numeric', timeZone: KYIV }) : '—'}</b>
+        {when ? new Date(when).toLocaleDateString('uk', { month: 'short', timeZone: KYIV }) : ''}
+      </span>
+      <span className={`${styles.place} ${placeCls}`}>{h.placement || '…'}</span>
+      <span className={styles.trB}>
+        <span className={styles.trN}>
+          {h.tournament_name || 'Турнір'}
+          {h.category ? ` · Кат. ${h.category}` : ''}
+        </span>
+        <span className={styles.trM}>
+          {gs.length > 0
+            ? `${gs.length} ${plural(gs.length, 'гра', 'гри', 'ігор')} · ${w}–${gs.length - w} · ${diff >= 0 ? '+' : ''}${diff} ${plural(Math.abs(diff), 'очко', 'очки', 'очок')}`
+            : h.status === 'done'
+            ? 'без ігор'
+            : 'ще не зіграно'}
+          {!h.placement && h.status !== 'done' ? ' · в процесі' : ''}
+        </span>
+      </span>
+      <span className={styles.trS}>
+        {h.elo_delta != null && (
+          <span>
+            <b className={h.elo_delta >= 0 ? styles.plus : styles.minus}>
+              {h.elo_delta >= 0 ? '+' : ''}
+              {h.elo_delta}
+            </b>{' '}
+            Ело
+          </span>
+        )}
+        {avp != null && (
+          <span>
+            <b className={avp > 0 ? styles.avp : ''}>{avp > 0 ? `+${avp}` : 0}</b> AVP
+          </span>
+        )}
+      </span>
+    </button>
   );
 }
 

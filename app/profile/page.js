@@ -11,7 +11,6 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import CityPicker from '@/components/CityPicker';
 import { IconEdit, IconTrendUp, IconTrendDown, IconX, IconInfo } from '@/components/Icons';
 import ProfileHighlights from '@/components/ProfileHighlights';
-import AvpSeasonCard from '@/components/AvpSeasonCard';
 import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
@@ -358,11 +357,10 @@ export default function ProfilePage() {
         />
       </div>
 
-      {/* AVP (tournament-by-tournament list on demand), the calculator,
-          the Ело line and the «Ігри · Турніри · Напарники» tabs — all of
-          them follow the season switch above. */}
+      {/* The calculator, the Ело line and the «Ігри · Турніри · AVP ·
+          Напарники» tiles (each opens in a sheet) — all of them follow the
+          season switch above. AVP per tournament lives in «Турніри». */}
       <div className={styles.blocks}>
-        <AvpSeasonCard playerId={player.id} gender={player.gender} scope={seasons ? scope : undefined} />
         <EloCalculator elo={player.elo} onInfo={() => setCalcInfoOpen(true)} />
         <EloTrend
           log={eloGameLog}
@@ -378,6 +376,8 @@ export default function ProfilePage() {
           history={tournamentHistory}
           partners={partners}
           season={scopeSeason}
+          seasons={seasons?.list || []}
+          gender={player.gender}
           userId={player.id}
           onOpenPartner={(p) => openPartnerHistory(p, 'together')}
           onOpenTournament={openTournamentDetails}

@@ -350,3 +350,161 @@
   font-weight: 800;
   color: #fff;
 }
+
+/* ── Closed state: three tiles ── */
+.tiles {
+  display: grid;
+  grid-template-columns: repeat(3, 1fr);
+  gap: 8px;
+}
+
+.tileBtn {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 2px;
+  padding: 12px 4px 11px;
+  border: none;
+  border-radius: var(--r-md);
+  background: var(--surface);
+  box-shadow: var(--shadow-sm);
+  font: inherit;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.tileN {
+  font-size: 20px;
+  font-weight: 800;
+  line-height: 1.1;
+}
+
+.tileL {
+  font-size: 12px;
+  font-weight: 600;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+/* ── The sheet ── */
+.overlay {
+  position: fixed;
+  inset: 0;
+  z-index: 60;
+  background: rgba(10, 20, 45, 0.45);
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  animation: fadeIn 0.18s ease;
+}
+
+.sheet {
+  width: 100%;
+  max-width: 560px;
+  max-height: 86vh;
+  display: flex;
+  flex-direction: column;
+  background: var(--surface);
+  border-radius: 22px 22px 0 0;
+  padding: 14px 14px calc(env(safe-area-inset-bottom, 0px) + 12px);
+  box-shadow: 0 -10px 40px rgba(0, 0, 0, 0.25);
+  animation: sheetUp 0.26s cubic-bezier(0.22, 0.85, 0.32, 1);
+}
+
+@media (min-width: 700px) {
+  .overlay {
+    align-items: center;
+  }
+
+  .sheet {
+    border-radius: 22px;
+  }
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes sheetUp {
+  from {
+    transform: translateY(40px);
+    opacity: 0.6;
+  }
+}
+
+.sheetHead {
+  display: flex;
+  align-items: flex-start;
+  justify-content: space-between;
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.sheetTitle {
+  font-size: 18px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.sheetSub {
+  font-size: 12px;
+  color: var(--text2);
+  margin-top: 1px;
+}
+
+.close {
+  width: 30px;
+  height: 30px;
+  flex-shrink: 0;
+  border: none;
+  border-radius: 50%;
+  background: var(--surface-alt);
+  color: var(--text2);
+  font-size: 13px;
+  cursor: pointer;
+}
+
+.sheetBody {
+  flex: 1;
+  min-height: 0;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  -webkit-overflow-scrolling: touch;
+}
+
+/* ── Tournaments by season ── */
+.seasonGroup + .seasonGroup {
+  margin-top: 14px;
+}
+
+.seasonHead {
+  display: flex;
+  align-items: baseline;
+  justify-content: space-between;
+  gap: 8px;
+  padding: 8px 10px;
+  border-radius: 10px;
+  background: var(--surface-alt);
+  margin-bottom: 2px;
+}
+
+.seasonName {
+  font-size: 12px;
+  font-weight: 800;
+  letter-spacing: 0.5px;
+  text-transform: uppercase;
+  color: var(--text);
+}
+
+.seasonAvp {
+  font-size: 12px;
+  color: var(--text2);
+  white-space: nowrap;
+}
+
+.seasonAvp b {
+  color: var(--rust);
+  font-size: 13.5px;
+}
