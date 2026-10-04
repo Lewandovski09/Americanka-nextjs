@@ -156,7 +156,7 @@ export default function EventsPage() {
             </div>
           );
           const badge = (
-            <span className={styles.badge} style={{ background: 'var(--bg-light)', color: 'var(--text2)' }}>
+            <span className={styles.badge}>
               {ev.format?.displayName || ev.format_kind}
             </span>
           );
@@ -172,6 +172,10 @@ export default function EventsPage() {
           // real link now that there can be more than one.
           return (
             <div key={ev.id} className={styles.card}>
+              {/* Banner head (event name, date, venue), category tiles below —
+                  the same game-leaderboard look as «Рейтинг». */}
+              <div className={styles.cardTop}>
+              <span className={styles.cardShine} aria-hidden="true" />
               <div className={styles.cardHeader}>
                 <div className={styles.cardName}>{ev.name}</div>
                 <div className={styles.headerRight}>
@@ -188,7 +192,9 @@ export default function EventsPage() {
                 </div>
               </div>
               {meta}
+              </div>
 
+              <div className={styles.cardBody}>
               {cats.length === 0 && <div className={styles.slotsCount}>Без категорій</div>}
               {cats.map((c) => (
                 <CategoryRow
@@ -200,6 +206,7 @@ export default function EventsPage() {
                   }
                 />
               ))}
+              </div>
             </div>
           );
         })}

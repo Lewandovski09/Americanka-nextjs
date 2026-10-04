@@ -447,7 +447,6 @@ export default function RatingPage() {
 
       {tab === 'rating' && <SeasonBanner title="Рейтинг Ело" season={shownEloSeason} archived={Boolean(eloSeasonId)} kind="elo" />}
       {tab === 'avp' && <SeasonBanner title="Рейтинг AVP" season={shownAvpSeason} kind="avp" />}
-      {(tab === 'rating' || tab === 'avp') && <ScrollJump />}
       {tab === 'stats' && <SeasonNote season={club?.elo} />}
 
       {tab === 'rating' && (
@@ -818,39 +817,6 @@ function SeasonBanner({ title, season, archived, kind }) {
         {archived ? ' · архів' : season.ends_on === null ? ' · поточний' : ''}
       </div>
     </div>
-  );
-}
-
-// Floating arrows: ▲ back to the top once the list is scrolled, ▼ down to
-// the viewer's own row (or the end of the list if they are not in it).
-function ScrollJump() {
-  const [showUp, setShowUp] = useState(false);
-  useEffect(() => {
-    const onScroll = () => setShowUp(window.scrollY > 320);
-    onScroll();
-    window.addEventListener('scroll', onScroll, { passive: true });
-    return () => window.removeEventListener('scroll', onScroll);
-  }, []);
-  function down() {
-    const me = document.getElementById('rating-me');
-    if (me) me.scrollIntoView({ behavior: 'smooth', block: 'center' });
-    else window.scrollTo({ top: document.documentElement.scrollHeight, behavior: 'smooth' });
-  }
-  return (
-    <>
-      {showUp && (
-        <button className={`${styles.jumpBtn} ${styles.jumpUp}`} onClick={() => window.scrollTo({ top: 0, behavior: 'smooth' })} aria-label="Догори">
-          <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-            <path d="M6 15l6-6 6 6" />
-          </svg>
-        </button>
-      )}
-      <button className={`${styles.jumpBtn} ${styles.jumpDown}`} onClick={down} aria-label="До мене в рейтингу">
-        <svg width="22" height="22" viewBox="0 0 24 24" fill="none" stroke="#fff" strokeWidth="3" strokeLinecap="round" strokeLinejoin="round">
-          <path d="M6 9l6 6 6-6" />
-        </svg>
-      </button>
-    </>
   );
 }
 
