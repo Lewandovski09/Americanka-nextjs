@@ -9,7 +9,7 @@ import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
-import { invalidate } from '@/lib/clientCache';
+import { invalidate, setCached } from '@/lib/clientCache';
 import styles from './archive.module.css';
 
 const STATUS = { scheduled: 'Не почався', live: 'Йшов', done: 'Завершений', cancelled: 'Скасований' };
@@ -25,7 +25,16 @@ export default function DeletedArchivePage() {
   const [busyId, setBusyId] = useState(null);
   const [notice, setNotice] = useState(null); // { text, href?, error? }
 
-  const isAdmin = !!player?.is_admin;
+  // Only the owner of the app (migration 053) — everyone else, admins
+  // included, is told the page is not theirs.
+  const [isOwner, setIsOwner] = useState(null);
+  useEffect(() => {
+    if (!player) return;
+    createClient()
+      .rpc('is_owner')
+      .then(({ data }) => setIsOwner(!!data));
+  }, [player]);
+  const isAdmin = isOwner === true;
 
   useEffect(() => {
     if (!isAdmin) return;
@@ -72,12 +81,12 @@ export default function DeletedArchivePage() {
     }
   }
 
-  if (playerLoading) return <div className={styles.empty}>Завантаження...</div>;
-  if (!isAdmin) return <div className={styles.empty}>Архів доступний лише адміністратору</div>;
+  if (playerLoading || (player && isOwner === null)) return <div className={styles.empty}>Завантаження...</div>;
+  if (!isAdmin) return <div className={styles.empty}>Архів доступний лише власнику застосунку</div>;
 
   return (
     <div className={styles.page}>
-      <Link href="/tournaments" className={styles.back}>
+      <Link href="/tournaments" className={styles.back} onClick={() => { setCached('tournaments:tab', 'done'); setCached('tournaments:tabChosen', true); }}>
         ← Турніри
       </Link>
       <h2 className={styles.title}>🗂 Архів видалених</h2>

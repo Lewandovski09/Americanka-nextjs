@@ -17,9 +17,14 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin.from('users').select('is_admin').eq('id', authUser.user.id).maybeSingle();
-  if (!caller?.is_admin) {
-    return Response.json({ success: false, error: 'Тільки адмін може відновлювати турніри' }, { status: 403 });
+  // The archive is the owner's only (migration 053).
+  const { data: owner } = await supabaseAdmin
+    .from('app_owners')
+    .select('user_id')
+    .eq('user_id', authUser.user.id)
+    .maybeSingle();
+  if (!owner) {
+    return Response.json({ success: false, error: 'Архів доступний лише власнику застосунку' }, { status: 403 });
   }
 
   const { data: entry } = await supabaseAdmin

@@ -53,17 +53,6 @@ export async function POST(request, { params }) {
   const role = await getJudgeRole(supabaseAdmin, authUser.user.id, match.tournament_categories?.event_id || null);
   if (!role.isAdmin && !role.isJudge) {
     return Response.json(
-      { success: false, error: 'Рахунок може вводити лише суддя або адміністратор' },
-      { status: 403 }
-    );
-  }
-
-  // A NEW score (a game not played yet) is entered only by a judge of
-  // the event — the admin too only when they are in the crew. Correcting
-  // an already-entered score stays with the admin and the head judge
-  // (below).
-  if (!match.played && !role.isJudge) {
-    return Response.json(
       { success: false, error: 'Рахунок вводять лише судді цього турніру' },
       { status: 403 }
     );

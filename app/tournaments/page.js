@@ -57,6 +57,20 @@ export default function EventsPage() {
     };
   }, []);
 
+  // Is this the owner of the app? Only they see the archive of deleted
+  // tournaments. Asked once per visit.
+  const [isOwner, setIsOwner] = useState(() => getCached('me:isOwner') === true);
+  useEffect(() => {
+    if (!player?.is_admin) return;
+    if (getCached('me:isOwner') !== undefined) return;
+    createClient()
+      .rpc('is_owner')
+      .then(({ data }) => {
+        setCached('me:isOwner', !!data);
+        setIsOwner(!!data);
+      });
+  }, [player?.is_admin]);
+
   function pickTab(t) {
     setCached('tournaments:tabChosen', true);
     setTab(t);
@@ -128,8 +142,9 @@ export default function EventsPage() {
         </Link>
       )}
 
-      {/* The admin's folder of deleted tournaments — restore with one tap. */}
-      {player?.is_admin && (
+      {/* The owner's folder of deleted tournaments — restore with one tap.
+          Only under «Завершені», only for the owner (migration 053). */}
+      {isOwner && tab === TABS.DONE && (
         <Link href="/tournaments/archive" className={styles.archiveLink}>
           🗂 Архів видалених турнірів →
         </Link>

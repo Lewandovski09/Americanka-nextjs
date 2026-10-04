@@ -360,10 +360,10 @@ export default function TournamentDetailPage({ params }) {
   // Entering a score belongs to the crew, same as the server enforces.
   // Everyone else still sees every game and every result — they just
   // don't get a dialog that would come back 403.
-  // A new score is the judges' job only — the admin too only when they
-  // are in the crew of this event. (Correcting a played game is separate:
-  // canEditScore below — admin and head judge.)
-  const canEnterScore = isJudge && live;
+  // A score is entered by the judges of this event — and by the admin,
+  // always, in any tournament (finished ones too). Ordinary players only
+  // see the results.
+  const canEnterScore = isAdmin || (isJudge && live);
 
   // An already-played game may be corrected, but only by the admin or
   // the head judge, and only while its stage is still the current one:
