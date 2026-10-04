@@ -19,6 +19,7 @@ import BracketFlow from './BracketFlow';
 import { getCached, setCached } from '@/lib/clientCache';
 import PinchZoom from './PinchZoom';
 import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
+import EventPhoto from '@/components/EventPhoto';
 import PartnerBoard from '@/components/PartnerBoard';
 import styles from './detail.module.css';
 
@@ -695,6 +696,16 @@ export default function TournamentDetailPage({ params }) {
   return (
     <div className={styles.page}>
       <h2 className={styles.title}>{tournament.name}</h2>
+
+      {/* The group photo of the tournament: added by the admin or a judge
+          during or after it (migration 054). */}
+      {tournament.event_id && (
+        <EventPhoto
+          key={tournament.event_id}
+          eventId={tournament.event_id}
+          canEdit={isAdmin || (isJudge && tournament.status !== 'scheduled')}
+        />
+      )}
 
       {/* Leagues of the same event (Лайт / Медіум, ♂ / ♀) — switching
           just opens that category's page. */}

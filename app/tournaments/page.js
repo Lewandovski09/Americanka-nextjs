@@ -110,6 +110,17 @@ export default function EventsPage() {
         })
       );
 
+      // The tournament photos (migration 054) — read on their own, so a
+      // missing column cannot break the list.
+      const ids = enrichedEvents.map((ev) => ev.id);
+      if (ids.length > 0) {
+        const { data: ph } = await supabase.from('tournament_events').select('id, photo_url').in('id', ids);
+        const photoBy = new Map((ph || []).map((r) => [r.id, r.photo_url]));
+        enrichedEvents.forEach((ev) => {
+          ev.photo_url = photoBy.get(ev.id) || null;
+        });
+      }
+
       setCached(`tournaments:${tab}`, enrichedEvents);
       if (!alive) return; // the player already switched to another tab
       setEvents(enrichedEvents);
@@ -196,6 +207,16 @@ export default function EventsPage() {
             <div key={ev.id} className={styles.card}>
               {/* Banner head (event name, date, venue), category tiles below —
                   the same game-leaderboard look as «Рейтинг». */}
+              {ev.photo_url && (
+                <Link
+                  href={cats[0] ? `/tournaments/${cats[0].id}` : '/tournaments'}
+                  className={styles.cardPhotoLink}
+                  aria-label="Фото турніру"
+                >
+                  {/* eslint-disable-next-line @next/next/no-img-element */}
+                  <img src={ev.photo_url} alt={`Фото: ${ev.name}`} className={styles.cardPhoto} loading="lazy" />
+                </Link>
+              )}
               <div className={styles.cardTop}>
               <span className={styles.cardShine} aria-hidden="true" />
               <div className={styles.cardHeader}>

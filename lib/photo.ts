@@ -12,7 +12,7 @@
 
 export const PHOTO_MAX_DIM = 1024;
 
-export async function toJpegDataUrl(file: File): Promise<string> {
+export async function toJpegDataUrl(file: File, maxDim: number = PHOTO_MAX_DIM): Promise<string> {
   const objectUrl = URL.createObjectURL(file);
   try {
     const img = await new Promise<HTMLImageElement>((resolve, reject) => {
@@ -22,7 +22,7 @@ export async function toJpegDataUrl(file: File): Promise<string> {
       el.src = objectUrl;
     });
 
-    const scale = Math.min(1, PHOTO_MAX_DIM / Math.max(img.naturalWidth, img.naturalHeight));
+    const scale = Math.min(1, maxDim / Math.max(img.naturalWidth, img.naturalHeight));
     const canvas = document.createElement('canvas');
     canvas.width = Math.max(1, Math.round(img.naturalWidth * scale));
     canvas.height = Math.max(1, Math.round(img.naturalHeight * scale));

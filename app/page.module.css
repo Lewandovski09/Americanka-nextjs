@@ -868,3 +868,58 @@
   padding: 4px 10px 12px;
   background: var(--surface);
 }
+
+/* «Щойно завершився» — the tournament that ended in the last 24 hours. */
+.recentPhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface-alt);
+}
+
+.doneBadge {
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+  font-size: 10.75px;
+  font-weight: 700;
+  padding: 4px 9px;
+  border-radius: var(--r-lg);
+  white-space: nowrap;
+}
+
+.winnerRow {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  padding: 10px 12px;
+  border-radius: 12px;
+  background: var(--surface-alt);
+  text-decoration: none;
+  color: var(--text);
+}
+
+.winnerRow + .winnerRow {
+  margin-top: 6px;
+}
+
+.winnerCat {
+  flex-shrink: 0;
+  font-size: 12px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.winnerName {
+  flex: 1;
+  min-width: 0;
+  font-size: 13.5px;
+  font-weight: 700;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.winnerArrow {
+  color: var(--text2);
+}

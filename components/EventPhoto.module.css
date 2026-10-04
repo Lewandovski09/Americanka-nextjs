@@ -1,0 +1,80 @@
+.wrap {
+  margin: 4px 0 12px;
+}
+
+.photoBtn {
+  display: block;
+  width: 100%;
+  padding: 0;
+  border: none;
+  background: none;
+  cursor: zoom-in;
+}
+
+.photo {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 10;
+  object-fit: cover;
+  border-radius: var(--r-lg);
+  box-shadow: var(--shadow-sm);
+  background: var(--surface-alt);
+}
+
+.actions {
+  display: flex;
+  gap: 8px;
+  margin-top: 8px;
+}
+
+.btn,
+.btnGhost {
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 13px;
+  font-weight: 700;
+  padding: 8px 14px;
+  cursor: pointer;
+  text-align: center;
+}
+
+.btn {
+  flex: 1;
+  background: var(--navy);
+  color: #fff;
+}
+
+.btnBusy {
+  opacity: 0.6;
+  pointer-events: none;
+}
+
+.btnGhost {
+  border: 1px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text2);
+}
+
+.error {
+  margin-top: 6px;
+  font-size: 12px;
+  color: var(--danger);
+}
+
+.lightbox {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  background: rgba(0, 0, 0, 0.88);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px;
+  cursor: zoom-out;
+}
+
+.lightboxImg {
+  max-width: 100%;
+  max-height: 100%;
+  border-radius: 12px;
+}

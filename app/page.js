@@ -17,10 +17,16 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconMail, IconChat } from '@/components/Icons';
 import styles from './page.module.css';
 
+const DAY_MS = 24 * 60 * 60 * 1000;
+const isFresh = (finishedAt) => !!finishedAt && Date.now() - new Date(finishedAt).getTime() < DAY_MS;
+
 export default function HomePage() {
   const router = useRouter();
   const { player, loading } = useCurrentPlayer();
   const [nextEvent, setNextEvent] = useState(null);
+  // A tournament that ended less than a day ago — shown INSTEAD of the
+  // next one for that day, with its photo and winners.
+  const [recentEvent, setRecentEvent] = useState(null);
   const [nextCategories, setNextCategories] = useState([]); // one row per category (Light/Medium/Pro), each with its own slots
   const [announcements, setAnnouncements] = useState([]);
   const [eloExplainerOpen, setEloExplainerOpen] = useState(false);
@@ -74,6 +80,7 @@ export default function HomePage() {
     if (home) {
       setNextEvent(home.nextEvent);
       setNextCategories(home.nextCategories);
+      setRecentEvent(home.recentEvent && isFresh(home.recentEvent.finished_at) ? home.recentEvent : null);
       setCommunityCount(home.communityCount);
       setRecentJoiners(home.recentJoiners);
     }
@@ -83,6 +90,55 @@ export default function HomePage() {
     if (loading) return;
     const supabase = createClient();
     const remember = (patch) => setCached('home:data', { ...(getCached('home:data') || {}), ...patch });
+
+    // The last finished tournament, if it ended less than 24 hours ago:
+    // its photo (migration 054), date, venue and the winners of each
+    // category.
+    async function loadRecentTournament() {
+      const since = new Date(Date.now() - DAY_MS).toISOString();
+      const { data: ev } = await supabase
+        .from('tournament_events')
+        .select('id, name, format_kind, location, avp_tier, scheduled_at, finished_at')
+        .eq('status', 'done')
+        .gte('finished_at', since)
+        .order('finished_at', { ascending: false })
+        .limit(1)
+        .maybeSingle();
+      if (!ev) {
+        setRecentEvent(null);
+        remember({ recentEvent: null });
+        return;
+      }
+      const [{ data: ph }, { data: cats }] = await Promise.all([
+        supabase.from('tournament_events').select('photo_url').eq('id', ev.id).maybeSingle(),
+        supabase
+          .from('tournament_categories')
+          .select('id, category_label, gender')
+          .eq('event_id', ev.id)
+          .order('category_label', { ascending: true }),
+      ]);
+      const catIds = (cats || []).map((c) => c.id);
+      const { data: wins } = catIds.length
+        ? await supabase
+            .from('tournament_placements')
+            .select('category_id, user_id, users(full_name, last_name)')
+            .eq('place', 1)
+            .in('category_id', catIds)
+        : { data: [] };
+      const recent = {
+        ...ev,
+        format: getFormat(ev.format_kind),
+        photo_url: ph?.photo_url || null,
+        categories: (cats || []).map((c) => ({
+          ...c,
+          winners: (wins || [])
+            .filter((w) => w.category_id === c.id)
+            .map((w) => w.users?.last_name?.trim() || w.users?.full_name || '—'),
+        })),
+      };
+      setRecentEvent(recent);
+      remember({ recentEvent: recent });
+    }
 
     async function loadNextTournament() {
       // A "next tournament" is really a whole EVENT, which can have
@@ -176,6 +232,7 @@ export default function HomePage() {
     }
 
     loadNextTournament();
+    loadRecentTournament();
     loadAnnouncements();
     loadCommunity();
   }, [loading, player]);
@@ -304,6 +361,48 @@ export default function HomePage() {
         </>
       )}
 
+      {recentEvent && isFresh(recentEvent.finished_at) ? (
+        <>
+          <div className={styles.sectionLabel}>Щойно завершився</div>
+          <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
+            {recentEvent.photo_url && (
+              <a href={recentEvent.categories?.[0] ? `/tournaments/${recentEvent.categories[0].id}` : '/tournaments'}>
+                {/* eslint-disable-next-line @next/next/no-img-element */}
+                <img src={recentEvent.photo_url} alt={`Фото: ${recentEvent.name}`} className={styles.recentPhoto} />
+              </a>
+            )}
+            <div className={styles.nextTop}>
+              <span className={styles.nextShine} aria-hidden="true" />
+              <div className={styles.nextTournamentTop}>
+                <div className={styles.nextTournamentName}>{recentEvent.name || recentEvent.format?.displayName || 'Турнір'}</div>
+                <span className={styles.doneBadge}>Завершено</span>
+              </div>
+              <div className={styles.nextTournamentMeta}>
+                {new Date(recentEvent.scheduled_at).toLocaleDateString('uk', { dateStyle: 'full' })}
+              </div>
+              <div className={styles.nextTournamentMeta}>
+                <VenueName code={recentEvent.location} />
+                {recentEvent.avp_tier ? ` · AVP ${recentEvent.avp_tier}` : ''}
+              </div>
+            </div>
+            <div className={styles.nextBody}>
+              {(recentEvent.categories || []).map((c) => (
+                <a key={c.id} href={`/tournaments/${c.id}`} className={styles.winnerRow}>
+                  <span className={styles.winnerCat}>
+                    {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+                    {c.category_label || 'Категорія'}
+                  </span>
+                  <span className={styles.winnerName}>
+                    🏆 {c.winners.length ? c.winners.join(' / ') : 'результати'}
+                  </span>
+                  <span className={styles.winnerArrow}>→</span>
+                </a>
+              ))}
+            </div>
+          </div>
+        </>
+      ) : (
+        <>
       <div className={styles.sectionLabel}>Найближчий турнір</div>
       {nextEvent ? (
         <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
@@ -341,7 +440,7 @@ export default function HomePage() {
           <div className={styles.emptyTournamentIcon}>
             <img src="/icons/shortcut-tournaments-512.png" alt="" width={56} height={56} className={styles.emptyTournamentImg} />
           </div>
-          <div className={styles.emptyTournamentTitle}>Турнірів ще немає</div>
+          <div className={styles.emptyTournamentTitle}>Чекайте новий турнір</div>
           <div className={styles.emptyTournamentText}>
             Адміністратор готує турнір. Слідкуйте за оголошеннями — щойно з&apos;явиться розклад, ви побачите
             його тут першими.
@@ -358,7 +457,10 @@ export default function HomePage() {
         </div>
       )}
 
-      {nextEvent && (
+        </>
+      )}
+
+      {(nextEvent || (recentEvent && isFresh(recentEvent.finished_at))) && (
         <a href="/tournaments" className={`${styles.ctaBtn} riseIn`} style={{ animationDelay: '0.2s' }}>
           Дивитись усі турніри →
         </a>

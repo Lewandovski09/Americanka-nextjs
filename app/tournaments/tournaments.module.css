@@ -313,3 +313,16 @@
   padding: 4px 10px 12px;
   background: var(--surface);
 }
+
+/* The tournament photo (migration 054) on top of its card. */
+.cardPhotoLink {
+  display: block;
+}
+
+.cardPhoto {
+  display: block;
+  width: 100%;
+  aspect-ratio: 16 / 9;
+  object-fit: cover;
+  background: var(--surface-alt);
+}
