@@ -66,7 +66,7 @@ export async function POST(request, { params }) {
 
   const categoryDone = match.tournament_categories?.status === 'done';
   const newSets = { set1: sets[0], set2: sets[1] ?? null, set3: sets[2] ?? null };
-  const winnerChanged = match.played && teamAWon(match) !== teamAWon(newSets);
+  let winnerChanged = match.played && teamAWon(match) !== teamAWon(newSets);
 
   // ── Who may change what ──
   // • A judge enters the game in front of them while the category runs.
@@ -107,35 +107,25 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: validation.error }, { status: 400 });
   }
 
-  // First entry is CLAIMED atomically (`played = false` in the filter):
-  // a double tap or two judges at once used to both pass as «first» and
-  // pay the Ело twice. Only one request can flip played → true; the other
-  // becomes an ordinary correction. A correction keeps the original
-  // played_at — it is when the game was played, not when it was fixed.
-  let firstEntry = false;
-  if (!match.played) {
-    const { data: claimed, error } = await supabaseAdmin
-      .from('tournament_matches')
-      .update({ ...newSets, played: true, played_at: new Date().toISOString() })
-      .eq('id', matchId)
-      .eq('played', false)
-      .select('id');
-    if (error) {
-      console.error('[submit-score] error:', error.message);
-      return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
-    }
-    firstEntry = (claimed || []).length === 1;
+  // The score is written under a row lock (migration 062): two requests
+  // for the same game at once are applied one after the other, and each
+  // learns exactly which result it replaced. That decides whether this
+  // is the first entry (pays the Ело) or a correction, and whether the
+  // winner really changed — not the possibly stale row read above.
+  const saved = await saveScore(supabaseAdmin, match, newSets, role.isAdmin || role.isHeadJudge);
+  if (saved.error) {
+    console.error('[submit-score] error:', saved.error);
+    return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
   }
-  if (!firstEntry) {
-    const { error } = await supabaseAdmin
-      .from('tournament_matches')
-      .update({ ...newSets, played: true })
-      .eq('id', matchId);
-    if (error) {
-      console.error('[submit-score] error:', error.message);
-      return Response.json({ success: false, error: 'Не вдалося зберегти рахунок' }, { status: 500 });
-    }
+  if (!saved.saved) {
+    // Another judge entered this game a moment ago.
+    return Response.json(
+      { success: false, error: 'Рахунок щойно ввів інший суддя — оновіть сторінку' },
+      { status: 409 }
+    );
   }
+  const firstEntry = !saved.wasPlayed;
+  winnerChanged = saved.wasPlayed && teamAWon(saved.prev) !== teamAWon(newSets);
 
   // Ело (Americanka) and the bracket do not depend on each other — both
   // at once. A first entry pays the game; a correction that changes the
@@ -571,11 +561,19 @@ async function correctEloForAmericanka(supabaseAdmin, match, sets) {
   if (teamA.length !== 2 || teamB.length !== 2) return;
   const allIds = [...teamA, ...teamB];
 
-  const { data: rows } = await supabaseAdmin
-    .from('elo_history')
-    .select('id, user_id, delta, elo_before')
-    .eq('match_id', match.id)
-    .eq('reason', 'tournament_result');
+  // A first entry that raced this correction may still be writing its
+  // history rows — give it a moment before deciding there are none.
+  let rows = [];
+  for (let attempt = 0; attempt < 6; attempt++) {
+    const { data } = await supabaseAdmin
+      .from('elo_history')
+      .select('id, user_id, delta, elo_before')
+      .eq('match_id', match.id)
+      .eq('reason', 'tournament_result');
+    rows = data || [];
+    if (rows.length >= allIds.length) break;
+    await new Promise((r) => setTimeout(r, 250));
+  }
   const byUser = new Map((rows || []).map((r) => [r.user_id, r]));
   // Games from before Ело history was written cannot be re-paid exactly.
   if (!allIds.every((id) => byUser.has(id) && byUser.get(id).elo_before != null)) return;
@@ -589,16 +587,29 @@ async function correctEloForAmericanka(supabaseAdmin, match, sets) {
       const row = byUser.get(id);
       const diff = deltas[i] - row.delta;
       if (diff === 0) return;
+      // The history row is switched first, and only if it still holds the
+      // delta read above: of two corrections at once, only one moves the
+      // rating — the other finds the row already changed and stops.
+      const { data: switched, error } = await supabaseAdmin
+        .from('elo_history')
+        .update({ delta: deltas[i], elo_after: row.elo_before + deltas[i] })
+        .eq('id', row.id)
+        .eq('delta', row.delta)
+        .select('id');
+      if (error) {
+        console.error('[elo-correction] history update:', error.message);
+        return;
+      }
+      if ((switched || []).length !== 1) return;
       const { error: err } = await addRating(supabaseAdmin, id, sportId, diff);
       if (err) {
         console.error('[elo-correction] rating update:', err);
-        return;
+        // put the history back so the next correction starts from the truth
+        await supabaseAdmin
+          .from('elo_history')
+          .update({ delta: row.delta, elo_after: row.elo_before + row.delta })
+          .eq('id', row.id);
       }
-      const { error } = await supabaseAdmin
-        .from('elo_history')
-        .update({ delta: deltas[i], elo_after: row.elo_before + deltas[i] })
-        .eq('id', row.id);
-      if (error) console.error('[elo-correction] history update:', error.message);
     })
   );
 }
@@ -633,4 +644,56 @@ function validateForMatch(match, sets) {
     match.stage
   );
   return validateSetsFirstTo(sets, target);
+}
+
+// Writes the score and reports what it replaced:
+// { saved, wasPlayed, prev: { set1, set2, set3 } } or { error }.
+// Uses save_match_score (migration 062, row lock). Until that migration
+// is run, falls back to the older claim: the first entry flips
+// played → true atomically, a correction re-reads the row first.
+async function saveScore(supabaseAdmin, match, newSets, allowCorrection) {
+  const { data, error } = await supabaseAdmin.rpc('save_match_score', {
+    p_match: match.id,
+    p_set1: newSets.set1,
+    p_set2: newSets.set2,
+    p_set3: newSets.set3,
+    p_allow_correction: !!allowCorrection,
+  });
+  const missing =
+    error && (error.code === 'PGRST202' || error.code === '42883' || /save_match_score/.test(error.message || ''));
+  if (error && !missing) return { error: error.message };
+  if (!error) {
+    const row = Array.isArray(data) ? data[0] : data;
+    if (!row) return { error: 'match not found' };
+    return {
+      saved: !!row.saved,
+      wasPlayed: !!row.was_played,
+      prev: { set1: row.old_set1, set2: row.old_set2, set3: row.old_set3 },
+    };
+  }
+
+  // ── fallback (before migration 062) ──
+  if (!match.played) {
+    const { data: claimed, error: e1 } = await supabaseAdmin
+      .from('tournament_matches')
+      .update({ ...newSets, played: true, played_at: new Date().toISOString() })
+      .eq('id', match.id)
+      .eq('played', false)
+      .select('id');
+    if (e1) return { error: e1.message };
+    if ((claimed || []).length === 1) return { saved: true, wasPlayed: false, prev: {} };
+    if (!allowCorrection) return { saved: false, wasPlayed: true, prev: {} };
+  }
+  const { data: fresh, error: e2 } = await supabaseAdmin
+    .from('tournament_matches')
+    .select('set1, set2, set3')
+    .eq('id', match.id)
+    .maybeSingle();
+  if (e2) return { error: e2.message };
+  const { error: e3 } = await supabaseAdmin
+    .from('tournament_matches')
+    .update({ ...newSets, played: true })
+    .eq('id', match.id);
+  if (e3) return { error: e3.message };
+  return { saved: true, wasPlayed: true, prev: fresh || match };
 }

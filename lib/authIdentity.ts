@@ -27,6 +27,19 @@ export function isValidLogin(login: string | null | undefined): boolean {
   return LOGIN_PATTERN.test(normalizeLogin(login));
 }
 
+// Logins the app keeps for itself: test players made by the admin's
+// «Заповнити тестовими заявками» all start with testbot_, and the
+// cleanup deletes every account with that prefix — a real player with
+// such a login would be deleted with them.
+export const RESERVED_LOGIN_PREFIXES = ['testbot_'];
+
+export function isReservedLogin(login: string | null | undefined): boolean {
+  const l = normalizeLogin(login);
+  return RESERVED_LOGIN_PREFIXES.some((p) => l.startsWith(p));
+}
+
+export const RESERVED_LOGIN_ERROR = 'Цей логін зарезервовано — оберіть інший';
+
 export function emailForLogin(login: string | null | undefined): string {
   return `${normalizeLogin(login)}@${SYNTHETIC_EMAIL_DOMAIN}`;
 }

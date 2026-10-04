@@ -1,6 +1,6 @@
 import { randomUUID } from 'crypto';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizeLogin, isValidLogin } from '@/lib/authIdentity';
+import { normalizeLogin, isValidLogin, isReservedLogin, RESERVED_LOGIN_ERROR } from '@/lib/authIdentity';
 
 // Step 1 of registration: reserve the login and hand back a nonce for
 // the Telegram deep link. No account exists yet — that happens in
@@ -13,6 +13,9 @@ export async function POST(request) {
     const { login } = await request.json();
     const normalizedLogin = normalizeLogin(login);
 
+    if (isReservedLogin(normalizedLogin)) {
+      return Response.json({ success: false, error: RESERVED_LOGIN_ERROR }, { status: 400 });
+    }
     if (!isValidLogin(normalizedLogin)) {
       return Response.json(
         {

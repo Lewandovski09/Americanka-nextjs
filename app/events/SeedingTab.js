@@ -370,8 +370,8 @@ function MoveDialog({ row, from, total, onCancel, onConfirm }) {
   const valid = Number.isInteger(place) && place >= 1 && place <= total;
 
   return (
-    <div className={styles.modalBack} onClick={onCancel}>
-      <div className={styles.modal} onClick={(e) => e.stopPropagation()}>
+    <div data-dismiss className={styles.modalBack} onClick={onCancel}>
+      <div role="dialog" aria-modal="true" className={styles.modal} onClick={(e) => e.stopPropagation()}>
         <div className={styles.modalTitle}>{row.name}</div>
         <div className={styles.hint}>Поточне місце: {from + 1}. Куди перемістити (1–{total})?</div>
         <input

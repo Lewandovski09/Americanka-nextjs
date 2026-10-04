@@ -23,6 +23,7 @@ import { stageLabel } from '@/lib/formats/stages';
 import { getCached, setCached } from '@/lib/clientCache';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './ProfileTabs.module.css';
+import { pressable } from '@/lib/a11y';
 
 const KYIV = 'Europe/Kyiv';
 const PAGE = 15;
@@ -192,7 +193,7 @@ export default function ProfileTabs({ games, people, eloLog, history, partners, 
       </section>
 
       {tab && (
-        <div className={styles.overlay} onClick={() => setTab(null)}>
+        <div data-dismiss className={styles.overlay} onClick={() => setTab(null)}>
           <div className={styles.sheet} onClick={(e) => e.stopPropagation()} role="dialog" aria-modal="true" aria-label={titles[tab]}>
             <div className={styles.sheetHead}>
               <div>
@@ -508,7 +509,12 @@ function Partners({ partners, onOpen }) {
         {partners.map((p) => {
           const pct = p.games_together ? Math.round((p.wins_together / p.games_together) * 100) : 0;
           return (
-            <tr key={p.partner_id} onClick={() => onOpen?.(p.partner)} className={styles.ptRow}>
+            <tr
+              key={p.partner_id}
+              onClick={() => onOpen?.(p.partner)}
+              {...pressable(() => onOpen?.(p.partner), !!onOpen)}
+              className={styles.ptRow}
+            >
               <td>
                 <span className={styles.ptName}>
                   <PlayerAvatar player={p.partner} size={26} />

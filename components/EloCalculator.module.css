@@ -108,3 +108,13 @@
 .loss {
   color: var(--danger);
 }
+
+.slider:focus-visible::-webkit-slider-thumb {
+  outline: 2px solid var(--rust);
+  outline-offset: 2px;
+}
+
+.slider:focus-visible::-moz-range-thumb {
+  outline: 2px solid var(--rust);
+  outline-offset: 2px;
+}

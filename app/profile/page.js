@@ -351,8 +351,8 @@ export default function ProfilePage() {
 
 
       {photoLightbox && shownPhoto && (
-        <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
-          <div className={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
+          <div role="dialog" aria-modal="true" className={styles.lightboxBox} onClick={(e) => e.stopPropagation()}>
             <button className={styles.lightboxClose} onClick={() => setPhotoLightbox(false)} aria-label="Закрити">
               <IconX size={14} color="#fff" />
             </button>
@@ -362,8 +362,8 @@ export default function ProfilePage() {
       )}
 
       {calcInfoOpen && (
-        <div className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle} style={{ marginBottom: 10 }}>
               Як користуватись калькулятором
             </div>
@@ -396,8 +396,8 @@ export default function ProfilePage() {
       )}
 
       {editOpen && (
-        <div className={styles.modalOverlay} onClick={() => setEditOpen(false)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setEditOpen(false)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>Редагувати профіль</div>
             <label className={styles.fieldLabel}>Ім&apos;я</label>
             <input
@@ -444,8 +444,8 @@ export default function ProfilePage() {
       )}
 
       {openTournamentId && (
-        <div className={styles.modalOverlay} onClick={() => setOpenTournamentId(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setOpenTournamentId(null)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>Ваші матчі в турнірі</div>
             <div className={styles.modalScroll}>
               {tournamentMatches.length === 0 && <div className={styles.empty}>Ще немає зіграних матчів</div>}
@@ -470,8 +470,8 @@ export default function ProfilePage() {
       )}
 
       {openPartner && (
-        <div className={styles.modalOverlay} onClick={() => setOpenPartner(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setOpenPartner(null)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalHeader}>
               <PlayerAvatar player={openPartner} size={36} />
               <div className={styles.modalTitle}>{openPartner.full_name}</div>
@@ -519,8 +519,8 @@ export default function ProfilePage() {
       )}
 
       {logoutConfirmOpen && (
-        <div className={styles.modalOverlay} onClick={() => setLogoutConfirmOpen(false)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 320, gap: 14 }}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setLogoutConfirmOpen(false)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()} style={{ maxWidth: 320, gap: 14 }}>
             <div className={styles.modalTitle} style={{ textAlign: 'center' }}>
               Вийти з акаунту?
             </div>

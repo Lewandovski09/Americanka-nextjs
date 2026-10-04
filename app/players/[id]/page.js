@@ -207,8 +207,8 @@ export default function PlayerProfilePage() {
       </div>
 
       {photoLightbox && player.photo_url && (
-        <div className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
-          <div className={styles.lightboxBox} onClick={(ev) => ev.stopPropagation()}>
+        <div data-dismiss className={styles.lightboxOverlay} onClick={() => setPhotoLightbox(false)}>
+          <div role="dialog" aria-modal="true" className={styles.lightboxBox} onClick={(ev) => ev.stopPropagation()}>
             <button className={styles.lightboxClose} onClick={() => setPhotoLightbox(false)} aria-label="Закрити">
               <IconX size={14} color="#fff" />
             </button>
@@ -218,8 +218,8 @@ export default function PlayerProfilePage() {
       )}
 
       {calcInfoOpen && (
-        <div className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
-          <div className={styles.modalBox} onClick={(ev) => ev.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setCalcInfoOpen(false)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(ev) => ev.stopPropagation()}>
             <div className={styles.modalTitle} style={{ marginBottom: 10 }}>
               Як користуватись калькулятором
             </div>

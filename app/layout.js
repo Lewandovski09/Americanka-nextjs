@@ -22,7 +22,6 @@ export const metadata = {
     type: 'website',
   },
   description: `Турніри Americanka для пляжного волейболу. ${VENUE.fullLocation}.`,
-  manifest: '/manifest.json',
   icons: {
     icon: [
       { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },

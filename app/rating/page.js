@@ -12,6 +12,7 @@ import { loadClubSeasons, seasonDates } from '@/lib/seasons';
 import { getCached, setCached, memoize } from '@/lib/clientCache';
 import { gamesUk } from '@/lib/pluralize';
 import styles from './rating.module.css';
+import { pressable } from '@/lib/a11y';
 
 // Seasons are scoped by sport and optionally by city (migration 043), so
 // the chip says which one it is whenever that is not the default.
@@ -145,9 +146,14 @@ async function loadAvp(supabase, seasonId) {
       .order('points', { ascending: false })
   );
   const ids = standings.map((s) => s.user_id);
-  const { data: profiles } = ids.length
-    ? await supabase.from('users').select('id, full_name, login, photo_url, gender, elo').in('id', ids)
-    : { data: [] };
+  // 100 ids per request: a season with hundreds of players would make one
+  // URL too long for the server.
+  const parts = [];
+  for (let i = 0; i < ids.length; i += 100) parts.push(ids.slice(i, i + 100));
+  const chunks = await Promise.all(
+    parts.map((part) => supabase.from('users').select('id, full_name, login, photo_url, gender, elo').in('id', part))
+  );
+  const profiles = chunks.flatMap((c) => c.data || []);
   const byId = new Map((profiles || []).map((p) => [p.id, p]));
   return standings.map((s) => ({ ...s, player: byId.get(s.user_id) })).filter((s) => s.player);
 }
@@ -751,6 +757,11 @@ export default function RatingPage() {
                         setQueryA('');
                         setSuggestionsA([]);
                       }}
+                      {...pressable(() => {
+                        setLoginA(p);
+                        setQueryA('');
+                        setSuggestionsA([]);
+                      })}
                     >
                       <PlayerAvatar player={p} size={24} />
                       <div>
@@ -785,6 +796,11 @@ export default function RatingPage() {
                         setQueryB('');
                         setSuggestionsB([]);
                       }}
+                      {...pressable(() => {
+                        setLoginB(p);
+                        setQueryB('');
+                        setSuggestionsB([]);
+                      })}
                     >
                       <PlayerAvatar player={p} size={24} />
                       <div>

@@ -97,6 +97,7 @@ export async function POST(request, { params }) {
 
   // Resolve partner (pair formats)
   let partner = null;
+  let invitee = null;
   const isPair = format.registrationType === 'pair' || format.registrationType === 'mix_pair';
   if (isPair && partnerId && !seekingPartner) {
     const { data: p } = await supabaseAdmin
@@ -131,44 +132,15 @@ export async function POST(request, { params }) {
       if (!seekerApp || seekerApp.partner_id || !seekerApp.seeking_partner) {
         return Response.json({ success: false, error: 'Напарник вже заявлений на цю подію' }, { status: 400 });
       }
-      const { data: dup } = await supabaseAdmin
-        .from('pair_invites')
-        .select('id')
-        .eq('event_id', eventId)
-        .eq('from_user', playerId)
-        .eq('to_user', p.id)
-        .eq('status', 'pending')
-        .maybeSingle();
-      if (dup) return Response.json({ success: true, invited: true });
-      const { error: invErr } = await supabaseAdmin
-        .from('pair_invites')
-        .insert({ event_id: eventId, category_id: categoryId, from_user: playerId, to_user: p.id });
-      if (invErr) {
-        console.error('[apply] invite:', invErr.message);
-        return Response.json(
-          { success: false, error: 'Не вдалося надіслати запрошення. Чи виконано SQL міграції 058?' },
-          { status: 500 }
-        );
-      }
-      // A note in Telegram, when the seeker has it linked.
-      const { data: people } = await supabaseAdmin
-        .from('users')
-        .select('id, full_name, telegram_user_id, telegram_linked_at')
-        .in('id', [playerId, p.id]);
-      const me = (people || []).find((u) => u.id === playerId);
-      const them = (people || []).find((u) => u.id === p.id);
-      if (them?.telegram_user_id && them?.telegram_linked_at) {
-        const base = new URL(request.url).origin;
-        await trySendTelegramMessage(
-          them.telegram_user_id,
-          `🤝 <b>${escapeHtml(me?.full_name || 'Гравець')}</b> хоче зіграти з вами в парі на турнірі.\n\n` +
-            `Відкрийте турнір у застосунку, щоб прийняти або відхилити запрошення.` +
-            (base ? `\n${base}/events/register/${eventId}` : '')
-        );
-      }
+      const sent = await sendInvite(supabaseAdmin, request, { eventId, categoryId, from: playerId, to: p.id, kind: 'join_seeker' });
+      if (sent.error) return Response.json({ success: false, error: sent.error }, { status: 500 });
       return Response.json({ success: true, invited: true });
     }
-    partner = p;
+    // Not in the event yet: they are not put into a pair without saying
+    // yes either. This player's application is filed alone (waiting for
+    // the partner), and the partner gets an invitation — on «Прийняти»
+    // they join it (migration 061, kind 'join_inviter').
+    invitee = p;
   }
 
   // Always pending — the admin distributes. The chosen league is only a
@@ -177,7 +149,7 @@ export async function POST(request, { params }) {
     event_id: eventId,
     user_id: playerId,
     partner_id: partner?.id || null,
-    seeking_partner: !!seekingPartner,
+    seeking_partner: !!seekingPartner || !!invitee,
     requested_category: category.category_label || null,
     status: 'pending',
     assigned_category_id: null,
@@ -195,5 +167,54 @@ export async function POST(request, { params }) {
   // A pair has formed — their «Шукаю пару» notices are no longer needed.
   if (partner) await dropPartnerAds(supabaseAdmin, eventId, [playerId, partner.id]);
 
+  if (invitee) {
+    const sent = await sendInvite(supabaseAdmin, request, { eventId, categoryId, from: playerId, to: invitee.id, kind: 'join_inviter' });
+    if (sent.error) return Response.json({ success: false, error: sent.error }, { status: 500 });
+    return Response.json({ success: true, invited: true });
+  }
+
   return Response.json({ success: true });
+}
+
+// A pair invitation (migrations 058, 061) plus a note in the invitee's
+// Telegram when it is linked. kind:
+//   'join_seeker'  — the inviter joins the invitee's application;
+//   'join_inviter' — the invitee joins the inviter's application.
+async function sendInvite(supabaseAdmin, request, { eventId, categoryId, from, to, kind }) {
+  const { data: dup } = await supabaseAdmin
+    .from('pair_invites')
+    .select('id')
+    .eq('event_id', eventId)
+    .eq('from_user', from)
+    .eq('to_user', to)
+    .eq('status', 'pending')
+    .maybeSingle();
+  if (dup) return {};
+  let { error } = await supabaseAdmin
+    .from('pair_invites')
+    .insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to, kind });
+  if (error && /kind/.test(error.message || '') && kind === 'join_seeker') {
+    // before migration 061 (no «kind» column yet)
+    ({ error } = await supabaseAdmin.from('pair_invites').insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to }));
+  }
+  if (error) {
+    console.error('[apply] invite:', error.message);
+    return { error: 'Не вдалося надіслати запрошення. Чи виконано SQL міграцій 058 і 061?' };
+  }
+  const { data: people } = await supabaseAdmin
+    .from('users')
+    .select('id, full_name, telegram_user_id, telegram_linked_at')
+    .in('id', [from, to]);
+  const me = (people || []).find((u) => u.id === from);
+  const them = (people || []).find((u) => u.id === to);
+  if (them?.telegram_user_id && them?.telegram_linked_at) {
+    const base = new URL(request.url).origin;
+    await trySendTelegramMessage(
+      them.telegram_user_id,
+      `🤝 <b>${escapeHtml(me?.full_name || 'Гравець')}</b> хоче зіграти з вами в парі на турнірі.\n\n` +
+        'Відкрийте турнір у застосунку, щоб прийняти або відхилити запрошення.' +
+        `\n${base}/events/register/${eventId}`
+    );
+  }
+  return {};
 }

@@ -12,6 +12,7 @@ import { useCallback, useEffect, useLayoutEffect, useRef, useState } from 'react
 import { aggregateScore, teamAWon } from '@/lib/formats/sets';
 import { stageLabel, stageWeight, isSharedPlaceStage } from '@/lib/formats/stages';
 import styles from './detail.module.css';
+import { pressable } from '@/lib/a11y';
 
 const deNum = (s) => Number(/^(?:wb|lb)(\d+)$/.exec(s)?.[1] || 0);
 const ROMAN = ['I', 'II', 'III', 'IV', 'V', 'VI'];
@@ -378,6 +379,7 @@ function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, ca
         future ? styles.cardFuture : ''
       } ${focused ? styles.cardFocused : ''} ${mine ? styles.cardMine : ''}`}
       onClick={() => clickable && openScore(m, nameA, nameB)}
+      {...pressable(() => openScore(m, nameA, nameB), clickable)}
     >
       {num != null && <span className={styles.flowNum}>{num}</span>}
       {label && <div className={styles.bracketCardLabel}>{label}</div>}

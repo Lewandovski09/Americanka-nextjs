@@ -7,8 +7,9 @@ import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
 // A pair invitation (migration 058): someone who saw a «Шукаю пару»
 // notice asked to play with the player who applied alone. The invited
 // player answers here:
-//   { action: 'accept' } — the inviter joins their application (and the
-//                          half-filled pair, if the admin already placed it);
+//   { action: 'accept' } — the two become a pair: one joins the other's
+//                          application (see «kind» below) and the
+//                          half-filled pair, if the admin already placed it;
 //   { action: 'decline' } — the invitation is closed.
 // The inviter can also take back their own invitation: { action: 'cancel' }.
 export async function POST(request, { params }) {
@@ -22,7 +23,7 @@ export async function POST(request, { params }) {
   const supabaseAdmin = createAdminClient();
   const { data: inv } = await supabaseAdmin
     .from('pair_invites')
-    .select('id, event_id, from_user, to_user, status')
+    .select('*')
     .eq('id', inviteId)
     .eq('event_id', eventId)
     .maybeSingle();
@@ -51,18 +52,33 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Реєстрацію закрито' }, { status: 400 });
   }
 
-  // The inviter may have found another pair in the meantime.
+  // Who joins whose application:
+  //   'join_seeker'  (default) — the inviter joins MY solo application;
+  //   'join_inviter'           — I join the INVITER's application (they
+  //                              named me as their partner when applying).
+  const joinInviter = inv.kind === 'join_inviter';
+  const seekerId = joinInviter ? inv.from_user : me;
+  const joinerId = joinInviter ? me : inv.from_user;
+
+  // The one who joins must still be free — they may have found another
+  // pair (or applied themselves) in the meantime.
   const taken = await eventParticipantIds(supabaseAdmin, eventId);
-  if (taken.has(inv.from_user)) {
+  if (taken.has(joinerId)) {
     await close('expired');
-    return Response.json({ success: false, error: 'Гравець уже записався з іншим напарником' }, { status: 400 });
+    return Response.json(
+      {
+        success: false,
+        error: joinInviter ? 'Ви вже заявлені на цю подію — запрошення закрито' : 'Гравець уже записався з іншим напарником',
+      },
+      { status: 400 }
+    );
   }
 
   // Claim the invitation first, so a double tap can't pair twice.
   const { data: claimed } = await close('accepted').select('id');
   if (!claimed || claimed.length === 0) return Response.json({ success: false, error: 'Запрошення вже закрите' }, { status: 400 });
 
-  const joined = await joinSeeker(supabaseAdmin, eventId, me, inv.from_user);
+  const joined = await joinSeeker(supabaseAdmin, eventId, seekerId, joinerId);
   if (joined.error) {
     await supabaseAdmin.from('pair_invites').update({ status: 'pending', answered_at: null }).eq('id', inv.id);
     return Response.json({ success: false, error: joined.error }, { status: 400 });

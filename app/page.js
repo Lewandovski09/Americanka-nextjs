@@ -1,5 +1,6 @@
 'use client';
 
+import HomeInvites from '@/components/HomeInvites';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -340,6 +341,9 @@ export default function HomePage() {
       <div className={styles.body}>
 
       {player && !player.telegram_linked_at && <ConnectTelegramBanner />}
+
+      {/* Open pair invitations for me (migrations 058, 061). */}
+      {player && <HomeInvites playerId={player.id} />}
 
       {player?.approval_status === 'pending' && (
         <div className={styles.warnMsg}>Акаунт очікує підтвердження рейтингу адміном.</div>

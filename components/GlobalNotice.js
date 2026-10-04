@@ -45,8 +45,8 @@ export default function GlobalNotice({ player }) {
   if (!notice) return null;
 
   return (
-    <div className={styles.overlay} onClick={() => setNotice(null)}>
-      <div className={styles.noticeBox} onClick={(e) => e.stopPropagation()}>
+    <div data-dismiss className={styles.overlay} onClick={() => setNotice(null)}>
+      <div role="dialog" aria-modal="true" className={styles.noticeBox} onClick={(e) => e.stopPropagation()}>
         <div className={styles.noticeIcon}>{notice.icon}</div>
         <div className={styles.noticeTitle}>{notice.title}</div>
         <div className={styles.noticeText}>{notice.text}</div>

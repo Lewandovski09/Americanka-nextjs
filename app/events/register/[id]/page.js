@@ -14,7 +14,8 @@ import PlayerPicker from '@/components/PlayerPicker';
 import { useEventData, useEventPost, CategoryTabs, CategoryPanel } from '../../shared';
 import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
-import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
+import VotePoll from '@/components/VotePoll';
+import { voteOptionsFrom } from '@/lib/voteOptions';
 import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 import PairInvites from '@/components/PairInvites';
 
@@ -109,7 +110,7 @@ export default function EventRegisterPage({ params, searchParams }) {
     const ok = await post(`/api/events/${event.id}/apply`, payload);
     if (ok) setBoardVersion((n) => n + 1);
     if (ok?.invited) {
-      window.alert('Запрошення надіслано ✅\n\nГравець, який шукає пару, має його прийняти — тоді ви будете в парі.');
+      window.alert('Запрошення надіслано ✅\n\nНапарник має його прийняти (у застосунку або через повідомлення в Telegram) — тоді ви будете в парі.');
       setInvitesVersion((n) => n + 1);
     }
     return ok;

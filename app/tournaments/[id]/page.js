@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useCallback, useRef } from 'react';
 import { useRouter } from 'next/navigation';
+import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { computeStandings, placeStandings } from '@/lib/tournamentEngine';
@@ -14,14 +15,20 @@ import { placementsFor } from '@/lib/formats/placements';
 import { effectiveTier, pointsForPlace } from '@/lib/avp/tiers';
 import { slotMinutes } from '@/lib/schedule';
 import PlayerAvatar from '@/components/PlayerAvatar';
-import PlayerPicker from '@/components/PlayerPicker';
-import BracketFlow from './BracketFlow';
 import { getCached, setCached, invalidate } from '@/lib/clientCache';
-import PinchZoom from './PinchZoom';
-import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
+import { voteOptionsFrom } from '@/lib/voteOptions';
 import EventPhoto from '@/components/EventPhoto';
-import PartnerBoard from '@/components/PartnerBoard';
 import styles from './detail.module.css';
+import { pressable } from '@/lib/a11y';
+
+// Parts not every visitor needs — the bracket, the zoomable table, the
+// poll, the partner board and the judge picker — load in their own
+// chunks, so the page's first download stays small.
+const BracketFlow = dynamic(() => import('./BracketFlow'));
+const PinchZoom = dynamic(() => import('./PinchZoom'));
+const VotePoll = dynamic(() => import('@/components/VotePoll'));
+const PartnerBoard = dynamic(() => import('@/components/PartnerBoard'));
+const PlayerPicker = dynamic(() => import('@/components/PlayerPicker'), { ssr: false });
 
 const TABS = { PLAYERS: 'players', TABLE: 'table', BRACKET: 'bracket' };
 
@@ -527,6 +534,7 @@ export default function TournamentDetailPage({ params }) {
             e.stopPropagation();
             openTimeModal(m, planned);
           },
+          ...pressable(() => openTimeModal(m, planned)),
         }
       : {};
     const courtProps = canEditCourt
@@ -537,6 +545,7 @@ export default function TournamentDetailPage({ params }) {
             e.stopPropagation();
             openCourtModal(m);
           },
+          ...pressable(() => openCourtModal(m)),
         }
       : {};
     // Same idea for the judge cell: it belongs to the admin and the head
@@ -553,6 +562,13 @@ export default function TournamentDetailPage({ params }) {
               current: m.judge_id || null,
             });
           },
+          ...pressable(() =>
+            setJudgeModal({
+              matchId: m.id,
+              title: `${nameA} — ${nameB}`,
+              current: m.judge_id || null,
+            })
+          ),
         }
       : {};
     return (
@@ -562,6 +578,7 @@ export default function TournamentDetailPage({ params }) {
           savingIds.has(m.id) ? styles.schedRowSaving : ''
         } ${playsIn(m, player?.id) ? styles.meRow : ''}`}
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
+        {...pressable(() => openScoreModal(m, nameA, nameB), clickable)}
       >
         <td>{i + 1}</td>
         <td {...timeProps}>
@@ -1081,8 +1098,8 @@ export default function TournamentDetailPage({ params }) {
         ))}
 
       {slotModal && (
-        <div className={styles.modalOverlay} onClick={() => setSlotModal(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setSlotModal(null)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>{slotModal.field === 'time' ? 'Час гри' : 'Корт'}</div>
             <div className={styles.modalSub}>
               Змінюється лише ця гра — решта розкладу залишається на місці.
@@ -1132,8 +1149,8 @@ export default function TournamentDetailPage({ params }) {
           but the pick is not limited to it — anybody registered can be
           handed a game, and joins the crew by being picked. */}
       {judgeModal && (
-        <div className={styles.modalOverlay} onClick={() => setJudgeModal(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setJudgeModal(null)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>Суддя гри</div>
             <div className={styles.modalSub}>{judgeModal.title}</div>
 
@@ -1171,8 +1188,8 @@ export default function TournamentDetailPage({ params }) {
       )}
 
       {scoreModal && (
-        <div className={styles.modalOverlay} onClick={() => setScoreModal(null)}>
-          <div className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
+        <div data-dismiss className={styles.modalOverlay} onClick={() => setScoreModal(null)}>
+          <div role="dialog" aria-modal="true" className={styles.modalBox} onClick={(e) => e.stopPropagation()}>
             <div className={styles.modalTitle}>Рахунок гри</div>
             <div className={styles.modalTeams}>
               <span>{scoreModal.nameA || '—'}</span>
@@ -1703,6 +1720,7 @@ function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused, m
         future ? styles.cardFuture : ''
       } ${focused ? styles.cardFocused : ''} ${mine ? styles.cardMine : ''}`}
       onClick={() => clickable && openScore(m, nameOf(m.team_a_players), nameOf(m.team_b_players))}
+      {...pressable(() => openScore(m, nameOf(m.team_a_players), nameOf(m.team_b_players)), clickable)}
     >
       {label && <div className={styles.bracketCardLabel}>{label}</div>}
       <div className={`${styles.bracketSide} ${aWon ? styles.bracketWinner : ''}`}>

@@ -1,5 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
-import { normalizeLogin, isValidLogin, emailForLogin } from '@/lib/authIdentity';
+import { normalizeLogin, isValidLogin, isReservedLogin, RESERVED_LOGIN_ERROR, emailForLogin } from '@/lib/authIdentity';
 
 // Step 2 of registration: create the account.
 //
@@ -46,6 +46,9 @@ export async function POST(request) {
     supabaseAdmin = createAdminClient();
     const normalizedLogin = normalizeLogin(login);
 
+    if (isReservedLogin(normalizedLogin)) {
+      return Response.json({ success: false, error: RESERVED_LOGIN_ERROR }, { status: 400 });
+    }
     if (!isValidLogin(normalizedLogin)) {
       return Response.json(
         {

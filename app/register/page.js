@@ -5,7 +5,7 @@ import { useRouter } from 'next/navigation';
 import Link from 'next/link';
 import { createClient } from '@/lib/supabase/client';
 import CityPicker from '@/components/CityPicker';
-import { emailForLogin, isValidLogin } from '@/lib/authIdentity';
+import { emailForLogin, isValidLogin, isReservedLogin, RESERVED_LOGIN_ERROR } from '@/lib/authIdentity';
 import { toJpegDataUrl } from '@/lib/photo';
 import Field from '@/components/Field';
 import styles from './register.module.css';
@@ -149,6 +149,7 @@ export default function AuthPage() {
     if (!form.login.trim()) return setError('Вкажіть логін');
     if (!isValidLogin(form.login))
       return setError('Логін: 3–32 символи, лише латиниця, цифри, точка, дефіс, підкреслення');
+    if (isReservedLogin(form.login)) return setError(RESERVED_LOGIN_ERROR);
     if (form.password.length < 6) return setError('Пароль має містити мінімум 6 символів');
 
     // Nothing is created yet — this only reserves the login and returns

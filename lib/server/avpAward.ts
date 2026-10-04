@@ -11,6 +11,7 @@
 // written again, and `avp_points.unique (category_id, user_id)`
 // makes a partial re-run impossible to leave behind duplicates.
 
+import { kyivDay } from '@/lib/dates';
 import { placementsFor } from '@/lib/formats/placements';
 import { effectiveTier, pointsForPlace } from '@/lib/avp/tiers';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
@@ -62,9 +63,7 @@ export async function recalcAvpForCategory(supabaseAdmin: SupabaseAdmin, categor
   // week) still counts where it was played.
   // The day in Kyiv time — an event at 00:30 Kyiv is still the previous
   // day in UTC.
-  const playedOn = event?.scheduled_at
-    ? new Date(event.scheduled_at).toLocaleDateString('en-CA', { timeZone: 'Europe/Kyiv' })
-    : '';
+  const playedOn = event?.scheduled_at ? kyivDay(event.scheduled_at) : '';
   if (!playedOn) return { ok: false, error: 'У події немає дати' };
 
   //
