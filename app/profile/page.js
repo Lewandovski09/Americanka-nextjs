@@ -4,6 +4,7 @@ import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
+import { usePlayerData } from '@/hooks/usePlayerData';
 import { categoryForElo, eloForecast } from '@/lib/elo';
 import { scoreLabel } from '@/lib/formats/sets';
 import { toJpegDataUrl } from '@/lib/photo';
@@ -14,8 +15,7 @@ import ProfileHighlights from '@/components/ProfileHighlights';
 import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
-import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
+import { partnerStatsFrom } from '@/lib/playerGames';
 import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
 import { inSeason } from '@/lib/seasons';
 import HeaderStatCards from '@/components/HeaderStatCards';
@@ -26,10 +26,9 @@ import styles from './profile.module.css';
 export default function ProfilePage() {
   const router = useRouter();
   const { player, loading, refresh: refreshPlayer } = useCurrentPlayer();
-  const [tournamentHistory, setTournamentHistory] = useState([]);
-  const [eloGameLog, setEloGameLog] = useState([]);
-  const [gameData, setGameData] = useState({ games: [], people: {} });
-  const [headerStats, setHeaderStats] = useState(null);
+  // History, Ело log, games and header numbers (hooks/usePlayerData —
+  // shared with a player's page).
+  const { tournamentHistory, eloGameLog, gameData, headerStats } = usePlayerData(player);
   const [opponentElo, setOpponentElo] = useState(1200);
 
   const [openTournamentId, setOpenTournamentId] = useState(null);
@@ -57,43 +56,6 @@ export default function ProfilePage() {
   // One season switch for the whole page; opens on the current season.
   const seasons = useProfileSeasons();
   const [pickedScope, setPickedScope] = useState(null);
-
-  // All five loads are independent — they run at once (they used to run
-  // one after another). The last-known result is shown first, so coming
-  // back to the profile is instant; the fresh one replaces it quietly.
-  useEffect(() => {
-    if (!player) return;
-    const key = `profile:${player.id}`;
-    const apply = (d) => {
-      setTournamentHistory(d.th);
-      setEloGameLog(d.elog);
-      setGameData(d.games);
-      setHeaderStats(d.header);
-    };
-    const cached = getCached(key);
-    if (cached) apply(cached);
-
-    let alive = true;
-    async function load() {
-      const supabase = createClient();
-      // The partner table is computed from the games (lib/playerGames), so
-      // it can be shown per season — partner_stats only has all-time sums.
-      const [{ data: th }, { data: elog }, gameList, header] = await Promise.all([
-        supabase.rpc('get_user_tournament_history', { p_user_id: player.id }),
-        supabase.rpc('get_user_elo_log', { p_user_id: player.id }),
-        loadPlayerGamesShared(supabase, player.id),
-        loadPlayerHeaderStats(supabase, player),
-      ]);
-      const fresh = { th: th || [], elog: elog || [], games: gameList, header };
-      setCached(key, fresh);
-      setCached(`header:${player.id}`, header);
-      if (alive) apply(fresh);
-    }
-    load();
-    return () => {
-      alive = false;
-    };
-  }, [player]);
 
   async function openTournamentDetails(tournamentId) {
     setOpenTournamentId(tournamentId);

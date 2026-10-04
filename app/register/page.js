@@ -149,7 +149,7 @@ export default function AuthPage() {
     if (!form.login.trim()) return setError('Вкажіть логін');
     if (!isValidLogin(form.login))
       return setError('Логін: 3–32 символи, лише латиниця, цифри, точка, дефіс, підкреслення');
-    if (form.password.length < 4) return setError('Пароль має містити мінімум 4 символи');
+    if (form.password.length < 6) return setError('Пароль має містити мінімум 6 символів');
 
     // Nothing is created yet — this only reserves the login and returns
     // the nonce for the deep link. The account appears in step 3, after
@@ -505,7 +505,7 @@ function FormStep({
         3–32 символи: латинські літери, цифри, точка, дефіс, підкреслення. Змінити логін пізніше
         не можна.
       </div>
-      <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 4 символи" styles={styles} />
+      <Field label="Пароль *" type="password" value={form.password} onChange={(v) => updateField('password', v)} placeholder="мін. 6 символів" styles={styles} />
 
       <label className={styles.label}>Стать *</label>
       <div className={styles.genderRow}>

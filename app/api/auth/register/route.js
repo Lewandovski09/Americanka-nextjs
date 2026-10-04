@@ -39,8 +39,8 @@ export async function POST(request) {
     if (!photoDataUrl) {
       return Response.json({ success: false, error: "Фото профілю обов'язкове" }, { status: 400 });
     }
-    if (password.length < 4) {
-      return Response.json({ success: false, error: 'Пароль має містити мінімум 4 символи' }, { status: 400 });
+    if (password.length < 6) {
+      return Response.json({ success: false, error: 'Пароль має містити мінімум 6 символів' }, { status: 400 });
     }
 
     supabaseAdmin = createAdminClient();

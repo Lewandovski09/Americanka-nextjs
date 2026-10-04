@@ -8,6 +8,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import { enrichCategoriesWithSlots } from '@/lib/eventCategories';
+import { effectiveTier } from '@/lib/avp/tiers';
 import CategoryRow from '@/components/CategoryRow';
 import styles from './tournaments.module.css';
 import TabBtn from '@/components/TabBtn';
@@ -103,18 +104,34 @@ export default function EventsPage() {
         // counting) used to download every tournament ever played.
         .limit(tab === 'done' ? doneLimit : 200);
 
-      // One enrichment pass per event (not per category) — different
-      // events can be different formats, which decides whether slots
-      // are counted from tournament_players or tournament_teams, so
-      // this can't all be batched into one call the way one event's own
-      // categories can (see enrichCategoriesWithSlots).
-      const enrichedEvents = await Promise.all(
-        (data || []).map(async (ev) => {
-          const format = getFormat(ev.format_kind);
-          const cats = await enrichCategoriesWithSlots(supabase, ev.tournament_categories || [], format, ev.avp_tier);
-          return { ...ev, tournament_categories: cats, format };
+      // One enrichment pass per FORMAT (not per event): every category of
+      // the same format is counted in one batch — 1–2 requests per format
+      // instead of per tournament. The AVP tier still falls back to each
+      // category's own event.
+      const byKind = new Map();
+      (data || []).forEach((ev) => {
+        const k = ev.format_kind || 'americanka';
+        if (!byKind.has(k)) byKind.set(k, []);
+        byKind.get(k).push(ev);
+      });
+      const enrichedById = new Map();
+      await Promise.all(
+        [...byKind.entries()].map(async ([kind, evs]) => {
+          const format = getFormat(kind);
+          const cats = evs.flatMap((ev) => (ev.tournament_categories || []).map((c) => ({ ...c, _eventId: ev.id })));
+          const done = await enrichCategoriesWithSlots(supabase, cats, format, null);
+          const tierByEvent = new Map(evs.map((ev) => [ev.id, ev.avp_tier]));
+          done.forEach((c) => {
+            c.avpTier = effectiveTier(c, { avp_tier: tierByEvent.get(c._eventId) });
+            enrichedById.set(c.id, c);
+          });
         })
       );
+      const enrichedEvents = (data || []).map((ev) => ({
+        ...ev,
+        format: getFormat(ev.format_kind),
+        tournament_categories: (ev.tournament_categories || []).map((c) => enrichedById.get(c.id) || c),
+      }));
 
       // The tournament photos (migration 054) — read on their own, so a
       // missing column cannot break the list.

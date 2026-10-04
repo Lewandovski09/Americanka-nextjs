@@ -1,0 +1,54 @@
+# Nightly backup of the Supabase database (data of the app + logins).
+#
+# Setup, once: GitHub → the repo → Settings → Secrets and variables →
+# Actions → New repository secret:
+#   SUPABASE_DB_URL = the «Session pooler» connection string from
+#   Supabase → Project Settings → Database → Connection string (URI),
+#   with the database password filled in.
+#
+# Every night (03:17 Kyiv) a compressed dump is kept as a workflow
+# artifact for 30 days: GitHub → Actions → «DB backup» → a run →
+# Artifacts. It can also be started by hand («Run workflow»).
+# Restore (on a new / empty project):
+#   pg_restore --no-owner --no-privileges -d "<connection string>" americanka-*.dump
+name: DB backup
+
+on:
+  schedule:
+    - cron: '17 0 * * *' # 00:17 UTC = 03:17 Kyiv (summer)
+  workflow_dispatch:
+
+jobs:
+  backup:
+    runs-on: ubuntu-latest
+    timeout-minutes: 20
+    steps:
+      - name: Check the secret
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          if [ -z "$DB_URL" ]; then
+            echo "::error::SUPABASE_DB_URL secret is not set (see the top of this file)"
+            exit 1
+          fi
+
+      - name: Dump (public + auth schemas)
+        env:
+          DB_URL: ${{ secrets.SUPABASE_DB_URL }}
+        run: |
+          mkdir -p backup
+          STAMP=$(date -u +%Y-%m-%d)
+          # pg_dump from the same major version as Supabase (17); a newer
+          # client can always read an older server.
+          docker run --rm -v "$PWD/backup:/backup" postgres:17 \
+            pg_dump "$DB_URL" --format=custom --no-owner --no-privileges \
+              --schema=public --schema=auth \
+              --file="/backup/americanka-$STAMP.dump"
+          ls -lh backup
+
+      - name: Keep for 30 days
+        uses: actions/upload-artifact@v4
+        with:
+          name: americanka-db-${{ github.run_id }}
+          path: backup/*.dump
+          retention-days: 30

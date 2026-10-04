@@ -5,8 +5,22 @@ import SentryInit from '@/components/SentryInit';
 import { PlayerProvider } from '@/hooks/useCurrentPlayer';
 import { VENUE } from '@/lib/venue';
 
+// The site's own address, for absolute links in link previews (Open
+// Graph). Vercel provides VERCEL_PROJECT_PRODUCTION_URL; NEXT_PUBLIC_SITE_URL
+// can override it.
+const SITE_URL =
+  process.env.NEXT_PUBLIC_SITE_URL ||
+  (process.env.VERCEL_PROJECT_PRODUCTION_URL ? `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}` : 'http://localhost:3000');
+
 export const metadata = {
+  metadataBase: new URL(SITE_URL),
   title: `${VENUE.brandName.toUpperCase()} — ${VENUE.venueName}`,
+  openGraph: {
+    siteName: VENUE.brandName,
+    images: ['/icons/icon-512.png'],
+    locale: 'uk_UA',
+    type: 'website',
+  },
   description: `Турніри Americanka для пляжного волейболу. ${VENUE.fullLocation}.`,
   manifest: '/manifest.json',
   icons: {

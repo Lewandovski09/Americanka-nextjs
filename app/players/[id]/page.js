@@ -1,5 +1,7 @@
 'use client';
 
+import { usePlayerData } from '@/hooks/usePlayerData';
+import { USER_COLUMNS } from '@/lib/userColumns';
 import { useEffect, useState } from 'react';
 import { useParams, useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -10,8 +12,7 @@ import ProfileHighlights from '@/components/ProfileHighlights';
 import ProfileTabs from '@/components/ProfileTabs';
 import EloTrend from '@/components/EloTrend';
 import EloCalculator from '@/components/EloCalculator';
-import { loadPlayerHeaderStats } from '@/lib/playerHeaderStats';
-import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
+import { partnerStatsFrom } from '@/lib/playerGames';
 import ProfileSeasonPicker, { useProfileSeasons, ALL_TIME } from '@/components/ProfileSeasonPicker';
 import { inSeason } from '@/lib/seasons';
 import HeaderStatCards from '@/components/HeaderStatCards';
@@ -27,13 +28,12 @@ export default function PlayerProfilePage() {
   const [player, setPlayer] = useState(cached?.player || null);
   const [loading, setLoading] = useState(!cached);
   const [notFound, setNotFound] = useState(false);
-  const [tournamentHistory, setTournamentHistory] = useState(cached?.th || []);
-  const [gameData, setGameData] = useState(cached?.games || { games: [], people: {} });
-  const [eloGameLog, setEloGameLog] = useState(cached?.elog || []);
   const [opponentElo, setOpponentElo] = useState(cached?.player?.elo || 1200);
   const [photoLightbox, setPhotoLightbox] = useState(false);
   const [calcInfoOpen, setCalcInfoOpen] = useState(false);
-  const [headerStats, setHeaderStats] = useState(cached?.header || null);
+  // History, Ело log, games and header numbers (hooks/usePlayerData —
+  // shared with the own profile).
+  const { tournamentHistory, eloGameLog, gameData, headerStats } = usePlayerData(player);
   const winStreak = headerStats?.winStreak || 0;
   // One season switch for the whole page; opens on the current season.
   const seasons = useProfileSeasons();
@@ -43,7 +43,7 @@ export default function PlayerProfilePage() {
     let active = true;
     async function load() {
       const supabase = createClient();
-      const { data } = await supabase.from('users').select('*').eq('id', params.id).maybeSingle();
+      const { data } = await supabase.from('users').select(USER_COLUMNS).eq('id', params.id).maybeSingle();
       if (!active) return;
       if (!data) {
         setNotFound(true);
@@ -52,20 +52,7 @@ export default function PlayerProfilePage() {
       }
       setPlayer(data);
       if (!cached) setOpponentElo(data.elo || 1200);
-
-      // Everything else needs only the id — the five loads run at once.
-      const [{ data: th }, gameList, { data: elog }, header] = await Promise.all([
-        supabase.rpc('get_user_tournament_history', { p_user_id: data.id }),
-        loadPlayerGamesShared(supabase, data.id),
-        supabase.rpc('get_user_elo_log', { p_user_id: data.id }),
-        loadPlayerHeaderStats(supabase, data),
-      ]);
-      setCached(`player:${params.id}`, { player: data, th: th || [], games: gameList, elog: elog || [], header });
-      if (!active) return;
-      setTournamentHistory(th || []);
-      setGameData(gameList);
-      setEloGameLog(elog || []);
-      setHeaderStats(header);
+      setCached(`player:${params.id}`, { player: data });
       setLoading(false);
     }
     load();

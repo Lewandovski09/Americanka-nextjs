@@ -6,6 +6,7 @@
 // most Ело, and a strip of the month's club facts: a hot streak, tournament
 // wins, new players, games played.
 
+import { pluralUk as plural } from '@/lib/pluralize';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { teamAWon } from '@/lib/formats/sets';
@@ -35,15 +36,27 @@ const shortName = (p) => {
   return first ? `${last} ${first[0]}.` : last;
 };
 
-function plural(n, one, few, many) {
-  const a = n % 10;
-  const b = n % 100;
-  if (a === 1 && b !== 11) return one;
-  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return few;
-  return many;
-}
 
 async function loadHeroes(supabase) {
+  // Counted in the database (migration 059) — a few rows instead of a
+  // month of games and Ело changes; the old way is the fallback.
+  const rpc = await supabase.rpc('heroes_month', { p_days: DAYS });
+  if (!rpc.error && rpc.data) {
+    const h = rpc.data;
+    const ids = [...new Set([...(h.podium || []).map((r) => r.id), h.streak?.id, h.champ?.id].filter(Boolean))];
+    const { data: people } = ids.length
+      ? await supabase.from('users').select('id, full_name, last_name, photo_url').in('id', ids)
+      : { data: [] };
+    const by = new Map((people || []).map((p) => [p.id, p]));
+    return {
+      podium: (h.podium || []).map((r) => ({ player: by.get(r.id) || { id: r.id }, gain: r.gain })),
+      streak: h.streak ? { player: by.get(h.streak.id), n: h.streak.n } : null,
+      champ: h.champ && h.champ.n > 1 ? { player: by.get(h.champ.id), n: h.champ.n } : null,
+      newPlayers: h.newPlayers || 0,
+      games: h.games || 0,
+    };
+  }
+
   const since = new Date(Date.now() - DAYS * 24 * 60 * 60 * 1000).toISOString();
 
   const [elo, matches, { data: doneCats }, { count: newPlayers }] = await Promise.all([

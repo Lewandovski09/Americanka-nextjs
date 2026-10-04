@@ -1,5 +1,6 @@
 'use client';
 
+import { USER_COLUMNS } from '@/lib/userColumns';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
@@ -66,12 +67,12 @@ export default function AdminPage() {
   async function load() {
     const supabase = createClient();
 
-    const { data: p } = await supabase.from('users').select('*').eq('approval_status', 'pending');
+    const { data: p } = await supabase.from('users').select(USER_COLUMNS).eq('approval_status', 'pending');
     setPending(p || []);
 
     const { data: m } = await supabase
       .from('users')
-      .select('*')
+      .select(USER_COLUMNS)
       .eq('gender', 'M')
       .neq('approval_status', 'pending')
       .order('elo', { ascending: false });
@@ -79,7 +80,7 @@ export default function AdminPage() {
 
     const { data: f } = await supabase
       .from('users')
-      .select('*')
+      .select(USER_COLUMNS)
       .eq('gender', 'F')
       .neq('approval_status', 'pending')
       .order('elo', { ascending: false });
@@ -96,14 +97,13 @@ export default function AdminPage() {
 
     // How many approved players can't actually receive a Telegram
     // broadcast — either never linked, or linked and later blocked the
-    // bot (we still count telegram_user_id as "linked" even if the bot
-    // is blocked, since we can't tell the difference until we try to
-    // send; this is "never linked" specifically).
+    // bot. telegram_linked_at is cleared when the bot is blocked, so this
+    // counts both (the Telegram id itself is server-only, migration 058).
     const { count: noTelegramCount } = await supabase
       .from('users')
       .select('id', { count: 'exact', head: true })
       .neq('approval_status', 'pending')
-      .is('telegram_user_id', null);
+      .is('telegram_linked_at', null);
 
     const categoryCountsMale = { D: 0, C: 0, B: 0, A: 0 };
     (m || []).forEach((pl) => {

@@ -13,6 +13,8 @@
 //     opens your games together and against each other.
 // Everything follows the season switch at the top of the page.
 
+import { pluralUk as plural } from '@/lib/pluralize';
+import { surname } from '@/lib/names';
 import { useEffect, useMemo, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { inSeason } from '@/lib/seasons';
@@ -25,17 +27,9 @@ import styles from './ProfileTabs.module.css';
 const KYIV = 'Europe/Kyiv';
 const PAGE = 15;
 
-const surname = (u) => u?.last_name?.trim() || u?.full_name || '—';
 const day = (d) => new Date(d).toLocaleDateString('uk', { day: 'numeric', month: 'short', timeZone: KYIV });
 const dayKey = (d) => new Date(d).toLocaleDateString('uk', { timeZone: KYIV });
 
-function plural(n, one, few, many) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return one;
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return few;
-  return many;
-}
 
 const avg = (list) => (list.length ? Math.round(list.reduce((s, v) => s + v, 0) / list.length) : null);
 
@@ -127,10 +121,23 @@ export default function ProfileTabs({ games, people, eloLog, history, partners, 
     if (tab !== 'tournaments' || !userId || !seasonIds) return;
     let alive = true;
     const supabase = createClient();
-    Promise.all([
-      supabase.from('avp_standings').select('season_id, user_id, points').in('season_id', seasonIds.split(',')),
-      gender ? supabase.from('users').select('id').eq('gender', gender) : Promise.resolve({ data: null }),
-    ]).then(([{ data: st }, { data: same }]) => {
+    // One small call per season (migration 059); the whole standings
+    // table plus every user of the gender is the fallback.
+    const sids = seasonIds.split(',');
+    Promise.all(sids.map((sid) => supabase.rpc('avp_rank', { p_season: sid, p_user: userId }))).then(async (res) => {
+      if (res.every((r) => !r.error)) {
+        const out = {};
+        sids.forEach((sid, i) => {
+          const row = (res[i].data || [])[0];
+          out[sid] = { rank: row?.rank ?? null, field: row?.field ?? 0 };
+        });
+        if (alive) setRanks(out);
+        return;
+      }
+      const [{ data: st }, { data: same }] = await Promise.all([
+        supabase.from('avp_standings').select('season_id, user_id, points').in('season_id', sids),
+        gender ? supabase.from('users').select('id').eq('gender', gender) : Promise.resolve({ data: null }),
+      ]);
       const ids = same ? new Set(same.map((u) => u.id)) : null;
       const out = {};
       seasonIds.split(',').forEach((sid) => {

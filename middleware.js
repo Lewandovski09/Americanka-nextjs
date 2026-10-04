@@ -1,4 +1,5 @@
 import { createServerClient } from '@supabase/ssr';
+import { PREVIEW_BOT_RE } from '@/lib/previewBots';
 import { NextResponse } from 'next/server';
 import { checkRateLimit, clientIp, RATE_LIMITS, DEFAULT_API_LIMIT } from '@/lib/rateLimit';
 
@@ -53,7 +54,14 @@ export async function middleware(request) {
     const hasSession = request.cookies
       .getAll()
       .some((c) => c.name.startsWith('sb-') && c.name.includes('-auth-token') && c.value);
-    if (!hasSession && GATED_PREFIXES.some((p) => pathname.startsWith(p))) {
+    // Link-preview bots (Telegram, WhatsApp, Viber…) carry no session.
+    // They may fetch a tournament's or a player's page — only for its
+    // <head> (title, photo); the data on the page still needs a login.
+    const ua = request.headers.get('user-agent') || '';
+    const isPreviewBot =
+      PREVIEW_BOT_RE.test(ua) &&
+      /^\/(tournaments|players)\/[^/]+\/?$/.test(pathname);
+    if (!hasSession && !isPreviewBot && GATED_PREFIXES.some((p) => pathname.startsWith(p))) {
       const url = request.nextUrl.clone();
       url.pathname = '/';
       return NextResponse.redirect(url);

@@ -165,7 +165,9 @@ export function useEventPost(load) {
       return false;
     }
     await load();
-    return true;
+    // The server's answer itself (truthy) — some callers read its flags
+    // (e.g. «invited» from the application route).
+    return data;
   }
 
   return { post, busy, error };

@@ -1,5 +1,6 @@
 'use client';
 
+import { USER_COLUMNS } from '@/lib/userColumns';
 import { createContext, createElement, useCallback, useContext, useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 
@@ -88,7 +89,7 @@ export function PlayerProvider({ children }) {
         const [authResult, profileResult] = await Promise.all([
           withTimeout(supabase.auth.getUser(), 8000, { data: { user: null }, error: { message: 'timeout' } }),
           withTimeout(
-            supabase.from('users').select('*').eq('id', sessionUser.id).maybeSingle(),
+            supabase.from('users').select(USER_COLUMNS).eq('id', sessionUser.id).maybeSingle(),
             8000,
             { data: null, error: { message: 'timeout' } }
           ),

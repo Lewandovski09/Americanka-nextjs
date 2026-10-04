@@ -46,7 +46,10 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   const eloSeason = (seasons.elo as SeasonRef | null) || null;
   const none = Promise.resolve({ data: null, count: null } as any);
 
-  const [rankRes, standingsRes, sameGenderRes, recentRes, startRes] = await Promise.all([
+  // The AVP place and the win streak are counted in the database
+  // (migration 059: avp_rank, player_win_streak); before it runs, the old
+  // reads below stand in.
+  const [rankRes, avpRpc, streakRpc, startRes] = await Promise.all([
     // Rank within the same gender — the pool the rating page's list is
     // built from, so the number matches what they'd see there.
     player.elo != null && player.gender
@@ -57,22 +60,8 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
           .eq('approval_status', 'approved')
           .gt('elo', player.elo)
       : none,
-    avpSeason
-      ? supabase.from('avp_standings').select('user_id, points').eq('season_id', avpSeason.id).order('points', { ascending: false })
-      : none,
-    // AVP is ranked by gender everywhere else in the app (ProfileTabs,
-    // the AVP tab) — the header must agree with them.
-    avpSeason && player.gender ? supabase.from('users').select('id').eq('gender', player.gender) : none,
-    // Win streak: newest played games first by played_at (a bracket's
-    // rows are all inserted together, so created_at says nothing about
-    // play order); counted back to the first loss.
-    supabase
-      .from('tournament_matches')
-      .select('team_a_players, team_b_players, set1, set2, set3, played_at')
-      .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
-      .eq('played', true)
-      .order('played_at', { ascending: false })
-      .limit(20),
+    avpSeason ? supabase.rpc('avp_rank', { p_season: avpSeason.id, p_user: player.id }) : none,
+    supabase.rpc('player_win_streak', { p_user: player.id }),
     eloSeason
       ? supabase.from('season_ratings').select('elo_start').eq('season_id', eloSeason.id).eq('user_id', player.id).maybeSingle()
       : none,
@@ -81,7 +70,14 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   const eloRank = player.elo != null && player.gender ? (rankRes.count ?? 0) + 1 : null;
 
   let avpStanding: HeaderStats['avpStanding'] = null;
-  if (avpSeason) {
+  if (avpSeason && !avpRpc.error) {
+    const row = (avpRpc.data || [])[0];
+    avpStanding = row && row.rank != null ? { points: row.points, rank: row.rank } : null;
+  } else if (avpSeason) {
+    const [standingsRes, sameGenderRes] = await Promise.all([
+      supabase.from('avp_standings').select('user_id, points').eq('season_id', avpSeason.id).order('points', { ascending: false }),
+      player.gender ? supabase.from('users').select('id').eq('gender', player.gender) : none,
+    ]);
     const rows: { user_id: string; points: number }[] = standingsRes.data || [];
     const same = player.gender ? new Set((sameGenderRes.data || []).map((p: { id: string }) => p.id)) : null;
     const scoped = same ? rows.filter((r) => same.has(r.user_id)) : rows;
@@ -90,11 +86,23 @@ export async function loadPlayerHeaderStats(supabase: ReturnType<typeof createCl
   }
 
   let winStreak = 0;
-  for (const m of recentRes.data || []) {
-    const onTeamA = (m.team_a_players || []).includes(player.id);
-    const won = teamAWon(m) === onTeamA;
-    if (!won) break;
-    winStreak++;
+  if (!streakRpc.error && typeof streakRpc.data === 'number') {
+    winStreak = streakRpc.data;
+  } else {
+    // Newest played games first by played_at; counted back to the first loss.
+    const recentRes = await supabase
+      .from('tournament_matches')
+      .select('team_a_players, team_b_players, set1, set2, set3, played_at')
+      .or(`team_a_players.cs.{${player.id}},team_b_players.cs.{${player.id}}`)
+      .eq('played', true)
+      .order('played_at', { ascending: false })
+      .limit(20);
+    for (const m of recentRes.data || []) {
+      const onTeamA = (m.team_a_players || []).includes(player.id);
+      const won = teamAWon(m) === onTeamA;
+      if (!won) break;
+      winStreak++;
+    }
   }
 
   const start = startRes.data?.elo_start;

@@ -46,6 +46,35 @@ async function fetchAll(makeQuery) {
 // change since the season opened. Five independent reads, all at once
 // (this used to be six requests one after another).
 async function loadEloCurrent(supabase, eloSeason) {
+  // «турн.» counted in the database (migration 059); the old way — every
+  // place, category and event downloaded and counted here — stays as the
+  // fallback until that migration runs.
+  const counted = await supabase.rpc('americanka_tournament_counts');
+  if (!counted.error) {
+    const [users, starts] = await Promise.all([
+      fetchAll(() =>
+        supabase
+          .from('users')
+          .select('id, full_name, login, elo, photo_url, gender')
+          .eq('approval_status', 'approved')
+          .order('elo', { ascending: false })
+      ),
+      eloSeason
+        ? fetchAll(() => supabase.from('season_ratings').select('user_id, elo_start').eq('season_id', eloSeason.id))
+        : Promise.resolve([]),
+    ]);
+    const countBy = new Map((counted.data || []).map((r) => [r.user_id, r.n]));
+    const startBy = new Map(starts.map((r) => [r.user_id, r.elo_start]));
+    return users.map((p) => {
+      const start = startBy.get(p.id);
+      return {
+        ...p,
+        tournaments_played: countBy.get(p.id) || 0,
+        seasonDelta: start != null && p.elo != null ? p.elo - start : null,
+      };
+    });
+  }
+
   const [users, placements, { data: cats }, { data: events }, starts] = await Promise.all([
     fetchAll(() =>
       supabase
@@ -127,6 +156,21 @@ async function loadAvp(supabase, seasonId) {
 // current win streaks, game wins outside Americanka, and Ело gained.
 async function loadClubStats(supabase, season) {
   const from = season?.starts_on || new Date(Date.now() - 90 * 24 * 60 * 60 * 1000).toISOString().slice(0, 10);
+
+  // Counted in the database (migration 059): three short lists come back
+  // instead of every game, every Ело change and every user of the season.
+  const rpc = await supabase.rpc('club_stats', { p_from: from, p_to: season?.ends_on || null });
+  if (!rpc.error && rpc.data) {
+    const st = rpc.data;
+    const ids = [...new Set([...st.streaks, ...st.wins, ...st.gains].map((r) => r.playerId))];
+    const { data: people } = ids.length
+      ? await supabase.from('users').select('id, full_name, login, photo_url, gender').in('id', ids)
+      : { data: [] };
+    const by = new Map((people || []).map((p) => [p.id, p]));
+    const withP = (list) => list.map((r) => ({ ...r, player: by.get(r.playerId) })).filter((r) => r.player);
+    return { streaks: withP(st.streaks), wins: withP(st.wins), gains: withP(st.gains) };
+  }
+
   const to = season?.ends_on ? `${season.ends_on}T23:59:59.999Z` : null;
 
   const [matches, { data: cats }, { data: events }, eloRows, profiles] = await Promise.all([

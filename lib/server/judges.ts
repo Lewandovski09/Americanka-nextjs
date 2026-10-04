@@ -40,6 +40,8 @@ export interface MatchContext {
     category_id: string | null;
     court: number | null;
     judge_id: string | null;
+    team_a_players?: string[] | null;
+    team_b_players?: string[] | null;
     tournament_categories: { status: string; courts: number[]; event_id: string | null } | null;
     [key: string]: unknown;
   };
@@ -54,7 +56,7 @@ export interface MatchContext {
 export async function loadMatchContext(supabaseAdmin: SupabaseAdmin, matchId: string): Promise<MatchContext | null> {
   const { data: rawMatch } = await supabaseAdmin
     .from('tournament_matches')
-    .select('id, category_id, court, judge_id, tournament_categories(status, courts, event_id)')
+    .select('id, category_id, court, judge_id, team_a_players, team_b_players, tournament_categories(status, courts, event_id)')
     .eq('id', matchId)
     .maybeSingle();
   if (!rawMatch) return null;

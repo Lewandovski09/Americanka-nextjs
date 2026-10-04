@@ -16,6 +16,7 @@ import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
 import VotePoll, { voteOptionsFrom } from '@/components/VotePoll';
 import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
+import PairInvites from '@/components/PairInvites';
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -30,6 +31,7 @@ export default function EventRegisterPage({ params, searchParams }) {
   const [activeCatId, setActiveCatId] = useState(null);
   // Bumped after an application, so the «Шукаю пару» board reloads.
   const [boardVersion, setBoardVersion] = useState(0);
+  const [invitesVersion, setInvitesVersion] = useState(0);
 
   if (loading) return <div className={styles.loading}>Завантаження...</div>;
   if (!event) return <div className={styles.loading}>Подію не знайдено</div>;
@@ -106,6 +108,10 @@ export default function EventRegisterPage({ params, searchParams }) {
   async function apply(payload) {
     const ok = await post(`/api/events/${event.id}/apply`, payload);
     if (ok) setBoardVersion((n) => n + 1);
+    if (ok?.invited) {
+      window.alert('Запрошення надіслано ✅\n\nГравець, який шукає пару, має його прийняти — тоді ви будете в парі.');
+      setInvitesVersion((n) => n + 1);
+    }
     return ok;
   }
 
@@ -152,6 +158,18 @@ export default function EventRegisterPage({ params, searchParams }) {
             return ok;
           }}
           onWithdraw={(withPartner) => post(`/api/events/${event.id}/withdraw`, { withPartner })}
+        />
+      )}
+
+      {/* Pair invitations (migration 058): asked to play / asked by me. */}
+      {isPair && player && (
+        <PairInvites
+          eventId={event.id}
+          version={invitesVersion}
+          onChanged={() => {
+            load();
+            setBoardVersion((n) => n + 1);
+          }}
         />
       )}
 

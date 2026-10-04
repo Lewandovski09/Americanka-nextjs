@@ -211,10 +211,22 @@ export default function TournamentDetailPage({ params }) {
   // round…) — they are gathered into ONE refresh instead of a full page
   // reload per row, which is what made the page stutter after each score.
   const liveTimer = useRef(null);
-  const refreshLive = useCallback(() => {
-    clearTimeout(liveTimer.current);
-    liveTimer.current = setTimeout(() => fetchLive(createClient()), 350);
-  }, [fetchLive]);
+  const ownSaveAt = useRef(0);
+  const refreshLive = useCallback(
+    (payload) => {
+      // The changed game itself is applied at once from the event — the
+      // score shows up for every spectator without waiting for a reload.
+      const row = payload?.eventType === 'UPDATE' ? payload.new : null;
+      if (row?.id) setMatches((prev) => prev.map((m) => (m.id === row.id ? { ...m, ...row } : m)));
+      // This viewer just saved a score and has already reloaded: the echo
+      // of their own save is not reloaded again right away — only once,
+      // a little later, in case someone else saved in the same moment.
+      const sinceOwn = Date.now() - ownSaveAt.current;
+      clearTimeout(liveTimer.current);
+      liveTimer.current = setTimeout(() => fetchLive(createClient()), sinceOwn < 2500 ? 2800 - sinceOwn : 500);
+    },
+    [fetchLive]
+  );
 
   useEffect(() => {
     const supabase = createClient();
@@ -680,9 +692,11 @@ export default function TournamentDetailPage({ params }) {
     // Profiles / «Твоя форма» shown in this tab must not keep the old
     // game list for their one-minute cache.
     invalidate('games:');
-    invalidate('profile:');
+    invalidate('pdata:');
     // Straight away, not debounced: the Ело the game just paid should
-    // appear next to the players at once.
+    // appear next to the players at once. The realtime echo of this save
+    // is then skipped (see refreshLive).
+    ownSaveAt.current = Date.now();
     fetchLive(createClient());
   }
 

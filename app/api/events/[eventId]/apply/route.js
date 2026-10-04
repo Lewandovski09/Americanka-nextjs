@@ -2,6 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
+import { dropPartnerAds } from '@/lib/server/pairing';
+import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -116,12 +118,55 @@ export async function POST(request, { params }) {
     }
     if (taken.has(p.id)) {
       // Already in the event — fine if they applied ALONE and are looking
-      // for a partner (the «Шукаю пару» notices lead exactly here): then
-      // this player joins their application instead of filing a new one.
-      const joined = await joinSeeker(supabaseAdmin, eventId, p.id, playerId);
-      if (joined.error) return Response.json({ success: false, error: joined.error }, { status: 400 });
-      await dropPartnerAds(supabaseAdmin, eventId, [playerId, p.id]);
-      return Response.json({ success: true, joined: true });
+      // for a partner (the «Шукаю пару» notices lead exactly here). They
+      // are not paired up on the spot any more: the seeker gets an
+      // invitation and decides (migration 058, /invites/[id]/accept).
+      const { data: seekerApp } = await supabaseAdmin
+        .from('tournament_applications')
+        .select('id, partner_id, seeking_partner')
+        .eq('event_id', eventId)
+        .eq('user_id', p.id)
+        .not('status', 'in', '(withdrawn,rejected)')
+        .maybeSingle();
+      if (!seekerApp || seekerApp.partner_id || !seekerApp.seeking_partner) {
+        return Response.json({ success: false, error: 'Напарник вже заявлений на цю подію' }, { status: 400 });
+      }
+      const { data: dup } = await supabaseAdmin
+        .from('pair_invites')
+        .select('id')
+        .eq('event_id', eventId)
+        .eq('from_user', playerId)
+        .eq('to_user', p.id)
+        .eq('status', 'pending')
+        .maybeSingle();
+      if (dup) return Response.json({ success: true, invited: true });
+      const { error: invErr } = await supabaseAdmin
+        .from('pair_invites')
+        .insert({ event_id: eventId, category_id: categoryId, from_user: playerId, to_user: p.id });
+      if (invErr) {
+        console.error('[apply] invite:', invErr.message);
+        return Response.json(
+          { success: false, error: 'Не вдалося надіслати запрошення. Чи виконано SQL міграції 058?' },
+          { status: 500 }
+        );
+      }
+      // A note in Telegram, when the seeker has it linked.
+      const { data: people } = await supabaseAdmin
+        .from('users')
+        .select('id, full_name, telegram_user_id, telegram_linked_at')
+        .in('id', [playerId, p.id]);
+      const me = (people || []).find((u) => u.id === playerId);
+      const them = (people || []).find((u) => u.id === p.id);
+      if (them?.telegram_user_id && them?.telegram_linked_at) {
+        const base = new URL(request.url).origin;
+        await trySendTelegramMessage(
+          them.telegram_user_id,
+          `🤝 <b>${escapeHtml(me?.full_name || 'Гравець')}</b> хоче зіграти з вами в парі на турнірі.\n\n` +
+            `Відкрийте турнір у застосунку, щоб прийняти або відхилити запрошення.` +
+            (base ? `\n${base}/events/register/${eventId}` : '')
+        );
+      }
+      return Response.json({ success: true, invited: true });
     }
     partner = p;
   }
@@ -151,65 +196,4 @@ export async function POST(request, { params }) {
   if (partner) await dropPartnerAds(supabaseAdmin, eventId, [playerId, partner.id]);
 
   return Response.json({ success: true });
-}
-
-// Deletes the «Шукаю пару» notices (migration 051) of these players in
-// every category of the event. Best-effort: a missing table (migration
-// not run yet) must not break the application itself.
-async function dropPartnerAds(supabaseAdmin, eventId, userIds) {
-  const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId);
-  const ids = (cats || []).map((c) => c.id);
-  if (ids.length === 0) return;
-  const { error } = await supabaseAdmin.from('partner_ads').delete().in('category_id', ids).in('user_id', userIds);
-  if (error) console.error('[apply] partner_ads cleanup:', error.message);
-}
-
-// `seekerId` applied alone, looking for a partner; `playerId` joins them.
-// Their application gets the partner; if the admin has already placed
-// them into a category (a half-filled pair), the empty seat is filled.
-async function joinSeeker(supabaseAdmin, eventId, seekerId, playerId) {
-  const { data: app } = await supabaseAdmin
-    .from('tournament_applications')
-    .select('id, status, partner_id, seeking_partner, assigned_category_id')
-    .eq('event_id', eventId)
-    .eq('user_id', seekerId)
-    .not('status', 'in', '(withdrawn,rejected)')
-    .maybeSingle();
-  if (!app || app.partner_id || !app.seeking_partner) {
-    return { error: 'Напарник вже заявлений на цю подію' };
-  }
-
-  if (app.status === 'assigned' && app.assigned_category_id) {
-    const { data: cat } = await supabaseAdmin
-      .from('tournament_categories')
-      .select('status')
-      .eq('id', app.assigned_category_id)
-      .maybeSingle();
-    if (cat?.status !== 'scheduled') return { error: 'Цю лігу вже розпочато' };
-    const { data: team } = await supabaseAdmin
-      .from('tournament_teams')
-      .select('id, user1_id, user2_id')
-      .eq('category_id', app.assigned_category_id)
-      .or(`user1_id.eq.${seekerId},user2_id.eq.${seekerId}`)
-      .maybeSingle();
-    if (team) {
-      if (team.user1_id && team.user2_id) return { error: 'У напарника вже є пара' };
-      const seat = team.user1_id ? { user2_id: playerId } : { user1_id: playerId };
-      const { error } = await supabaseAdmin.from('tournament_teams').update(seat).eq('id', team.id);
-      if (error) {
-        console.error('[apply] join team:', error.message);
-        return { error: 'Не вдалося приєднатися до пари' };
-      }
-    }
-  }
-
-  const { error } = await supabaseAdmin
-    .from('tournament_applications')
-    .update({ partner_id: playerId, seeking_partner: false })
-    .eq('id', app.id);
-  if (error) {
-    console.error('[apply] join application:', error.message);
-    return { error: 'Не вдалося приєднатися до заявки' };
-  }
-  return {};
 }

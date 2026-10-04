@@ -11,33 +11,21 @@
 // computed in memory from what the profile has already loaded: the
 // tournament history, the Ело log and the game list (lib/playerGames).
 
+import { pluralUk } from '@/lib/pluralize';
+
+import { surname } from '@/lib/names';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { inSeason } from '@/lib/seasons';
 import styles from './ProfileHighlights.module.css';
+
+const gamesWord = (n) => pluralUk(n, 'гра', 'гри', 'ігор');
+const winsWord = (n) => pluralUk(n, 'перемога', 'перемоги', 'перемог');
 
 const KYIV = 'Europe/Kyiv';
 
 function shortDate(d) {
   return d ? new Date(d).toLocaleDateString('uk', { day: 'numeric', month: 'short', timeZone: KYIV }) : '';
 }
-
-function gamesWord(n) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'гра';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'гри';
-  return 'ігор';
-}
-
-function winsWord(n) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'перемога';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'перемоги';
-  return 'перемог';
-}
-
-const surname = (u) => u?.last_name?.trim() || u?.full_name || '—';
 
 // ── 1. Trophy cabinet ─────────────────────────────────────────────
 

@@ -45,11 +45,20 @@ export async function POST(request, { params }) {
   if (playerId) {
     const { data: judgePlayer } = await supabaseAdmin
       .from('users')
-      .select('id')
+      .select('id, approval_status')
       .eq('id', playerId)
       .maybeSingle();
     if (!judgePlayer) {
       return Response.json({ success: false, error: 'Гравця не знайдено' }, { status: 404 });
+    }
+    // A judge enters scores for the whole event — never someone playing
+    // in this very game, and never an unapproved account.
+    const inThisGame = [...(match.team_a_players || []), ...(match.team_b_players || [])].includes(playerId);
+    if (inThisGame) {
+      return Response.json({ success: false, error: 'Гравець цієї гри не може її судити' }, { status: 400 });
+    }
+    if (judgePlayer.approval_status !== 'approved') {
+      return Response.json({ success: false, error: 'Суддею може бути лише підтверджений гравець' }, { status: 400 });
     }
     // Join the crew (as an ordinary judge) if this is a fresh face.
     // Legacy categories have no event to join.

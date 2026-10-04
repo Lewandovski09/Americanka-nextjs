@@ -11,21 +11,16 @@
 // starts (the database refuses changes after that); then the results
 // stay visible, and once it is finished the winner is marked.
 
+import { pluralUk } from '@/lib/pluralize';
+
+import { surname } from '@/lib/names';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './VotePoll.module.css';
 
-const surname = (u) => u?.last_name?.trim() || u?.full_name || '—';
-
-function votesWord(n) {
-  const m10 = n % 10;
-  const m100 = n % 100;
-  if (m10 === 1 && m100 !== 11) return 'голос';
-  if (m10 >= 2 && m10 <= 4 && (m100 < 12 || m100 > 14)) return 'голоси';
-  return 'голосів';
-}
+const votesWord = (n) => pluralUk(n, 'голос', 'голоси', 'голосів');
 
 /**
  * Options from a category's roster, in the shape VotePoll takes.

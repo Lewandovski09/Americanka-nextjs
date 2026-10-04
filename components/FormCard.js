@@ -6,6 +6,9 @@
 // ring of progress to the next category, how many wins that is, and the
 // partner who wins most with you.
 
+import { pluralUk } from '@/lib/pluralize';
+
+import { surname } from '@/lib/names';
 import { useEffect, useState } from 'react';
 import { createClient } from '@/lib/supabase/client';
 import { loadPlayerGamesShared, partnerStatsFrom } from '@/lib/playerGames';
@@ -13,15 +16,7 @@ import { categoryForElo, eloForecast, SKILL_CATEGORIES } from '@/lib/elo';
 import { getCached, setCached } from '@/lib/clientCache';
 import styles from './FormCard.module.css';
 
-const surname = (p) => p?.last_name?.trim() || p?.full_name || '—';
-
-function winsWord(n) {
-  const a = n % 10;
-  const b = n % 100;
-  if (a === 1 && b !== 11) return 'перемога';
-  if (a >= 2 && a <= 4 && (b < 12 || b > 14)) return 'перемоги';
-  return 'перемог';
-}
+const winsWord = (n) => pluralUk(n, 'перемога', 'перемоги', 'перемог');
 
 export default function FormCard({ player }) {
   const key = player?.id ? `formcard:${player.id}` : null;
