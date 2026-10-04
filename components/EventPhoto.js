@@ -2,8 +2,8 @@
 
 // The tournament photo (migration 054) — the group shot of the
 // participants. Shown wide at the top of a tournament once it exists;
-// tap to see it full-screen. The admin and the judges get the buttons to
-// add, replace or remove it (the server checks the same).
+// tap to see it full-screen. Only the owner of the app gets the buttons
+// to add, replace or remove it (the server checks the same).
 
 import Image from 'next/image';
 import { useEffect, useState } from 'react';
@@ -12,11 +12,27 @@ import { toJpegDataUrl } from '@/lib/photo';
 import { invalidate } from '@/lib/clientCache';
 import styles from './EventPhoto.module.css';
 
-export default function EventPhoto({ eventId, photoUrl, canEdit, onChange }) {
+export default function EventPhoto({ eventId, photoUrl, canEdit: canEditProp, ownerCanEdit, onChange }) {
   const [url, setUrl] = useState(photoUrl || null);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
   const [zoom, setZoom] = useState(false);
+
+  // «ownerCanEdit»: the buttons are shown only to the owner of the app —
+  // asked from the database (is_owner, migration 053); the server checks
+  // the same on every upload.
+  const [isOwner, setIsOwner] = useState(false);
+  useEffect(() => {
+    if (!ownerCanEdit) return;
+    let alive = true;
+    createClient()
+      .rpc('is_owner')
+      .then(({ data }) => alive && setIsOwner(!!data));
+    return () => {
+      alive = false;
+    };
+  }, [ownerCanEdit]);
+  const canEdit = canEditProp || (ownerCanEdit && isOwner);
 
   // Without a photoUrl prop it reads the event's photo itself (a failed
   // read — e.g. before migration 054 — simply shows nothing).

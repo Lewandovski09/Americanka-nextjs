@@ -1,9 +1,8 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { getJudgeRole } from '@/lib/server/judges';
 
-// The tournament photo (migration 054): uploaded during or after the
-// tournament by the admin or a judge of this event. The browser
+// The tournament photo (migration 054): uploaded by the owner of the
+// app only (migration 053). The browser
 // downscales it (lib/photo, up to 1600 px) and sends a data URL; the
 // server writes it to the public «player-photos» bucket under
 // events/<event id>.jpg — one file per event, a new one replaces it.
@@ -17,12 +16,15 @@ async function guard(eventId) {
   const supabaseAdmin = createAdminClient();
   const { data: event } = await supabaseAdmin.from('tournament_events').select('id, status').eq('id', eventId).maybeSingle();
   if (!event) return { error: Response.json({ success: false, error: 'Турнір не знайдено' }, { status: 404 }) };
-  const role = await getJudgeRole(supabaseAdmin, authUser.user.id, eventId);
-  if (!role.isAdmin && !role.isJudge) {
-    return { error: Response.json({ success: false, error: 'Фото турніру додає адмін або суддя' }, { status: 403 }) };
-  }
-  if (!role.isAdmin && event.status === 'scheduled') {
-    return { error: Response.json({ success: false, error: 'Фото можна додати під час або після турніру' }, { status: 400 }) };
+  // Only the owner of the app (migration 053) adds, replaces or removes
+  // a tournament photo.
+  const { data: owner } = await supabaseAdmin
+    .from('app_owners')
+    .select('user_id')
+    .eq('user_id', authUser.user.id)
+    .maybeSingle();
+  if (!owner) {
+    return { error: Response.json({ success: false, error: 'Фото турніру додає лише власник застосунку' }, { status: 403 }) };
   }
   return { supabaseAdmin, event };
 }
