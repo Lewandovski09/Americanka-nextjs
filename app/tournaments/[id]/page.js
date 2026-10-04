@@ -543,7 +543,7 @@ export default function TournamentDetailPage({ params }) {
         key={m.id}
         className={`${clickable ? styles.schedRowPending : ''} ${future ? styles.schedRowFuture : ''} ${
           savingIds.has(m.id) ? styles.schedRowSaving : ''
-        }`}
+        } ${playsIn(m, player?.id) ? styles.meRow : ''}`}
         onClick={() => clickable && openScoreModal(m, nameA, nameB)}
       >
         <td>{i + 1}</td>
@@ -951,6 +951,7 @@ export default function TournamentDetailPage({ params }) {
           canEdit={canEditScore}
           focusId={focus?.matchId || null}
           focusSeq={focus?.seq || 0}
+          meId={player?.id || null}
         />
       )}
       {/* Americanka: live final-standings table, not a bracket. Recomputed
@@ -998,6 +999,7 @@ export default function TournamentDetailPage({ params }) {
                               canEnter={canEnterScore}
                               canEdit={canEditScore}
                               focusId={focus?.matchId || null}
+                              meId={player?.id || null}
                             />
                           ))
                         : col.matches.map((m) => (
@@ -1010,6 +1012,7 @@ export default function TournamentDetailPage({ params }) {
                               canEnter={canEnterScore}
                               editable={canEditScore(m)}
                               focused={focus?.matchId === m.id}
+                              mine={playsIn(m, player?.id)}
                             />
                           ))}
                     </div>
@@ -1435,6 +1438,12 @@ function eloRoundsByPlayer(matches, eloByMatch) {
 
 const signed = (n) => (n > 0 ? `+${n}` : String(n));
 
+// Is this viewer in this game? Their own games are tinted everywhere —
+// schedule, bracket, groups — so they find themselves at a glance.
+function playsIn(m, meId) {
+  return Boolean(meId) && [...(m.team_a_players || []), ...(m.team_b_players || [])].includes(meId);
+}
+
 // «Коваленко О.» — surname first, the way the club calls players, short
 // enough that the table never has to cut a name.
 function shortName(p) {
@@ -1519,24 +1528,68 @@ function AmericankaStandings({ rows, playerById, currentPlayerId, eloRounds = {}
           </tbody>
         )}
       </table>
-      <div className={styles.ltHint}>
-        Порядок — за різницею очок (+/-), далі за виграними очками, далі за перемогами. «Ело» — зміна рейтингу за
-        весь турнір.
-      </div>
+      <StandingsRules />
+    </div>
+  );
+}
+
+// «Правила» under the Americanka table — what the colour means, how a tie
+// is broken, and what the column letters stand for. Open by default,
+// folds away with the chevron.
+function StandingsRules() {
+  const [open, setOpen] = useState(true);
+  return (
+    <div className={styles.rules}>
+      <button className={styles.rulesHead} onClick={() => setOpen((o) => !o)} aria-expanded={open}>
+        Правила
+        <span className={`${styles.rulesChevron} ${open ? styles.rulesChevronOpen : ''}`} aria-hidden="true">
+          <svg width="18" height="18" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2.4" strokeLinecap="round" strokeLinejoin="round">
+            <path d="M6 9l6 6 6-6" />
+          </svg>
+        </span>
+      </button>
+      {open && (
+        <>
+          <ul className={styles.rulesLegend}>
+            <li>
+              <span className={styles.rulesDot} style={{ background: '#22c55e' }} />
+              Призери (1–3 місця)
+            </li>
+          </ul>
+          <div className={styles.rulesText}>
+            Місце визначає різниця очок (+/-). Якщо у двох або більше гравців вона однакова, вище той, у кого:
+            <ol>
+              <li>Більше виграних очок.</li>
+              <li>Більше перемог.</li>
+            </ol>
+            Якщо збігається і це — гравці ділять місце.
+          </div>
+          <dl className={styles.rulesAbbr}>
+            <dt>І</dt>
+            <dd>Ігор зіграно</dd>
+            <dt>В</dt>
+            <dd>Перемоги</dd>
+            <dt>+/-</dt>
+            <dd>Різниця очок</dd>
+            <dt>Ело</dt>
+            <dd>Зміна рейтингу Ело за турнір</dd>
+          </dl>
+        </>
+      )}
     </div>
   );
 }
 
 // One group block: live mini-standings on top, the group's games below.
 // A group whose stage hasn't started yet (no teams known) is grayed out.
-function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit, focusId }) {
+function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit, focusId, meId }) {
   // King ranks the 4 individuals; pair formats rank the teams.
   const rows = solo
     ? rankGroupDetailed(
         [...new Set(matches.flatMap((m) => [...(m.team_a_players || []), ...(m.team_b_players || [])]))],
         matches
-      ).map((r) => ({ label: nameOf([r.id]), wins: r.wins, diff: r.diff }))
-    : rankGroupTeams(matches).map((r) => ({ label: nameOf(r.ids), wins: r.wins, diff: r.diff }));
+      ).map((r) => ({ label: nameOf([r.id]), wins: r.wins, diff: r.diff, me: r.id === meId }))
+    : rankGroupTeams(matches).map((r) => ({ label: nameOf(r.ids), wins: r.wins, diff: r.diff, me: (r.ids || []).includes(meId) }));
 
   const future = matches.every((m) => !(m.team_a_players?.length > 0));
 
@@ -1546,7 +1599,7 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit,
       <table className={styles.groupMini}>
         <tbody>
           {rows.map((r, i) => (
-            <tr key={i}>
+            <tr key={i} className={r.me ? styles.meRow : undefined}>
               <td>{i + 1}.</td>
               <td className={styles.groupMiniName}>{r.label}</td>
               <td>{r.wins}В</td>
@@ -1567,6 +1620,7 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit,
           canEnter={canEnter}
           editable={canEdit(m)}
           focused={focusId === m.id}
+          mine={playsIn(m, meId)}
         />
       ))}
     </div>
@@ -1578,7 +1632,7 @@ function GroupCard({ title, solo, matches, nameOf, openScore, canEnter, canEdit,
 // with both sides known opens the score dialog; a played one does too
 // when the admin may still correct it (editable). Matches of stages
 // that haven't started yet are grayed out.
-function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused }) {
+function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused, mine }) {
   const agg = aggregateScore(m);
   const walkover = m.played && (!m.team_b_players || m.team_b_players.length === 0);
   const aWon = m.played && teamAWon(m);
@@ -1590,7 +1644,7 @@ function MatchCard({ m, label, nameOf, openScore, canEnter, editable, focused })
       id={`match-${m.id}`}
       className={`${styles.bracketCard} ${clickable ? styles.bracketCardPending : ''} ${
         future ? styles.cardFuture : ''
-      } ${focused ? styles.cardFocused : ''}`}
+      } ${focused ? styles.cardFocused : ''} ${mine ? styles.cardMine : ''}`}
       onClick={() => clickable && openScore(m, nameOf(m.team_a_players), nameOf(m.team_b_players))}
     >
       {label && <div className={styles.bracketCardLabel}>{label}</div>}

@@ -1301,3 +1301,92 @@
   padding: 10px 16px 0;
   line-height: 1.4;
 }
+
+/* The viewer's own games in the bracket / group cards — same tint as
+   their row in every table. */
+.cardMine {
+  background: var(--rust-tint);
+  box-shadow: inset 3px 0 0 var(--rust), var(--shadow-sm);
+}
+
+/* ── «Правила» under the Americanka table (collapsible) ── */
+.rules {
+  margin: 12px 12px 4px;
+  background: var(--surface-alt);
+  border-radius: var(--r-md, 16px);
+  padding: 14px 16px;
+}
+
+.rulesHead {
+  width: 100%;
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  background: none;
+  border: none;
+  padding: 0;
+  font-size: 16px;
+  font-weight: 700;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.rulesChevron {
+  display: inline-flex;
+  transition: transform 0.25s var(--ease);
+}
+
+.rulesChevronOpen {
+  transform: rotate(180deg);
+}
+
+.rulesLegend {
+  list-style: none;
+  margin: 14px 0 0;
+  padding: 0;
+}
+
+.rulesLegend li {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 14px;
+  font-weight: 600;
+  color: var(--text2);
+  padding: 4px 0;
+}
+
+.rulesDot {
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  flex-shrink: 0;
+}
+
+.rulesText {
+  margin: 14px 0 0;
+  font-size: 14px;
+  line-height: 1.45;
+  color: var(--text);
+}
+
+.rulesText ol {
+  margin: 4px 0 0 20px;
+}
+
+.rulesAbbr {
+  display: grid;
+  grid-template-columns: 52px 1fr;
+  row-gap: 8px;
+  margin-top: 14px;
+  font-size: 14px;
+}
+
+.rulesAbbr dt {
+  color: var(--text2);
+}
+
+.rulesAbbr dd {
+  margin: 0;
+  color: var(--text);
+}

@@ -41,7 +41,7 @@ function orderLane(cols, orderIdx) {
 // How close the bracket is pulled in when the search jumps to a game.
 const FOCUS_ZOOM = 1.4;
 
-export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEnter, canEdit, focusId, focusSeq }) {
+export default function BracketFlow({ matches, nameOf, numberOf, openScore, canEnter, canEdit, focusId, focusSeq, meId }) {
   const flow = matches.filter((m) => m.stage && m.stage !== 'group' && !/^kr\d+$/.test(m.stage));
 
   const canvasRef = useRef(null);
@@ -232,6 +232,8 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
     canEnter,
     editable: canEdit(m),
     focused: m.id === focusId,
+    // the viewer's own games are tinted, as everywhere on the page
+    mine: Boolean(meId) && [...(m.team_a_players || []), ...(m.team_b_players || [])].includes(meId),
   });
 
   const column = (key, title, ms, labelOf) => (
@@ -360,7 +362,7 @@ export default function BracketFlow({ matches, nameOf, numberOf, openScore, canE
 
 // One box: game number badge, both sides with scores, winner in bold.
 // Clicking behaves exactly like the classic view.
-function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, canEnter, editable, focused }) {
+function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, canEnter, editable, focused, mine }) {
   const agg = aggregateScore(m);
   const aWon = m.played && teamAWon(m);
   const walkover = m.played && !(m.team_b_players?.length > 0);
@@ -374,7 +376,7 @@ function FlowCard({ m, innerRef, num, label, nameOf, hintA, hintB, openScore, ca
       ref={innerRef}
       className={`${styles.bracketCard} ${styles.flowCard} ${clickable ? styles.bracketCardPending : ''} ${
         future ? styles.cardFuture : ''
-      } ${focused ? styles.cardFocused : ''}`}
+      } ${focused ? styles.cardFocused : ''} ${mine ? styles.cardMine : ''}`}
       onClick={() => clickable && openScore(m, nameA, nameB)}
     >
       {num != null && <span className={styles.flowNum}>{num}</span>}
