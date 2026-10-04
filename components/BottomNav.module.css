@@ -1,7 +1,8 @@
-/* Floating glass tab bar (iOS-style): a capsule that hovers over the page
-   with the content blurred through it, and a glass «lens» under the active
-   tab that glides between tabs — and follows the finger when it is dragged
-   along the bar. */
+/* Clear-glass floating tab bar, modelled on the iOS reference video:
+   a fully transparent capsule (only a blur, a hairline rim and a soft
+   shadow tell it apart from the page), a soft pill under the active tab,
+   and a «lens» that swells into clear glass under the finger, follows a
+   drag, and springs onto the chosen tab. */
 
 @keyframes navIn {
   from {
@@ -32,41 +33,63 @@
   margin: 0 auto;
   padding: 5px;
   border-radius: 999px;
-  background: rgba(16, 32, 66, 0.84);
-  -webkit-backdrop-filter: blur(20px) saturate(180%);
-  backdrop-filter: blur(20px) saturate(180%);
-  border: 1px solid rgba(255, 255, 255, 0.14);
+  /* Fully transparent: no tint at all — the page shows through, softened
+     by the blur so the labels stay readable over whatever scrolls under. */
+  background: transparent;
+  -webkit-backdrop-filter: blur(14px) saturate(170%);
+  backdrop-filter: blur(14px) saturate(170%);
+  border: 1px solid rgba(255, 255, 255, 0.65);
   box-shadow:
-    0 10px 30px rgba(0, 0, 0, 0.35),
-    inset 0 1px 0 rgba(255, 255, 255, 0.12);
+    0 8px 28px rgba(16, 27, 51, 0.16),
+    inset 0 1px 0 rgba(255, 255, 255, 0.6);
   touch-action: pan-y; /* a horizontal drag belongs to the lens */
   user-select: none;
   -webkit-user-select: none;
   -webkit-touch-callout: none;
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
-/* The lens. `left` is set from JS (the tab, or the finger while dragging);
-   the springy curve gives it the little overshoot of the original. */
+/* Finger down: the whole bar swells slightly, as in the video. */
+.barPressed {
+  transform: scale(1.035);
+}
+
+/* The lens. Position and size come from JS (the tab, or the finger). */
 .lens {
   position: absolute;
-  top: 5px;
-  bottom: 5px;
   border-radius: 999px;
-  background: rgba(255, 255, 255, 0.13);
-  border: 1px solid rgba(255, 255, 255, 0.22);
-  box-shadow:
-    inset 0 1px 0 rgba(255, 255, 255, 0.35),
-    inset 0 -1px 0 rgba(0, 0, 0, 0.15),
-    0 4px 14px rgba(0, 0, 0, 0.25);
-  transition:
-    left 0.45s cubic-bezier(0.34, 1.4, 0.64, 1),
-    transform 0.25s var(--ease);
   pointer-events: none;
   box-sizing: border-box;
+  /* at rest: a soft filled pill */
+  background: rgba(16, 27, 51, 0.08);
+  border: 1px solid rgba(255, 255, 255, 0.5);
+  box-shadow: inset 0 1px 0 rgba(255, 255, 255, 0.55);
+  transition:
+    left 0.5s cubic-bezier(0.34, 1.35, 0.64, 1),
+    width 0.32s cubic-bezier(0.34, 1.35, 0.64, 1),
+    top 0.32s cubic-bezier(0.34, 1.35, 0.64, 1),
+    bottom 0.32s cubic-bezier(0.34, 1.35, 0.64, 1),
+    background 0.2s ease,
+    box-shadow 0.2s ease,
+    opacity 0.2s ease;
+  z-index: 2; /* over the tabs, like a magnifier — it is clear, so they show */
+}
+
+/* Held: clear glass — bigger than the bar, a bright rim, a faint
+   refraction fringe at the edges, the page visible right through it. */
+.lensGlass {
+  background: rgba(255, 255, 255, 0.1);
+  border: 1px solid rgba(255, 255, 255, 0.9);
+  box-shadow:
+    inset 0 1.5px 0 rgba(255, 255, 255, 0.95),
+    inset 0 -1.5px 0 rgba(16, 27, 51, 0.12),
+    inset 3px 0 6px rgba(120, 140, 255, 0.22),
+    inset -3px 0 6px rgba(255, 120, 100, 0.2),
+    0 10px 28px rgba(16, 27, 51, 0.22);
 }
 
 .navBtn {
-  position: relative; /* above the lens */
+  position: relative;
   z-index: 1;
   flex: 1;
   display: flex;
@@ -86,25 +109,36 @@
 }
 
 .navLabel {
+  display: inline-block;
   font-size: 10px;
   font-weight: 700;
   letter-spacing: 0.2px;
-  color: rgba(255, 255, 255, 0.78);
+  color: rgba(16, 27, 51, 0.72);
   white-space: nowrap;
-  transition: color 0.2s var(--ease);
+  transition: color 0.2s var(--ease), transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 .navBtnOn .navLabel {
-  color: #ff7a66;
+  color: var(--rust);
 }
 
 .navBtn svg,
 .navBtn > span:first-child {
-  transition: transform 0.25s var(--ease);
+  transition: transform 0.3s cubic-bezier(0.34, 1.4, 0.64, 1);
 }
 
 .navBtnOn svg,
 .navBtnOn > span:first-child {
+  transform: scale(1.06);
+}
+
+/* The tab under a held lens is magnified, as through the glass. */
+.navBtnLifted svg,
+.navBtnLifted > span:first-child {
+  transform: scale(1.18);
+}
+
+.navBtnLifted .navLabel {
   transform: scale(1.08);
 }
 

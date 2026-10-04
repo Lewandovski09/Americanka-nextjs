@@ -2,11 +2,11 @@
 
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
-import { useRef, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import styles from './BottomNav.module.css';
 
-const ACTIVE = '#ff7a66'; // coral, a touch lighter so it glows on the glass
-const IDLE = 'rgba(255,255,255,0.78)';
+const ACTIVE = '#e85d4a'; // the app's coral
+const IDLE = 'rgba(16,27,51,0.72)'; // dark: the bar is clear glass over a light page
 
 function HomeIcon({ active }) {
   return (
@@ -42,7 +42,7 @@ function ProfileIcon({ active, photoUrl }) {
           borderRadius: '50%',
           overflow: 'hidden',
           display: 'inline-block',
-          border: '1.5px solid rgba(255,255,255,0.4)',
+          border: '1.5px solid rgba(16,27,51,0.15)',
         }}
       >
         <img src={photoUrl} alt="" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
@@ -85,81 +85,126 @@ export default function BottomNav({ player, requireAuth, onBlocked }) {
   // then no tab is lit and the lens fades out.
   const activeIndex = items.findIndex((it) => (it.href === '/' ? pathname === '/' : pathname.startsWith(it.href)));
 
-  // ── The glass lens ──
-  // It sits under the active tab and glides to a new one. Drag a finger
-  // along the bar and it follows the finger; let go and it opens the tab
-  // it is over — like the iOS tab bar in the reference video.
+  // ── The glass lens ── (modelled frame by frame on the reference video)
+  //  • at rest: a soft pill under the active tab;
+  //  • finger down: the bar swells a little and the lens grows past the
+  //    bar's edges, turning into clear glass;
+  //  • drag: the lens follows the finger, the tab under it lights up;
+  //  • release: it springs onto the chosen tab and shrinks back.
   const barRef = useRef(null);
-  const [drag, setDrag] = useState(null); // { x } while a finger is on the bar
+  const [barW, setBarW] = useState(0);
+  const [press, setPress] = useState(null); // { x, moved } while a finger is on the bar
+  const [pendingIndex, setPendingIndex] = useState(null); // tapped tab, before the route changes
   const dragMoved = useRef(false);
   const startX = useRef(0);
 
+  useEffect(() => {
+    const el = barRef.current;
+    if (!el) return;
+    const measure = () => setBarW(el.clientWidth);
+    measure();
+    if (typeof ResizeObserver === 'undefined') return;
+    const ro = new ResizeObserver(measure);
+    ro.observe(el);
+    return () => ro.disconnect();
+  }, [n]);
+
+  // The route has changed — the lens now follows it again.
+  useEffect(() => setPendingIndex(null), [pathname]);
+
   const PAD = 5; // the bar's inner padding (BottomNav.module.css)
+  const itemW = barW ? (barW - 2 * PAD) / n : 0;
   function xToIndex(x) {
-    const w = barRef.current?.clientWidth || 1;
-    return Math.min(n - 1, Math.max(0, Math.floor(((x - PAD) / (w - 2 * PAD)) * n)));
+    if (!itemW) return 0;
+    return Math.min(n - 1, Math.max(0, Math.floor((x - PAD) / itemW)));
   }
   function localX(e) {
-    const r = barRef.current.getBoundingClientRect();
-    return Math.min(r.width, Math.max(0, e.clientX - r.left));
+    const el = barRef.current;
+    const r = el.getBoundingClientRect();
+    // The bar is scaled up while held — map back to its own pixels.
+    const x = (e.clientX - r.left) * (el.clientWidth / (r.width || 1));
+    return Math.min(el.clientWidth, Math.max(0, x));
   }
 
   function onPointerDown(e) {
     if (!barRef.current) return;
     startX.current = e.clientX;
     dragMoved.current = false;
-    setDrag({ x: localX(e) });
+    setPress({ x: localX(e), moved: false });
   }
   function onPointerMove(e) {
-    if (!drag) return;
-    if (Math.abs(e.clientX - startX.current) > 8) {
-      if (!dragMoved.current) barRef.current.setPointerCapture?.(e.pointerId);
+    if (!press) return;
+    if (!dragMoved.current && Math.abs(e.clientX - startX.current) > 6) {
+      barRef.current.setPointerCapture?.(e.pointerId);
       dragMoved.current = true;
     }
-    if (dragMoved.current) setDrag({ x: localX(e) });
+    if (dragMoved.current) setPress({ x: localX(e), moved: true });
   }
   function onPointerUp(e) {
-    if (!drag) return;
-    const moved = dragMoved.current;
+    if (!press) return;
     const idx = xToIndex(localX(e));
-    setDrag(null);
-    if (!moved) return; // a plain tap — the link handles it
+    setPress(null);
+    if (!dragMoved.current) return; // a plain tap — the link's onClick handles it
     const item = items[idx];
     if (requireAuth && item.href !== '/') {
       onBlocked?.();
       return;
     }
-    if (idx !== activeIndex) router.push(item.href);
+    if (idx !== activeIndex) {
+      setPendingIndex(idx);
+      router.push(item.href);
+    }
   }
 
-  const lensIndex = drag && dragMoved.current ? xToIndex(drag.x) : activeIndex;
-  // While dragging the lens is centred on the finger (kept inside the
-  // capsule); otherwise it sits on its tab.
-  let lensStyle;
-  if (drag && dragMoved.current && barRef.current) {
-    const w = barRef.current.clientWidth;
-    const itemW = (w - 2 * PAD) / n;
-    const left = Math.min(w - PAD - itemW, Math.max(PAD, drag.x - itemW / 2));
-    lensStyle = { left, width: itemW, transition: 'none', transform: 'scale(1.1)' };
-  } else {
+  const restIndex = pendingIndex ?? activeIndex;
+  const pressed = Boolean(press);
+  const lensIndex = press?.moved ? xToIndex(press.x) : restIndex;
+
+  // Geometry in px (relative to the bar's padding box).
+  let lensStyle = { opacity: 0 };
+  if (itemW) {
+    const grow = pressed ? 1.32 : 1; // the swell while the finger is down
+    const width = itemW * grow;
+    const center = press?.moved ? press.x : PAD + itemW * (Math.max(0, restIndex) + 0.5);
+    const left = Math.min(barW - width + 6, Math.max(-6, center - width / 2));
     lensStyle = {
-      left: `calc(${PAD}px + (100% - ${2 * PAD}px) * ${Math.max(0, activeIndex)} / ${n})`,
-      width: `calc((100% - ${2 * PAD}px) / ${n})`,
-      opacity: activeIndex < 0 ? 0 : 1,
+      left,
+      width,
+      top: pressed ? -8 : PAD,
+      bottom: pressed ? -8 : PAD,
+      opacity: restIndex < 0 && !pressed ? 0 : 1,
+      // Following the finger: no lag. Settling: the springy curve.
+      transition: press?.moved ? 'top 0.25s, bottom 0.25s, width 0.25s' : undefined,
     };
+  }
+
+  // A tap: the lens leaves for the tapped tab right away, without waiting
+  // for the page to load.
+  function onTabClick(e, i, gated) {
+    if (dragMoved.current) {
+      e.preventDefault();
+      dragMoved.current = false;
+      return;
+    }
+    if (gated) {
+      e.preventDefault();
+      onBlocked?.();
+      return;
+    }
+    if (i !== activeIndex) setPendingIndex(i);
   }
 
   return (
     <nav className={styles.nav}>
       <div
         ref={barRef}
-        className={styles.bar}
+        className={`${styles.bar} ${pressed ? styles.barPressed : ''}`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
-        onPointerCancel={() => setDrag(null)}
+        onPointerCancel={() => setPress(null)}
       >
-        <span className={styles.lens} style={lensStyle} aria-hidden="true" />
+        <span className={`${styles.lens} ${pressed ? styles.lensGlass : ''}`} style={lensStyle} aria-hidden="true" />
         {items.map((item, i) => {
           const active = i === lensIndex;
           const gated = requireAuth && item.href !== '/';
@@ -168,20 +213,8 @@ export default function BottomNav({ player, requireAuth, onBlocked }) {
               key={item.href}
               href={item.href}
               draggable={false}
-              onClick={(e) => {
-                // A drag ends in onPointerUp — the click that follows it
-                // must not open the tab the finger started on.
-                if (dragMoved.current) {
-                  e.preventDefault();
-                  dragMoved.current = false;
-                  return;
-                }
-                if (gated) {
-                  e.preventDefault();
-                  onBlocked?.();
-                }
-              }}
-              className={`${styles.navBtn} ${active ? styles.navBtnOn : ''}`}
+              onClick={(e) => onTabClick(e, i, gated)}
+              className={`${styles.navBtn} ${active ? styles.navBtnOn : ''} ${active && pressed ? styles.navBtnLifted : ''}`}
               aria-current={i === activeIndex ? 'page' : undefined}
             >
               {item.isProfile ? (
