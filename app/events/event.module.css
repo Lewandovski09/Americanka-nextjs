@@ -912,3 +912,16 @@
   background: #f04e36;
   color: #fff;
 }
+
+/* Applications open later (migration 066) — the «not yet» box. */
+.soonBox {
+  border: 1.5px dashed #f5b7aa;
+  background: #fff8f6;
+}
+
+.soonText {
+  font-size: 13px;
+  color: var(--text2);
+  line-height: 1.45;
+  margin-top: -4px;
+}

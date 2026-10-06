@@ -301,3 +301,9 @@
   font-weight: 700;
   cursor: pointer;
 }
+
+/* «⏳ Заявки з …» / «💰 Внесок» under the date (migration 066). */
+.cardMetaLine {
+  margin-top: 3px;
+  font-weight: 600;
+}

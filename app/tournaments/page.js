@@ -14,6 +14,7 @@ import styles from './tournaments.module.css';
 import TabBtn from '@/components/TabBtn';
 import VenueName from '@/components/VenueName';
 import { useVenues, findVenue } from '@/hooks/useVenues';
+import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 const DONE_PAGE = 15;
@@ -96,6 +97,7 @@ export default function EventsPage() {
         .from('tournament_events')
         .select(
           `id, name, format_kind, status, location, scheduled_at, avp_tier,
+           registration_open, registration_opens_at, entry_fee,
            tournament_categories(id, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
@@ -205,10 +207,19 @@ export default function EventsPage() {
       {!loading &&
         visibleEvents.map((ev) => {
           const cats = ev.tournament_categories || [];
+          const soon = ev.status === TABS.SCHEDULED && registrationState(ev) === 'soon';
+          const fee = ev.status === TABS.SCHEDULED ? feeLabel(ev.entry_fee) : null;
           const meta = (
             <div className={styles.cardMeta}>
               {new Date(ev.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
               <VenueName code={ev.location} />
+              {(soon || fee) && (
+                <div className={styles.cardMetaLine}>
+                  {soon ? `⏳ Заявки з ${opensLabel(ev.registration_opens_at)}` : ''}
+                  {soon && fee ? ' · ' : ''}
+                  {fee ? `💰 ${fee}` : ''}
+                </div>
+              )}
             </div>
           );
           const badge = (

@@ -18,6 +18,7 @@ import VenueName from '@/components/VenueName';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconMail, IconChat } from '@/components/Icons';
 import styles from './page.module.css';
+import { registrationState, registrationLabel, feeLabel } from '@/lib/registrationWindow';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isFresh = (finishedAt) => !!finishedAt && Date.now() - new Date(finishedAt).getTime() < DAY_MS;
@@ -166,7 +167,11 @@ export default function HomePage() {
       }
 
       const [{ data: event }, { data: cats }] = await Promise.all([
-        supabase.from('tournament_events').select('id, format_kind, avp_tier, location').eq('id', nearest.event_id).maybeSingle(),
+        supabase
+          .from('tournament_events')
+          .select('id, format_kind, avp_tier, location, status, registration_open, registration_opens_at, entry_fee')
+          .eq('id', nearest.event_id)
+          .maybeSingle(),
         supabase
           .from('tournament_categories')
           .select('id, status, name, scheduled_at, category_label, gender, max_participants, avp_tier, bracket_system')
@@ -188,6 +193,10 @@ export default function HomePage() {
         location: event?.location,
         scheduled_at: nearest.scheduled_at,
         status: cats?.[0]?.status,
+        // When applications open, and the fee (migration 066).
+        registration_open: event?.registration_open,
+        registration_opens_at: event?.registration_opens_at || null,
+        entry_fee: event?.entry_fee ?? null,
       };
       setNextEvent(shown);
       setNextCategories(enrichedCategories);
@@ -427,7 +436,15 @@ export default function HomePage() {
             <span className={styles.nextShine} aria-hidden="true" />
             <div className={styles.nextTournamentTop}>
               <div className={styles.nextTournamentName}>{nextEvent.format?.displayName || 'Турнір'}</div>
-              <span className={styles.statusBadge}>{nextEvent.status === 'live' ? 'Триває' : 'Реєстрація відкрита'}</span>
+              <span
+                className={`${styles.statusBadge} ${
+                  nextEvent.status !== 'live' && registrationState({ ...nextEvent, status: 'scheduled' }) === 'soon'
+                    ? styles.statusBadgeSoon
+                    : ''
+                }`}
+              >
+                {nextEvent.status === 'live' ? 'Триває' : registrationLabel({ ...nextEvent, status: 'scheduled' })}
+              </span>
             </div>
             <div className={styles.nextTournamentMeta}>
               {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
@@ -435,6 +452,7 @@ export default function HomePage() {
             <div className={styles.nextTournamentMeta}>
               <VenueName code={nextEvent.location} />
               {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
+              {feeLabel(nextEvent.entry_fee) ? ` · 💰 ${feeLabel(nextEvent.entry_fee)}` : ''}
             </div>
           </div>
 

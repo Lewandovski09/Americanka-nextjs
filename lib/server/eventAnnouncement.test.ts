@@ -223,3 +223,24 @@ describe('the button', () => {
     expect(urls[0]).toBe('http://americanka.test/open/event/e1');
   });
 });
+
+describe('applications open later (migration 066)', () => {
+  it('the first announcement says from when, with the fee, and its button is «Детальніше»', async () => {
+    const opens = new Date(Date.now() + 24 * 3600_000).toISOString();
+    const sb: any = fakeSupabase(world(1, { event: { registration_opens_at: opens, entry_fee: 250 } }));
+    const tg: any = fakeTelegram();
+    const seen: any[] = [];
+    const orig = tg.trySendTelegramPhotoFile;
+    tg.trySendTelegramPhotoFile = async (chat: any, bytes: any, caption: string, kb: any) => {
+      seen.push({ caption, kb });
+      return orig(chat);
+    };
+    let r: any = { done: false };
+    while (!r.done) r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
+    expect(seen[0].caption.includes('⏳ Прийом заявок — з')).toBe(true);
+    expect(seen[0].caption.includes('250 грн з гравця')).toBe(true);
+    expect(seen[0].kb.inline_keyboard[0][0].text).toBe('👀 Детальніше');
+    // nothing of the second message is touched yet
+    expect(sb.db.tournament_events[0].open_announced_at ?? null).toBe(null);
+  });
+});

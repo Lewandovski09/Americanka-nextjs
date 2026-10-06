@@ -9,6 +9,7 @@ import {
   resolveVenue,
 } from '@/lib/server/eventConfig';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { parseEntryFee, parseRegistrationOpens } from '@/lib/registrationWindow';
 
 // Update a scheduled event's secondary settings (name, date, venue,
 // courts, scoring) and reconcile its category list. The format itself is
@@ -81,6 +82,32 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: avp.error }, { status: 400 });
   }
 
+  // Fee and the opening of applications (066) — only when the form sent them.
+  const extra = {};
+  if ('entryFee' in body) {
+    const fee = parseEntryFee(body.entryFee);
+    if (fee.error) return Response.json({ success: false, error: fee.error }, { status: 400 });
+    extra.entry_fee = fee.fee;
+  }
+  if ('registrationOpensAt' in body) {
+    const opens = parseRegistrationOpens(body.registrationOpensAt, scheduledAt);
+    if (opens.error) return Response.json({ success: false, error: opens.error }, { status: 400 });
+    extra.registration_opens_at = opens.opensAt;
+    const before = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : null;
+    const after = opens.opensAt ? new Date(opens.opensAt).getTime() : null;
+    // Moved to a new future moment → «Заявки приймаються» goes out then
+    // (once), even if it already went out for the old moment.
+    if (after && after !== before) {
+      Object.assign(extra, {
+        open_announced_at: null,
+        open_announce_cursor: null,
+        open_announce_sent: 0,
+        open_announce_done_at: null,
+        open_announce_channel_ok: null,
+      });
+    }
+  }
+
   const seen = new Set();
   for (const c of categories) {
     const err = validateCategory(format, c, event.sport_id);
@@ -147,6 +174,7 @@ export async function POST(request, { params }) {
       points_mode: scoring.mode,
       final_points_to_win: scoring.finalPoints,
       avp_tier: avp.tier,
+      ...extra,
     })
     .eq('id', eventId)
     .select()

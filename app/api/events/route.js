@@ -10,6 +10,7 @@ import {
   resolveSport,
 } from '@/lib/server/eventConfig';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { parseEntryFee, parseRegistrationOpens } from '@/lib/registrationWindow';
 
 // Create an EVENT (tournament_events) plus its CATEGORIES (one
 // `tournaments` row each). Categories start empty and open for
@@ -68,6 +69,13 @@ export async function POST(request) {
     return Response.json({ success: false, error: avp.error }, { status: 400 });
   }
 
+  // The fee per player (asked at creation; 0 = free) and when applications
+  // open (empty = at once) — migration 066.
+  const fee = parseEntryFee(body.entryFee, { required: true });
+  if (fee.error) return Response.json({ success: false, error: fee.error }, { status: 400 });
+  const opens = parseRegistrationOpens(body.registrationOpensAt, scheduledAt);
+  if (opens.error) return Response.json({ success: false, error: opens.error }, { status: 400 });
+
   // Validate every category against the format's rules before writing
   // anything, so a bad category can't leave a half-created event.
   const seen = new Set();
@@ -98,6 +106,8 @@ export async function POST(request) {
       points_mode: scoring.mode,
       final_points_to_win: scoring.finalPoints,
       avp_tier: avp.tier,
+      entry_fee: fee.fee,
+      registration_opens_at: opens.opensAt,
       status: 'scheduled',
       created_by: authUser.user.id,
     })
@@ -106,7 +116,11 @@ export async function POST(request) {
 
   if (eventError) {
     console.error('[create-event] event error:', eventError.message);
-    return Response.json({ success: false, error: 'Не вдалося створити подію' }, { status: 500 });
+    const missing = /entry_fee|registration_opens_at/.test(eventError.message || '');
+    return Response.json(
+      { success: false, error: missing ? 'Не вдалося створити подію — виконайте SQL 066 у Supabase' : 'Не вдалося створити подію' },
+      { status: 500 }
+    );
   }
 
   const categoryRows = categories.map((c) => ({

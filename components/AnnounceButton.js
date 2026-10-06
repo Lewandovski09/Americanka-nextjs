@@ -8,6 +8,7 @@ import { useState } from 'react';
 import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
 import styles from './Announce.module.css';
 import { appConfirm } from '@/components/AppDialog';
+import { opensLabel } from '@/lib/registrationWindow';
 
 export default function AnnounceButton({ event, onDone }) {
   const [busy, setBusy] = useState(false);
@@ -26,6 +27,19 @@ export default function AnnounceButton({ event, onDone }) {
     setResult(r);
     onDone?.();
   }
+
+  // The second message — «Заявки приймаються» at the opening time (066).
+  const opensMs = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : 0;
+  const openPlanned = !!opensMs && !!event.announced_at && new Date(event.announced_at).getTime() < opensMs;
+  const openNote = !openPlanned
+    ? null
+    : event.open_announce_done_at
+    ? `🟢 «Заявки приймаються» надіслано · гравцям у бот: ${event.open_announce_sent || 0}${
+        event.open_announce_channel_ok === false ? ' · у канал не вдалося' : ''
+      }`
+    : opensMs > Date.now()
+    ? `⏰ «Заявки приймаються» піде в канал і бот автоматично ${opensLabel(event.registration_opens_at)}`
+    : '⏳ «Заявки приймаються» надсилається…';
 
   const when = event.announced_at
     ? new Date(event.announced_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })
@@ -58,6 +72,7 @@ export default function AnnounceButton({ event, onDone }) {
           )}
         </>
       ) : null}
+      {openNote && <div className={styles.note}>{openNote}</div>}
       {result && (result.ok ? (
         <div className={styles.note}>Готово: {announcementSummary(result)}</div>
       ) : (

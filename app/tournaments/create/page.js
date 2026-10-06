@@ -12,6 +12,8 @@ import {
 } from '@/lib/formats';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import AnnounceSwitch from '@/components/AnnounceSwitch';
+import RegistrationFields from '@/components/RegistrationFields';
+import { opensLabel } from '@/lib/registrationWindow';
 import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
 import styles from './create.module.css';
 import OptionBtn from '@/components/OptionBtn';
@@ -54,6 +56,10 @@ export default function CreateEventPage() {
   const [useFinalPoints, setUseFinalPoints] = useState(false);
   const [finalPointsToWin, setFinalPointsToWin] = useState(15);
   const [avpTier, setAvpTier] = useState(null);
+  // Fee per player and when applications open (migration 066).
+  const [entryFee, setEntryFee] = useState('');
+  const [opensMode, setOpensMode] = useState('now'); // 'now' | 'later'
+  const [opensAt, setOpensAt] = useState('');
   // «Оголосити в Telegram» — off unless the admin turns it on.
   const [announce, setAnnounce] = useState(false);
   const [announcing, setAnnouncing] = useState(null); // null | number sent so far
@@ -67,6 +73,7 @@ export default function CreateEventPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
+  const opensLater = opensMode === 'later' && !!opensAt && new Date(opensAt).getTime() > Date.now();
   const venue = findVenue(venues, location);
   const courtRange = venue?.courts || [];
   const gendersToShow = format.hasGender ? GENDERS.map((g) => g.id) : [null];
@@ -145,6 +152,11 @@ export default function CreateEventPage() {
     if (!location) return setError('Виберіть місце проведення');
     if (courts.length === 0) return setError('Виберіть щонайменше один корт');
     if (categories.length === 0) return setError('Додайте щонайменше одну категорію');
+    if (entryFee === '') return setError('Вкажіть внесок з гравця (0 — безкоштовно)');
+    if (opensMode === 'later') {
+      if (!opensAt) return setError('Вкажіть, коли відкриється прийом заявок');
+      if (new Date(opensAt) >= new Date(scheduledAt)) return setError('Прийом заявок має початися раніше за турнір');
+    }
 
     if (format.needsBracketSystem && categories.some((c) => !c.bracketSystem)) {
       return setError('Виберіть систему турніру для кожної категорії');
@@ -164,6 +176,8 @@ export default function CreateEventPage() {
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
       avpTier,
+      entryFee: Number(entryFee),
+      registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
       categories,
     };
 
@@ -423,13 +437,37 @@ export default function CreateEventPage() {
         );
       })}
 
+      <RegistrationFields
+        styles={styles}
+        fee={entryFee}
+        onFee={setEntryFee}
+        opensMode={opensMode}
+        onOpensMode={setOpensMode}
+        opensAt={opensAt}
+        onOpensAt={setOpensAt}
+      />
+
       <div className={styles.infoBox}>
-        Після створення категорії відкриваються для заявок. Гравці реєструються в застосунку
+        {opensLater
+          ? `Прийом заявок відкриється ${opensLabel(new Date(opensAt))}.`
+          : 'Після створення категорії одразу відкриваються для заявок.'}{' '}
+        Гравці реєструються в застосунку
         {format.registrationType === 'solo' ? ' (індивідуально)' : ' (парою або в пошуку напарника)'}, а сітки/групи
         формуються після закриття реєстрації.
       </div>
 
-      <AnnounceSwitch checked={announce} onChange={setAnnounce} disabled={loading || !!created} />
+      <AnnounceSwitch
+        checked={announce}
+        onChange={setAnnounce}
+        disabled={loading || !!created}
+        sub={
+          opensLater
+            ? `Зараз — афіша турніру (з внеском і часом прийому заявок) у канал і всім гравцям у бот. ${opensLabel(
+                new Date(opensAt)
+              )} — повідомлення «Заявки приймаються» з кнопкою «Записатися».`
+            : 'Афіша турніру (з усією інформацією та внеском) піде в канал і всім гравцям у бот, з кнопкою «Записатися».'
+        }
+      />
 
       {error && <div className={styles.errMsg}>{error}</div>}
 

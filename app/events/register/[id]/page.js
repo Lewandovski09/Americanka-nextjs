@@ -5,7 +5,7 @@
 // before the event starts — once it is live this page just points to the
 // per-category play pages (/tournaments/[id]).
 
-import { useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import Link from 'next/link';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
@@ -20,6 +20,17 @@ import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 import PairInvites from '@/components/PairInvites';
 import { notifyInvite } from '@/lib/inviteNotify';
 import { appAlert } from '@/components/AppDialog';
+import { registrationState, msUntilOpen, opensLabel, feeLabel } from '@/lib/registrationWindow';
+
+/** «через 2 дн 3 год» / «через 5 хв» — how long until applications open. */
+function untilText(ms) {
+  const min = Math.max(1, Math.ceil(ms / 60000));
+  if (min < 60) return `через ${min} хв`;
+  const h = Math.floor(min / 60);
+  if (h < 24) return `через ${h} год${min % 60 ? ` ${min % 60} хв` : ''}`;
+  const d = Math.floor(h / 24);
+  return `через ${d} дн${h % 24 ? ` ${h % 24} год` : ''}`;
+}
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -35,6 +46,30 @@ export default function EventRegisterPage({ params, searchParams }) {
   // Bumped after an application, so the «Шукаю пару» board reloads.
   const [boardVersion, setBoardVersion] = useState(0);
   const [invitesVersion, setInvitesVersion] = useState(0);
+
+  // Applications open at a set time (migration 066): the page turns
+  // «Заявки з …» into the form by itself at that moment, and shows the
+  // countdown minute by minute meanwhile.
+  const [now, setNow] = useState(() => Date.now());
+  const waitMs = event ? msUntilOpen(event, now) : 0;
+  useEffect(() => {
+    if (!waitMs) return;
+    const t = setTimeout(() => setNow(Date.now()), Math.min(waitMs + 500, 60_000));
+    return () => clearTimeout(t);
+  }, [waitMs, now]);
+
+  // Safety net for «Заявки приймаються» in Telegram: if the minute timer
+  // of the database (migration 067) hasn't sent it yet, the first visitor
+  // after the opening nudges the server (it sends only what is due, once).
+  const nudged = useRef(false);
+  useEffect(() => {
+    if (!event || nudged.current) return;
+    const at = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : 0;
+    if (!at || at > now || now - at > 2 * 24 * 3600 * 1000) return;
+    if (!event.announced_at || new Date(event.announced_at).getTime() >= at || event.open_announce_done_at) return;
+    nudged.current = true;
+    fetch('/api/cron/registration-open', { method: 'POST', keepalive: true }).catch(() => {});
+  }, [event, now]);
 
   if (loading) return <div className={styles.loading}>Завантаження...</div>;
   if (!event) return <div className={styles.loading}>Подію не знайдено</div>;
@@ -69,6 +104,8 @@ export default function EventRegisterPage({ params, searchParams }) {
   const activeCat = categories.find((c) => c.id === activeCatId) || categories.find((c) => c.id === preselectedCategoryId) || categories[0];
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const regClosed = event.registration_open === false;
+  const regSoon = !regClosed && registrationState(event, now) === 'soon';
+  const fee = feeLabel(event.entry_fee);
 
   // One application per person — mine is the one I filed OR the one a
   // partner filed naming me, so the second half of a pair sees their
@@ -153,8 +190,13 @@ export default function EventRegisterPage({ params, searchParams }) {
         <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>
-        {regClosed ? '🔒 Реєстрацію закрито' : '🟢 Реєстрація відкрита'}
+        {regClosed
+          ? '🔒 Реєстрацію закрито'
+          : regSoon
+          ? `⏳ Прийом заявок — з ${opensLabel(event.registration_opens_at)}`
+          : '🟢 Реєстрація відкрита'}
       </div>
+      {fee && <div className={styles.meta}>💰 Внесок: {fee}</div>}
 
       {error && <div className={styles.errMsg}>{error}</div>}
 
@@ -168,6 +210,8 @@ export default function EventRegisterPage({ params, searchParams }) {
           initialCategoryId={preselectedCategoryId}
           myApp={myApp}
           regClosed={regClosed}
+          regSoon={regSoon}
+          opensText={regSoon ? `${opensLabel(event.registration_opens_at)} · ${untilText(waitMs)}` : ''}
           busy={busy}
           isMix={event.format_kind === 'mix'}
           onApply={async ({ partnerAd, partnerAdNote, ...payload }) => {
@@ -211,7 +255,7 @@ export default function EventRegisterPage({ params, searchParams }) {
               open={activeCat.status === 'scheduled'}
               pairedIds={pairedIds}
               appliedIds={appliedIds}
-              canJoin={!myApp && !regClosed}
+              canJoin={!myApp && !regClosed && !regSoon}
               onJoin={(ad) => apply({ categoryId: activeCat.id, partnerId: ad.user_id, seekingPartner: false })}
               version={boardVersion}
             />
@@ -230,7 +274,7 @@ export default function EventRegisterPage({ params, searchParams }) {
   );
 }
 
-function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCategories, initialCategoryId, myApp, regClosed, busy, onApply, onWithdraw }) {
+function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCategories, initialCategoryId, myApp, regClosed, regSoon, opensText, busy, onApply, onWithdraw }) {
   // A men's league takes men, a women's league women (the server refuses
   // the rest too) — so only the leagues this player may enter are offered.
   const categories = allCategories.filter((c) => !c.gender || c.gender === me?.gender);
@@ -284,6 +328,15 @@ function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCateg
     return (
       <div className={styles.myBox}>
         <div className={styles.myStatus}>🔒 Реєстрацію закрито</div>
+      </div>
+    );
+  }
+
+  if (regSoon) {
+    return (
+      <div className={`${styles.myBox} ${styles.soonBox}`}>
+        <div className={styles.myStatus}>⏳ Прийом заявок ще не почався</div>
+        <div className={styles.soonText}>Відкриється {opensText}. Тоді тут з’явиться кнопка «Подати заявку».</div>
       </div>
     );
   }

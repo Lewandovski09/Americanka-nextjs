@@ -32,6 +32,7 @@ import ManualEntry from './ManualEntry';
 import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
 import AnnounceButton from '@/components/AnnounceButton';
+import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
 
 const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
 
@@ -111,7 +112,14 @@ export default function EventSettingsPage({ params }) {
         {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
         <VenueName code={event.location} />
       </div>
-      <div className={styles.meta}>{regClosed ? '🔒 Реєстрацію закрито' : '🟢 Реєстрація відкрита'}</div>
+      <div className={styles.meta}>
+        {regClosed
+          ? '🔒 Реєстрацію закрито'
+          : registrationState(event) === 'soon'
+          ? `⏳ Прийом заявок — з ${opensLabel(event.registration_opens_at)}`
+          : '🟢 Реєстрація відкрита'}
+        {feeLabel(event.entry_fee) ? ` · 💰 ${feeLabel(event.entry_fee)}` : ''}
+      </div>
       <AnnounceButton event={event} onDone={load} />
 
       <div className={styles.tabs}>

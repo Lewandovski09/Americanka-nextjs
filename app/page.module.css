@@ -878,3 +878,9 @@
 .winnerArrow {
   color: var(--text2);
 }
+
+/* Applications open later (migration 066): «Заявки з …» in amber. */
+.nextTop .statusBadgeSoon {
+  background: #f59e0b;
+  border-color: #b45309;
+}

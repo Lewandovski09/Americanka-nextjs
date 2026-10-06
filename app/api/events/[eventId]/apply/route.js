@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
 import { getAuthUser } from '@/lib/server/authUser';
+import { registrationState, opensLabel } from '@/lib/registrationWindow';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -47,6 +48,13 @@ export async function POST(request, { params }) {
   }
   if (event.registration_open === false) {
     return Response.json({ success: false, error: 'Реєстрацію закрито адміністратором' }, { status: 400 });
+  }
+  // Applications open at the time the admin chose (migration 066).
+  if (registrationState(event) === 'soon') {
+    return Response.json(
+      { success: false, error: `Прийом заявок відкриється ${opensLabel(event.registration_opens_at)}` },
+      { status: 400 }
+    );
   }
 
   const format = getFormat(event.format_kind);

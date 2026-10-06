@@ -4,7 +4,7 @@
 
 import styles from './Announce.module.css';
 
-export default function AnnounceSwitch({ checked, onChange, disabled }) {
+export default function AnnounceSwitch({ checked, onChange, disabled, sub }) {
   return (
     <button
       type="button"
@@ -17,8 +17,7 @@ export default function AnnounceSwitch({ checked, onChange, disabled }) {
       <span className={styles.switchText}>
         <span className={styles.switchTitle}>📣 Оголосити в Telegram</span>
         <span className={styles.switchSub}>
-          Картка турніру — як «Найближчий турнір» на головній — піде в канал і всім гравцям у бот, з кнопкою
-          «Записатися»
+          {sub || 'Афіша турніру піде в канал і всім гравцям у бот, з кнопкою «Записатися»'}
         </span>
       </span>
       <span className={styles.track} aria-hidden="true">

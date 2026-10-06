@@ -18,6 +18,7 @@ import styles from '@/app/tournaments/create/create.module.css';
 import OptionBtn from '@/components/OptionBtn';
 import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
 import { divisionsFor } from '@/lib/sports';
+import RegistrationFields from '@/components/RegistrationFields';
 
 function catKey(gender, label) {
   return `${gender || 'X'}:${label}`;
@@ -47,6 +48,11 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   const [useFinalPoints, setUseFinalPoints] = useState(event.points_mode === 'from_semifinal');
   const [finalPointsToWin, setFinalPointsToWin] = useState(event.final_points_to_win ?? 15);
   const [avpTier, setAvpTier] = useState(event.avp_tier ?? null);
+  // Fee and the opening of applications (migration 066).
+  const [entryFee, setEntryFee] = useState(event.entry_fee == null ? '' : String(event.entry_fee));
+  const opensFuture = event.registration_opens_at && new Date(event.registration_opens_at).getTime() > Date.now();
+  const [opensMode, setOpensMode] = useState(opensFuture ? 'later' : 'now');
+  const [opensAt, setOpensAt] = useState(opensFuture ? toLocalInput(event.registration_opens_at) : '');
 
   const [categories, setCategories] = useState(() => fromRows(categoryRows, isPair));
   const [error, setError] = useState('');
@@ -135,6 +141,11 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       return setError('Вкажіть кількість учасників для кожної категорії');
     }
 
+    if (opensMode === 'later') {
+      if (!opensAt) return setError('Вкажіть, коли відкриється прийом заявок');
+      if (new Date(opensAt) >= new Date(scheduledAt)) return setError('Прийом заявок має початися раніше за турнір');
+    }
+
     const ok = await post(`/api/events/${event.id}/update`, {
       name,
       location,
@@ -144,6 +155,8 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
       avpTier,
+      entryFee: entryFee === '' ? null : Number(entryFee),
+      registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
       categories: categories.map(({ hasMembers, ...c }) => c),
     });
     if (ok) setSaved(true);
@@ -233,6 +246,16 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
 
       <label className={styles.label}>Рівень AVP</label>
       <AvpTierPicker value={avpTier} onChange={setAvpTier} styles={styles} />
+
+      <RegistrationFields
+        styles={styles}
+        fee={entryFee}
+        onFee={setEntryFee}
+        opensMode={opensMode}
+        onOpensMode={setOpensMode}
+        opensAt={opensAt}
+        onOpensAt={setOpensAt}
+      />
 
       {/* Category picker */}
       <label className={styles.label}>Категорії</label>
