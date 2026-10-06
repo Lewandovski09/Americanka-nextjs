@@ -1,7 +1,7 @@
 'use client';
 
 import { usePathname, useRouter } from 'next/navigation';
-import { useEffect, useState } from 'react';
+import { useEffect, useRef, useState } from 'react';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import BottomNav from './BottomNav';
 import GlobalNotice from './GlobalNotice';
@@ -25,6 +25,33 @@ export default function AppShell({ children }) {
 
   const isAuthPage = NO_SHELL_PATHS.includes(pathname);
   const isGatedPath = !isAuthPage && GATED_PREFIXES.some((p) => pathname.startsWith(p));
+
+  // A new page always opens at the very top, under the dark status-bar
+  // strip. Next.js scrolls only its own page block into view, and the
+  // strip (the body's top padding on iPhone) stayed above the screen —
+  // after «Видалити турнір», say, the tabs sat under the clock. Back /
+  // forward are left alone: there the browser keeps the old position.
+  const historyMove = useRef(false);
+  useEffect(() => {
+    const onPop = () => {
+      historyMove.current = true;
+    };
+    window.addEventListener('popstate', onPop);
+    return () => window.removeEventListener('popstate', onPop);
+  }, []);
+  const firstPath = useRef(true);
+  useEffect(() => {
+    if (firstPath.current) {
+      firstPath.current = false;
+      return;
+    }
+    if (historyMove.current) {
+      historyMove.current = false;
+      return;
+    }
+    const id = requestAnimationFrame(() => window.scrollTo(0, 0));
+    return () => cancelAnimationFrame(id);
+  }, [pathname]);
 
   useEffect(() => {
     if (!loading && !player && isGatedPath) {
