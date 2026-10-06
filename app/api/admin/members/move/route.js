@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { placeMember } from '@/lib/server/registration';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Admin moves a participant (solo player or pair) within an event.
 // Targets:
@@ -12,17 +13,13 @@ import { placeMember } from '@/lib/server/registration';
 // Only allowed while the categories involved are still open (not started).
 export async function POST(request, { params }) {
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) return Response.json({ success: false, error: 'Тільки адмін' }, { status: 403 });
 
   const { fromCategoryId, targetCategoryId, playerId, teamId, asReserve } = await request.json();
@@ -32,16 +29,14 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Категорії збігаються' }, { status: 400 });
   }
 
-  const { data: from } = await supabaseAdmin
-    .from('tournament_categories')
-    .select('id, event_id, status')
-    .eq('id', fromCategoryId)
-    .maybeSingle();
-  const { data: target } = await supabaseAdmin
-    .from('tournament_categories')
-    .select('*, tournament_events(format_kind)')
-    .eq('id', targetCategoryId)
-    .maybeSingle();
+  const [{ data: from }, { data: target }] = await Promise.all([
+    supabaseAdmin.from('tournament_categories').select('id, event_id, status').eq('id', fromCategoryId).maybeSingle(),
+    supabaseAdmin
+      .from('tournament_categories')
+      .select('*, tournament_events(format_kind)')
+      .eq('id', targetCategoryId)
+      .maybeSingle(),
+  ]);
 
   if (!from || !target) return Response.json({ success: false, error: 'Категорію не знайдено' }, { status: 404 });
   if (from.event_id !== target.event_id) {

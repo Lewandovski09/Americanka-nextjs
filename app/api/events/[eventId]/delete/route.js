@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { addRating } from '@/lib/server/ratings';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Delete a whole event with everything under it: categories, matches,
 // rosters, teams and applications all go via ON DELETE CASCADE.
@@ -40,38 +41,32 @@ import { PRIMARY_SPORT_ID } from '@/lib/sports';
 export async function POST(request, { params }) {
   const { eventId } = params;
 
-  const body = await request.json().catch(() => ({}));
-  const { dryRun, confirmRatingRollback } = body || {};
-
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const supabaseAdmin = createAdminClient();
+  // Everything that doesn't depend on something else is read at once —
+  // the steps used to wait for each other, and the button felt stuck.
+  const [body, { data: authUser }, { data: event }, { data: categories }] = await Promise.all([
+    request.json().catch(() => ({})),
+    getAuthUser(supabase),
+    supabaseAdmin
+      .from('tournament_events')
+      .select('id, name, format_kind, scheduled_at, status')
+      .eq('id', eventId)
+      .maybeSingle(),
+    supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId),
+  ]);
+  const { dryRun, confirmRatingRollback } = body || {};
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
-  const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін може видаляти турніри' }, { status: 403 });
   }
-
-  const { data: event } = await supabaseAdmin
-    .from('tournament_events')
-    .select('id, name, format_kind, scheduled_at, status')
-    .eq('id', eventId)
-    .maybeSingle();
   if (!event) {
     return Response.json({ success: false, error: 'Подію не знайдено' }, { status: 404 });
   }
-
-  const { data: categories } = await supabaseAdmin
-    .from('tournament_categories')
-    .select('id')
-    .eq('event_id', eventId);
   const categoryIds = (categories || []).map((c) => c.id);
 
   // What this event has paid out. Both lists are read in full rather
@@ -192,24 +187,28 @@ export async function POST(request, { params }) {
   // the ones already done are put back, so a retry starts from where the
   // ratings were — nothing is subtracted twice.
   const done = [];
-  const undo = async () => {
-    for (const d of done) await addRating(supabaseAdmin, d.userId, d.sportId, d.delta);
-  };
+  const undo = () => Promise.all(done.map((d) => addRating(supabaseAdmin, d.userId, d.sportId, d.delta)));
+  // All players at once (each change is its own atomic add).
+  const changes = [];
   for (const [sportId, deltaByUser] of deltaBySport) {
-    for (const [userId, delta] of deltaByUser) {
-      if (!delta) continue;
-      const { error: updErr } = await addRating(supabaseAdmin, userId, sportId, -delta);
-      if (updErr) {
-        console.error('[event delete] elo rollback:', updErr);
-        await undo();
-        await dropArchive();
-        return Response.json(
-          { success: false, error: 'Не вдалося скасувати нараховане Ело — турнір не видалено' },
-          { status: 500 }
-        );
-      }
-      done.push({ userId, sportId, delta });
-    }
+    for (const [userId, delta] of deltaByUser) if (delta) changes.push({ userId, sportId, delta });
+  }
+  const results = await Promise.all(
+    changes.map(async (c) => {
+      const { error: updErr } = await addRating(supabaseAdmin, c.userId, c.sportId, -c.delta);
+      if (!updErr) done.push(c);
+      return updErr;
+    })
+  );
+  const failed = results.find(Boolean);
+  if (failed) {
+    console.error('[event delete] elo rollback:', failed);
+    await undo();
+    await dropArchive();
+    return Response.json(
+      { success: false, error: 'Не вдалося скасувати нараховане Ело — турнір не видалено' },
+      { status: 500 }
+    );
   }
 
   // elo_history needs no explicit step any more: since migration 042 it

@@ -5,6 +5,7 @@
 // lives here instead of being re-typed in each of them.
 
 import type { SupabaseAdmin, JudgeRole } from './types';
+import { adminRow } from './authUser';
 
 /**
  * @param eventId - event the action belongs to (null for legacy
@@ -17,7 +18,7 @@ export async function getJudgeRole(
 ): Promise<JudgeRole> {
   // Both lookups at once — they do not depend on each other.
   const [{ data: caller }, judgeRes] = await Promise.all([
-    supabaseAdmin.from('users').select('is_admin').eq('id', playerId).maybeSingle(),
+    adminRow(supabaseAdmin, playerId),
     eventId
       ? supabaseAdmin
           .from('tournament_judges')

@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { seedCapacity } from '@/lib/formats/seedSlots';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Save the manual seeding of a category: the admin sends the roster in
 // the order they arranged it, and every row gets its position as
@@ -17,17 +18,13 @@ export async function POST(request, { params }) {
   const { categoryId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін' }, { status: 403 });
   }
@@ -105,27 +102,26 @@ export async function POST(request, { params }) {
     .map((k, i) => ({ k, i }))
     .filter(({ k }) => k !== null);
 
-  for (let n = 0; n < writes.length; n++) {
-    const { error } = await supabaseAdmin
-      .from(table)
-      .update({ slot_index: -1 - n })
-      .eq('category_id', categoryId)
-      .eq(key, writes[n].k);
-    if (error) {
-      console.error('[seeding] park error:', error.message);
-      return Response.json({ success: false, error: 'Не вдалося зберегти посів' }, { status: 500 });
-    }
+  // Each pass all at once: the rows of one pass never collide with each
+  // other (distinct negative slots, then distinct real ones). Used to be
+  // one round trip per row — dozens for a big bracket.
+  const park = await Promise.all(
+    writes.map(({ k }, n) =>
+      supabaseAdmin.from(table).update({ slot_index: -1 - n }).eq('category_id', categoryId).eq(key, k)
+    )
+  );
+  const parkErr = park.find((r) => r.error)?.error;
+  if (parkErr) {
+    console.error('[seeding] park error:', parkErr.message);
+    return Response.json({ success: false, error: 'Не вдалося зберегти посів' }, { status: 500 });
   }
-  for (const { k, i } of writes) {
-    const { error } = await supabaseAdmin
-      .from(table)
-      .update({ slot_index: i })
-      .eq('category_id', categoryId)
-      .eq(key, k);
-    if (error) {
-      console.error('[seeding] write error:', error.message);
-      return Response.json({ success: false, error: 'Не вдалося зберегти посів' }, { status: 500 });
-    }
+  const place = await Promise.all(
+    writes.map(({ k, i }) => supabaseAdmin.from(table).update({ slot_index: i }).eq('category_id', categoryId).eq(key, k))
+  );
+  const placeErr = place.find((r) => r.error)?.error;
+  if (placeErr) {
+    console.error('[seeding] write error:', placeErr.message);
+    return Response.json({ success: false, error: 'Не вдалося зберегти посів' }, { status: 500 });
   }
 
   return Response.json({ success: true, seeded: writes.length });

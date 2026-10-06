@@ -454,18 +454,33 @@ export default function TournamentDetailPage({ params }) {
 
   // One field per request: whatever is left out keeps its value (and the
   // head judge's court-only request stays a court-only request).
+  // Optimistic, like the score: the change shows and the dialog closes at
+  // once; should the server refuse, it is put back and the reason shown.
   async function saveSlot(patch) {
-    const res = await fetch(`/api/matches/${slotModal.matchId}/schedule`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(patch),
-    });
-    const data = await res.json();
+    const matchId = slotModal.matchId;
+    const before = matches.find((x) => x.id === matchId);
+    const local = {};
+    if (patch.scheduledAt !== undefined) local.scheduled_at = patch.scheduledAt;
+    if (patch.court !== undefined) local.court = patch.court;
+    setMatches((prev) => prev.map((x) => (x.id === matchId ? { ...x, ...local } : x)));
+    const modal = slotModal;
+    setSlotModal(null);
+    let data;
+    try {
+      const res = await fetch(`/api/matches/${matchId}/schedule`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(patch),
+      });
+      data = await res.json();
+    } catch {
+      data = { success: false, error: 'Немає зв’язку. Спробуйте ще раз.' };
+    }
     if (!data.success) {
-      setSlotModal((prev) => ({ ...prev, error: data.error }));
+      if (before) setMatches((prev) => prev.map((x) => (x.id === matchId ? before : x)));
+      setSlotModal({ ...modal, error: data.error });
       return;
     }
-    setSlotModal(null);
     load();
   }
 
@@ -481,17 +496,27 @@ export default function TournamentDetailPage({ params }) {
   }
 
   async function handleSaveJudge(playerId) {
-    const res = await fetch(`/api/matches/${judgeModal.matchId}/judge`, {
-      method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify({ playerId }),
-    });
-    const data = await res.json();
+    const matchId = judgeModal.matchId;
+    const before = matches.find((x) => x.id === matchId);
+    setMatches((prev) => prev.map((x) => (x.id === matchId ? { ...x, judge_id: playerId || null } : x)));
+    const modal = judgeModal;
+    setJudgeModal(null);
+    let data;
+    try {
+      const res = await fetch(`/api/matches/${matchId}/judge`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ playerId }),
+      });
+      data = await res.json();
+    } catch {
+      data = { success: false, error: 'Немає зв’язку. Спробуйте ще раз.' };
+    }
     if (!data.success) {
-      setJudgeModal((prev) => ({ ...prev, error: data.error }));
+      if (before) setMatches((prev) => prev.map((x) => (x.id === matchId ? before : x)));
+      setJudgeModal({ ...modal, error: data.error });
       return;
     }
-    setJudgeModal(null);
     load();
   }
 

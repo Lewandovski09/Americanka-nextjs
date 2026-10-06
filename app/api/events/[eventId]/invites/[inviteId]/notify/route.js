@@ -4,6 +4,7 @@ import { escapeHtml } from '@/lib/telegram';
 import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
 import { publicSiteUrl } from '@/lib/server/siteUrl';
 import { appLink, browserButton } from '@/lib/server/openInApp';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // The Telegram note about a pair invitation, sent separately from the
 // invitation itself, so the player doesn't wait for it: the page calls
@@ -18,7 +19,7 @@ export const maxDuration = 30;
 export async function POST(request, { params }) {
   const { eventId, inviteId } = params;
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) return Response.json({ success: false }, { status: 401 });
   const me = authUser.user.id;
 

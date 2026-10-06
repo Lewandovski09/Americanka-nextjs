@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareCategoryStart, commitCategoryStart } from '@/lib/server/startCategory';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Admin closes registration for ONE category and generates its matches.
 // The admin pages start the whole event at once (see
@@ -9,17 +10,13 @@ import { prepareCategoryStart, commitCategoryStart } from '@/lib/server/startCat
 export async function POST(request, { params }) {
   const { tournamentId } = params; // category id
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін' }, { status: 403 });
   }

@@ -5,12 +5,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { finishCategory } from '@/lib/server/finishCategory';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 export async function POST(request, { params }) {
   const { tournamentId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
@@ -19,11 +20,7 @@ export async function POST(request, { params }) {
 
   // Closing a category pays out its results, so it is an admin action —
   // the button was already admin-only, the endpoint behind it was not.
-  const { data: me } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: me } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!me?.is_admin) {
     return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }

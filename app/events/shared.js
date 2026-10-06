@@ -8,6 +8,7 @@ import { useEffect, useState, useCallback } from 'react';
 import Link from 'next/link';
 import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
+import { invalidate } from '@/lib/clientCache';
 import { computeStandings } from '@/lib/tournamentEngine';
 import { scoreLabel } from '@/lib/formats/sets';
 import { stageWeight, stageLabel, groupTitle } from '@/lib/formats/stages';
@@ -96,43 +97,42 @@ export function useEventData(id) {
   const load = useCallback(async () => {
     const supabase = createClient();
 
-    const { data: ev } = await supabase.from('tournament_events').select('*').eq('id', id).single();
+    // All four at once — they don't depend on each other.
+    const [{ data: ev }, { data: cats }, { data: apps }, { data: crew }] = await Promise.all([
+      supabase.from('tournament_events').select('*').eq('id', id).single(),
+      supabase
+        .from('tournament_categories')
+        .select(
+          `id, category_label, gender, status, max_participants, bracket_system, points_to_win,
+           tournament_players(user_id, slot_index, created_at, users(full_name, last_name, photo_url, gender)),
+           tournament_teams(id, user1_id, user2_id, slot_index, created_at,
+             p1:users!tournament_teams_user1_id_fkey(full_name, last_name, photo_url, gender),
+             p2:users!tournament_teams_user2_id_fkey(full_name, last_name, photo_url, gender)),
+           tournament_matches(*)`
+        )
+        .eq('event_id', id)
+        .order('gender', { ascending: true })
+        .order('category_label', { ascending: true }),
+      supabase
+        .from('tournament_applications')
+        .select(
+          `id, user_id, partner_id, seeking_partner, requested_category, status, assigned_category_id,
+           applicant:users!tournament_applications_user_id_fkey(full_name, photo_url, elo, gender),
+           partner:users!tournament_applications_partner_id_fkey(full_name, elo, gender)`
+        )
+        .eq('event_id', id)
+        .order('created_at', { ascending: true }),
+      // The judging crew — head judge first, then in the order they were added.
+      supabase
+        .from('tournament_judges')
+        .select('user_id, is_head, created_at, users(full_name, photo_url, login)')
+        .eq('event_id', id)
+        .order('is_head', { ascending: false })
+        .order('created_at', { ascending: true }),
+    ]);
     setEvent(ev);
-
-    const { data: cats } = await supabase
-      .from('tournament_categories')
-      .select(
-        `id, category_label, gender, status, max_participants, bracket_system, points_to_win,
-         tournament_players(user_id, slot_index, created_at, users(full_name, last_name, photo_url, gender)),
-         tournament_teams(id, user1_id, user2_id, slot_index, created_at,
-           p1:users!tournament_teams_user1_id_fkey(full_name, last_name, photo_url, gender),
-           p2:users!tournament_teams_user2_id_fkey(full_name, last_name, photo_url, gender)),
-         tournament_matches(*)`
-      )
-      .eq('event_id', id)
-      .order('gender', { ascending: true })
-      .order('category_label', { ascending: true });
     setCategories(cats || []);
-
-    const { data: apps } = await supabase
-      .from('tournament_applications')
-      .select(
-        `id, user_id, partner_id, seeking_partner, requested_category, status, assigned_category_id,
-         applicant:users!tournament_applications_user_id_fkey(full_name, photo_url, elo, gender),
-         partner:users!tournament_applications_partner_id_fkey(full_name, elo, gender)`
-      )
-      .eq('event_id', id)
-      .order('created_at', { ascending: true });
     setApplications(apps || []);
-
-    // The judging crew — head judge first, then in the order they were
-    // added.
-    const { data: crew } = await supabase
-      .from('tournament_judges')
-      .select('user_id, is_head, created_at, users(full_name, photo_url, login)')
-      .eq('event_id', id)
-      .order('is_head', { ascending: false })
-      .order('created_at', { ascending: true });
     setJudges(crew || []);
 
     setLoading(false);
@@ -150,9 +150,11 @@ export function useEventPost(load) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  // `background: true` — return as soon as the server answers; the page
-  // reloads its data meanwhile instead of first.
-  async function post(url, body, { background = false } = {}) {
+  // Returns as soon as the server answers; the page reloads its data
+  // meanwhile (it used to reload first, and every button waited for it).
+  // `{ background: false }` — wait for the fresh data; `{ reload: false }`
+  // — don't reload at all (e.g. the page is being left).
+  async function post(url, body, { background = true, reload = true } = {}) {
     setError('');
     setBusy(true);
     const res = await fetch(url, {
@@ -166,8 +168,10 @@ export function useEventPost(load) {
       setError(data.error || 'Сталася помилка');
       return false;
     }
-    if (background) load();
-    else await load();
+    if (reload) {
+      if (background) load();
+      else await load();
+    }
     // Done, but with something the admin should know (e.g. one of two
     // writes did not go through) — shown in the same place as an error.
     if (data.warning) setError(data.warning);
@@ -194,26 +198,32 @@ export function DeleteEventButton({ event, busy, post }) {
   // touch a rating.
   async function handleDelete() {
     const url = `/api/events/${event.id}/delete`;
+    const base = `Видалити турнір «${event.name}»? Він переміститься в архів видалених турнірів — звідти його можна повернути однією кнопкою.`;
 
+    // A tournament that hasn't started has paid out nothing — ask at once
+    // and delete in one call. One that has played asks the server first
+    // what deleting would undo, so the question quotes real numbers.
     let willUndo = null;
-    try {
-      const res = await fetch(url, {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ dryRun: true }),
-      });
-      const data = await res.json();
-      if (!data.success) {
-        window.alert(data.error || 'Не вдалося перевірити турнір');
+    if (event.status !== 'scheduled') {
+      try {
+        const res = await fetch(url, {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ dryRun: true }),
+        });
+        const data = await res.json();
+        if (!data.success) {
+          window.alert(data.error || 'Не вдалося перевірити турнір');
+          return;
+        }
+        willUndo = data.willUndo;
+      } catch {
+        window.alert('Не вдалося зв’язатися з сервером');
         return;
       }
-      willUndo = data.willUndo;
-    } catch {
-      window.alert('Не вдалося зв’язатися з сервером');
-      return;
     }
 
-    let text = `Видалити турнір «${event.name}»? Він переміститься в архів видалених турнірів — звідти його можна повернути однією кнопкою.`;
+    let text = base;
     if (willUndo?.eloRows > 0 || willUndo?.avpRows > 0) {
       text += '\n\nПоки турнір в архіві, його рейтинг скасовано (при відновленні він повернеться):';
       if (willUndo.eloRows > 0) {
@@ -225,7 +235,13 @@ export function DeleteEventButton({ event, busy, post }) {
     }
 
     if (!window.confirm(text)) return;
-    if (await post(url, { confirmRatingRollback: true })) router.push('/tournaments');
+    // The page is being left — no point reloading the deleted event.
+    if (await post(url, { confirmRatingRollback: true }, { reload: false })) {
+      // The lists must not show it from their memory.
+      invalidate('tournaments:');
+      invalidate('home:');
+      router.push('/tournaments');
+    }
   }
 
   return (

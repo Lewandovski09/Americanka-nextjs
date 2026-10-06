@@ -8,6 +8,7 @@ import {
   resolveAvpTier,
   resolveVenue,
 } from '@/lib/server/eventConfig';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Update a scheduled event's secondary settings (name, date, venue,
 // courts, scoring) and reconcile its category list. The format itself is
@@ -17,17 +18,13 @@ export async function POST(request, { params }) {
   const { eventId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін може змінювати турніри' }, { status: 403 });
   }

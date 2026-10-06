@@ -12,22 +12,19 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { recalcAvpForCategory } from '@/lib/server/avpAward';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 export async function POST(request) {
   const { categoryId, eventId } = await request.json();
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: me } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: me } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!me?.is_admin) {
     return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }

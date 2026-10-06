@@ -67,43 +67,23 @@ export default function AdminPage() {
   async function load() {
     const supabase = createClient();
 
-    const { data: p } = await supabase.from('users').select(USER_COLUMNS).eq('approval_status', 'pending');
-    setPending(p || []);
-
-    const { data: m } = await supabase
-      .from('users')
-      .select(USER_COLUMNS)
-      .eq('gender', 'M')
-      .neq('approval_status', 'pending')
-      .order('elo', { ascending: false });
-    setMales(m || []);
-
-    const { data: f } = await supabase
-      .from('users')
-      .select(USER_COLUMNS)
-      .eq('gender', 'F')
-      .neq('approval_status', 'pending')
-      .order('elo', { ascending: false });
-    setFemales(f || []);
-
-    const { count: doneCount } = await supabase
-      .from('tournament_categories')
-      .select('id', { count: 'exact', head: true })
-      .eq('status', 'done');
-    const { count: matchesPlayed } = await supabase
-      .from('tournament_matches')
-      .select('id', { count: 'exact', head: true })
-      .eq('played', true);
-
+    // Six independent reads — all at once (they used to go one by one).
     // How many approved players can't actually receive a Telegram
     // broadcast — either never linked, or linked and later blocked the
     // bot. telegram_linked_at is cleared when the bot is blocked, so this
     // counts both (the Telegram id itself is server-only, migration 058).
-    const { count: noTelegramCount } = await supabase
-      .from('users')
-      .select('id', { count: 'exact', head: true })
-      .neq('approval_status', 'pending')
-      .is('telegram_linked_at', null);
+    const [{ data: p }, { data: m }, { data: f }, { count: doneCount }, { count: matchesPlayed }, { count: noTelegramCount }] =
+      await Promise.all([
+        supabase.from('users').select(USER_COLUMNS).eq('approval_status', 'pending'),
+        supabase.from('users').select(USER_COLUMNS).eq('gender', 'M').neq('approval_status', 'pending').order('elo', { ascending: false }),
+        supabase.from('users').select(USER_COLUMNS).eq('gender', 'F').neq('approval_status', 'pending').order('elo', { ascending: false }),
+        supabase.from('tournament_categories').select('id', { count: 'exact', head: true }).eq('status', 'done'),
+        supabase.from('tournament_matches').select('id', { count: 'exact', head: true }).eq('played', true),
+        supabase.from('users').select('id', { count: 'exact', head: true }).neq('approval_status', 'pending').is('telegram_linked_at', null),
+      ]);
+    setPending(p || []);
+    setMales(m || []);
+    setFemales(f || []);
 
     const categoryCountsMale = { D: 0, C: 0, B: 0, A: 0 };
     (m || []).forEach((pl) => {
@@ -206,7 +186,7 @@ export default function AdminPage() {
         return false;
       }
 
-      await load();
+      load(); // fresh lists in the background — the button is free at once
       return true;
     } catch (err) {
       setPlayerError(playerId, `Немає звʼязку з сервером: ${err.message}`);
@@ -266,6 +246,10 @@ export default function AdminPage() {
     setNotifSending(false);
 
     if (data.success) {
+      // Telegram to everyone — in the background, the page doesn't wait.
+      if (data.notification?.id) {
+        fetch(`/api/admin/notifications/${data.notification.id}/broadcast`, { method: 'POST', keepalive: true }).catch(() => {});
+      }
       setNotifTitle('');
       setNotifBody('');
       setNotifSent(true);

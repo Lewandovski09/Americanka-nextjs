@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -10,7 +11,7 @@ import { eventParticipantIds } from '@/lib/server/registration';
 export async function POST(request, { params }) {
   const { eventId } = params;
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
@@ -19,11 +20,27 @@ export async function POST(request, { params }) {
   const { categoryId, partnerId, seekingPartner } = await request.json();
   const supabaseAdmin = createAdminClient();
 
-  const { data: event } = await supabaseAdmin
-    .from('tournament_events')
-    .select('*')
-    .eq('id', eventId)
-    .single();
+  // Everything the checks below need, read at once — they used to wait
+  // for each other one by one.
+  const [{ data: event }, { data: player }, { data: existing }, taken, { data: category }] = await Promise.all([
+    supabaseAdmin.from('tournament_events').select('*').eq('id', eventId).maybeSingle(),
+    supabaseAdmin.from('users').select('id, gender, elo, approval_status').eq('id', playerId).maybeSingle(),
+    supabaseAdmin
+      .from('tournament_applications')
+      .select('id, status')
+      .eq('event_id', eventId)
+      .eq('user_id', playerId)
+      .maybeSingle(),
+    eventParticipantIds(supabaseAdmin, eventId),
+    categoryId
+      ? supabaseAdmin
+          .from('tournament_categories')
+          .select('id, category_label, status, gender')
+          .eq('id', categoryId)
+          .eq('event_id', eventId)
+          .maybeSingle()
+      : Promise.resolve({ data: null }),
+  ]);
   if (!event) return Response.json({ success: false, error: 'Подію не знайдено' }, { status: 404 });
   if (event.status === 'done' || event.status === 'cancelled') {
     return Response.json({ success: false, error: 'Реєстрацію закрито' }, { status: 400 });
@@ -35,22 +52,11 @@ export async function POST(request, { params }) {
   const format = getFormat(event.format_kind);
   if (!format) return Response.json({ success: false, error: 'Невідомий формат' }, { status: 400 });
 
-  const { data: player } = await supabaseAdmin
-    .from('users')
-    .select('id, gender, elo, approval_status')
-    .eq('id', playerId)
-    .maybeSingle();
   if (!player || player.approval_status !== 'approved') {
     return Response.json({ success: false, error: 'Ваш профіль ще не підтверджено' }, { status: 403 });
   }
 
   // Already applied?
-  const { data: existing } = await supabaseAdmin
-    .from('tournament_applications')
-    .select('id, status')
-    .eq('event_id', eventId)
-    .eq('user_id', playerId)
-    .maybeSingle();
   if (existing && existing.status !== 'withdrawn' && existing.status !== 'rejected') {
     return Response.json({ success: false, error: 'Ви вже подали заявку на цю подію' }, { status: 400 });
   }
@@ -59,7 +65,6 @@ export async function POST(request, { params }) {
   // also covers being named as somebody's partner, or having been
   // entered by an admin by hand — in both cases there is no row of their
   // own to find above.
-  const taken = await eventParticipantIds(supabaseAdmin, eventId);
   if (taken.has(playerId)) {
     return Response.json(
       { success: false, error: 'Вас вже заявлено на цю подію — знайдіть свою заявку нижче' },
@@ -71,12 +76,6 @@ export async function POST(request, { params }) {
   if (!categoryId) {
     return Response.json({ success: false, error: 'Виберіть лігу для заявки' }, { status: 400 });
   }
-  const { data: category } = await supabaseAdmin
-    .from('tournament_categories')
-    .select('id, category_label, status, gender')
-    .eq('id', categoryId)
-    .eq('event_id', eventId)
-    .maybeSingle();
   if (!category) return Response.json({ success: false, error: 'Лігу не знайдено' }, { status: 400 });
   if (category.status !== 'scheduled') {
     return Response.json({ success: false, error: 'Реєстрацію в цю лігу закрито' }, { status: 400 });

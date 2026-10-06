@@ -12,12 +12,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { telegramApi } from '@/lib/telegram';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 async function requireAdmin() {
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) return 'Не авторизовано';
-  const { data: me } = await createAdminClient().from('users').select('is_admin').eq('id', authUser.user.id).maybeSingle();
+  const { data: me } = await adminRow(createAdminClient(), authUser.user.id);
   return me?.is_admin ? null : 'Тільки для адміністраторів';
 }
 

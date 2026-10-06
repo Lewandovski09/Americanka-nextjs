@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { eventParticipantIds } from '@/lib/server/registration';
 import { joinSeeker, dropPartnerAds } from '@/lib/server/pairing';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // A pair invitation (migration 058): someone who saw a «Шукаю пару»
 // notice asked to play with the player who applied alone. The invited
@@ -18,7 +19,7 @@ export async function POST(request, { params }) {
   // Independent of each other — fetched at once (every step used to wait
   // for the previous one, and an answer took seconds).
   const [{ data: authUser }, { action } = {}, { data: inv }] = await Promise.all([
-    supabase.auth.getUser(),
+    getAuthUser(supabase),
     request.json().catch(() => ({})),
     supabaseAdmin.from('pair_invites').select('*').eq('id', inviteId).eq('event_id', eventId).maybeSingle(),
   ]);

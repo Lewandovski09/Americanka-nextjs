@@ -1,23 +1,20 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Admin takes a participant (solo player or pair) out of a category and
 // returns them to the application queue (status back to 'pending'), so
 // they can be re-distributed. Allowed only before the category started.
 export async function POST(request, { params }) {
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) return Response.json({ success: false, error: 'Тільки адмін' }, { status: 403 });
 
   const { categoryId, playerId, teamId } = await request.json();

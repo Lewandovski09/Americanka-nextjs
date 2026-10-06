@@ -12,6 +12,7 @@ import { assignScheduledTimes, cursorsFromMatches } from '@/lib/schedule';
 import { getJudgeRole } from '@/lib/server/judges';
 import { finishCategory, refreshFinishedCategory } from '@/lib/server/finishCategory';
 import { saveScore } from '@/lib/server/matchScore';
+import { getAuthUser } from '@/lib/server/authUser';
 
 export async function POST(request, { params }) {
   const { matchId } = params;
@@ -29,7 +30,7 @@ export async function POST(request, { params }) {
   // Who is asking and which match — independent, so fetched together
   // (every step here used to wait for the previous one).
   const [{ data: authUser }, { data: match }] = await Promise.all([
-    supabase.auth.getUser(),
+    getAuthUser(supabase),
     supabaseAdmin
       .from('tournament_matches')
       .select(

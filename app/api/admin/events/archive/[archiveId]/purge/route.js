@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // «Видалити назавжди» — removes a tournament from the archive of deleted
 // tournaments (migration 052). Its rating was already rolled back when it
@@ -8,7 +9,7 @@ export async function POST(request, { params }) {
   const { archiveId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareCategoryStart, commitCategoryStart } from '@/lib/server/startCategory';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // «Запустити» — the whole event goes off at once: every league that has
 // not started yet gets its matches generated and turns live.
@@ -13,17 +14,13 @@ export async function POST(request, { params }) {
   const { eventId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін' }, { status: 403 });
   }
@@ -43,29 +40,35 @@ export async function POST(request, { params }) {
     );
   }
 
-  const prepared = [];
-  for (const c of pending) {
-    try {
-      prepared.push(await prepareCategoryStart(supabaseAdmin, c.id));
-    } catch (e) {
-      return Response.json({ success: false, error: `${categoryName(c)}: ${e.message}` }, { status: 400 });
-    }
+  // Every league is prepared at once (they don't depend on each other);
+  // nothing is written until all of them are fine.
+  const prepTries = await Promise.all(
+    pending.map((c) =>
+      prepareCategoryStart(supabaseAdmin, c.id).then(
+        (p) => ({ p }),
+        (e) => ({ c, e })
+      )
+    )
+  );
+  const prepFail = prepTries.find((t) => t.e);
+  if (prepFail) {
+    return Response.json({ success: false, error: `${categoryName(prepFail.c)}: ${prepFail.e.message}` }, { status: 400 });
   }
+  const prepared = prepTries.map((t) => t.p);
 
-  let matches = 0;
-  for (const p of prepared) {
-    const result = await commitCategoryStart(supabaseAdmin, p.category, p.rows);
-    if (result.error) {
-      // Whatever went in before this stays in — an insert failing here is
-      // a database problem, not something the admin can fix by retrying
-      // the rest, so say which league broke.
-      return Response.json(
-        { success: false, error: `${categoryName(p.category)}: ${result.error}` },
-        { status: 500 }
-      );
-    }
-    matches += result.matches;
+  // And started at once.
+  const results = await Promise.all(prepared.map((p) => commitCategoryStart(supabaseAdmin, p.category, p.rows)));
+  const failIdx = results.findIndex((r) => r.error);
+  if (failIdx >= 0) {
+    // Whatever went in for the other leagues stays in — an insert failing
+    // here is a database problem, not something the admin can fix by
+    // retrying the rest, so say which league broke.
+    return Response.json(
+      { success: false, error: `${categoryName(prepared[failIdx].category)}: ${results[failIdx].error}` },
+      { status: 500 }
+    );
   }
+  const matches = results.reduce((n, r) => n + (r.matches || 0), 0);
 
   return Response.json({ success: true, categories: prepared.length, matches });
 }

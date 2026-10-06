@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { addRating } from '@/lib/server/ratings';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // «Відновити» — puts a deleted tournament back from the archive
 // (migration 052): every row of the snapshot returns with its own id,
@@ -12,26 +13,20 @@ export async function POST(request, { params }) {
   const { archiveId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
   const supabaseAdmin = createAdminClient();
   // The archive is the owner's only (migration 053).
-  const { data: owner } = await supabaseAdmin
-    .from('app_owners')
-    .select('user_id')
-    .eq('user_id', authUser.user.id)
-    .maybeSingle();
+  const [{ data: owner }, { data: entry }] = await Promise.all([
+    supabaseAdmin.from('app_owners').select('user_id').eq('user_id', authUser.user.id).maybeSingle(),
+    supabaseAdmin.from('deleted_events').select('id, event_id, name, snapshot').eq('id', archiveId).maybeSingle(),
+  ]);
   if (!owner) {
     return Response.json({ success: false, error: 'Архів доступний лише власнику застосунку' }, { status: 403 });
   }
 
-  const { data: entry } = await supabaseAdmin
-    .from('deleted_events')
-    .select('id, event_id, name, snapshot')
-    .eq('id', archiveId)
-    .maybeSingle();
   if (!entry) return Response.json({ success: false, error: 'Запис архіву не знайдено' }, { status: 404 });
 
   const { data: exists } = await supabaseAdmin
@@ -70,17 +65,16 @@ export async function POST(request, { params }) {
     const m = deltaBySport.get(sport);
     m.set(r.user_id, (m.get(r.user_id) || 0) + (r.delta || 0));
   }
-  let eloFailed = 0;
+  // All players at once (each change is its own atomic add).
+  const changes = [];
   for (const [sportId, deltaByUser] of deltaBySport) {
-    for (const [userId, delta] of deltaByUser) {
-      if (!delta) continue;
-      const { error: err } = await addRating(supabaseAdmin, userId, sportId, delta);
-      if (err) {
-        console.error('[archive restore] elo:', err);
-        eloFailed += 1;
-      }
-    }
+    for (const [userId, delta] of deltaByUser) if (delta) changes.push({ sportId, userId, delta });
   }
+  const errors = await Promise.all(
+    changes.map(async (c) => (await addRating(supabaseAdmin, c.userId, c.sportId, c.delta)).error)
+  );
+  const eloFailed = errors.filter(Boolean).length;
+  errors.filter(Boolean).forEach((err) => console.error('[archive restore] elo:', err));
 
   // The archive entry goes only when everything came back — otherwise it
   // stays as the record of which ratings still need the admin's hand.

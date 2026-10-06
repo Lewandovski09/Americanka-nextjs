@@ -2,13 +2,14 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { CATEGORY_STARTING_ELO, categoryForElo } from '@/lib/elo';
 import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 export async function POST(request, { params }) {
   const { playerId } = params;
   const { elo: requestedElo, category } = await request.json();
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
@@ -18,11 +19,7 @@ export async function POST(request, { params }) {
   // Verify the caller is actually an admin (defense in depth — RLS
   // also enforces this at the DB level, but we check here too for
   // a clean error message).
-  const { data: caller } = await supabaseAdmin
-    .from('users')
-    .select('is_admin')
-    .eq('id', authUser.user.id)
-    .maybeSingle();
+  const { data: caller } = await adminRow(supabaseAdmin, authUser.user.id);
 
   if (!caller?.is_admin) {
     return Response.json({ success: false, error: 'Тільки адмін може підтверджувати рейтинг' }, { status: 403 });

@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getJudgeRole, loadMatchContext } from '@/lib/server/judges';
+import { getAuthUser } from '@/lib/server/authUser';
 
 // Who judges ONE game. Set by an admin or by the head judge — they are
 // the two people who run the day and shuffle the crew between courts.
@@ -15,7 +16,7 @@ export async function POST(request, { params }) {
   const { matchId } = params;
 
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }

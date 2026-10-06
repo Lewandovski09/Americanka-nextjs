@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
 // Deleting via auth.admin.deleteUser (not a plain players delete) is
 // what matters here: players.id references auth.users(id) on delete
@@ -11,13 +12,13 @@ import { createAdminClient } from '@/lib/supabase/admin';
 
 export async function POST() {
   const supabase = createClient();
-  const { data: authUser } = await supabase.auth.getUser();
+  const { data: authUser } = await getAuthUser(supabase);
   if (!authUser?.user) {
     return Response.json({ success: false, error: 'Не авторизовано' }, { status: 401 });
   }
 
   const supabaseAdmin = createAdminClient();
-  const { data: me } = await supabaseAdmin.from('users').select('is_admin').eq('id', authUser.user.id).maybeSingle();
+  const { data: me } = await adminRow(supabaseAdmin, authUser.user.id);
   if (!me?.is_admin) {
     return Response.json({ success: false, error: 'Тільки для адміністраторів' }, { status: 403 });
   }
