@@ -31,6 +31,7 @@ import EventConfigForm from './EventConfigForm';
 import ManualEntry from './ManualEntry';
 import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
+import AnnounceButton from '@/components/AnnounceButton';
 
 const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
 
@@ -111,6 +112,7 @@ export default function EventSettingsPage({ params }) {
         <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>{regClosed ? '🔒 Реєстрацію закрито' : '🟢 Реєстрація відкрита'}</div>
+      <AnnounceButton event={event} onDone={load} />
 
       <div className={styles.tabs}>
         <button

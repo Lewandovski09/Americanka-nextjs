@@ -232,3 +232,58 @@ export async function broadcastTelegramMessage(chatIds: (string | number)[], tex
 export async function telegramApi(method: string, payload: Record<string, unknown> = {}): Promise<TelegramCallResult> {
   return callTelegram(method, payload);
 }
+
+export interface TrySendPhotoResult extends TrySendResult {
+  /** Telegram's id of the uploaded picture — reuse it to send it again. */
+  photoId?: string;
+}
+
+/**
+ * Best-effort photo with a caption (HTML) and optional inline buttons.
+ * `photo` is an https URL Telegram downloads, or a file_id from an
+ * earlier send (much faster — nothing is downloaded again). Never throws.
+ * A caption is at most 1024 characters — the caller keeps it short.
+ */
+export async function trySendTelegramPhoto(
+  chatId: string | number,
+  photo: string,
+  caption: string,
+  replyMarkup?: Record<string, unknown>
+): Promise<TrySendPhotoResult> {
+  const payload: Record<string, unknown> = { chat_id: chatId, photo, caption, parse_mode: 'HTML' };
+  if (replyMarkup) payload.reply_markup = replyMarkup;
+  const result = await callTelegram('sendPhoto', payload);
+  if (!result.ok) {
+    console.error('[Telegram] sendPhoto failed:', chatId, result.error);
+    return { ok: false, blocked: !!result.blocked, error: result.error };
+  }
+  const sizes = (result.result as { photo?: { file_id: string }[] } | undefined)?.photo || [];
+  return { ok: true, blocked: false, photoId: sizes[sizes.length - 1]?.file_id };
+}
+
+/**
+ * Best-effort text message with inline buttons (the plain
+ * trySendTelegramMessage has none). Link previews are off — the button
+ * carries the link.
+ */
+export async function trySendTelegramMessageWithButtons(
+  chatId: string | number,
+  text: string,
+  replyMarkup?: Record<string, unknown>
+): Promise<TrySendResult> {
+  const payload: Record<string, unknown> = {
+    chat_id: chatId,
+    text,
+    parse_mode: 'HTML',
+    link_preview_options: { is_disabled: true },
+  };
+  if (replyMarkup) payload.reply_markup = replyMarkup;
+  const result = await callTelegram('sendMessage', payload);
+  if (!result.ok) console.error('[Telegram] sendMessage failed:', chatId, result.error);
+  return { ok: result.ok, blocked: !!result.blocked, error: result.error };
+}
+
+/** Pause between messages of a broadcast (see BROADCAST_INTERVAL_MS). */
+export function broadcastPause(): Promise<void> {
+  return sleep(BROADCAST_INTERVAL_MS);
+}

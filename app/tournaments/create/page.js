@@ -11,6 +11,8 @@ import {
   defaultParticipantsFor,
 } from '@/lib/formats';
 import AvpTierPicker from '@/components/AvpTierPicker';
+import AnnounceSwitch from '@/components/AnnounceSwitch';
+import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
 import styles from './create.module.css';
 import OptionBtn from '@/components/OptionBtn';
 import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
@@ -52,6 +54,10 @@ export default function CreateEventPage() {
   const [useFinalPoints, setUseFinalPoints] = useState(false);
   const [finalPointsToWin, setFinalPointsToWin] = useState(15);
   const [avpTier, setAvpTier] = useState(null);
+  // «Оголосити в Telegram» — off unless the admin turns it on.
+  const [announce, setAnnounce] = useState(false);
+  const [announcing, setAnnouncing] = useState(null); // null | number sent so far
+  const [created, setCreated] = useState(null); // the event, when it was created but the announcement failed
 
   // categories: array of { gender, categoryLabel, maxParticipants, bracketSystem }
   // Elo bands are derived automatically on the server (even split of the
@@ -168,9 +174,27 @@ export default function CreateEventPage() {
       body: JSON.stringify(payload),
     });
     const data = await res.json();
-    setLoading(false);
 
-    if (!data.success) return setError(data.error || 'Не вдалося створити турнір');
+    if (!data.success) {
+      setLoading(false);
+      return setError(data.error || 'Не вдалося створити турнір');
+    }
+
+    if (announce && data.event?.id) {
+      setAnnouncing(0);
+      const r = await runAnnouncement(data.event.id, setAnnouncing);
+      setAnnouncing(null);
+      setLoading(false);
+      if (!r.ok || r.channel?.ok === false) {
+        // The tournament exists — only the announcement needs another try
+        // (the event settings have the button for it).
+        setCreated(data.event);
+        return setError(
+          `Турнір створено ✅, але оголошення: ${r.error || announcementSummary(r)}. Повторити можна в налаштуваннях турніру.`
+        );
+      }
+    }
+    setLoading(false);
     router.push('/tournaments');
   }
 
@@ -405,11 +429,25 @@ export default function CreateEventPage() {
         формуються після закриття реєстрації.
       </div>
 
+      <AnnounceSwitch checked={announce} onChange={setAnnounce} disabled={loading || !!created} />
+
       {error && <div className={styles.errMsg}>{error}</div>}
 
-      <button className={styles.btnPrimary} disabled={loading} onClick={handleCreate}>
-        {loading ? 'Створення...' : 'Створити подію →'}
-      </button>
+      {created ? (
+        <button className={styles.btnPrimary} onClick={() => router.push(`/events/settings/${created.id}`)}>
+          До налаштувань турніру →
+        </button>
+      ) : (
+        <button className={styles.btnPrimary} disabled={loading} onClick={handleCreate}>
+          {announcing != null
+            ? `Надсилаємо оголошення… ${announcing}`
+            : loading
+            ? 'Створення...'
+            : announce
+            ? 'Створити й оголосити →'
+            : 'Створити подію →'}
+        </button>
+      )}
     </div>
   );
 }
