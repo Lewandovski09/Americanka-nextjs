@@ -4,6 +4,7 @@ import HomeInvites from '@/components/HomeInvites';
 import Image from 'next/image';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
+import Link from 'next/link';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { createClient } from '@/lib/supabase/client';
 import { getFormat } from '@/lib/formats';
@@ -437,15 +438,28 @@ export default function HomePage() {
             <span className={styles.nextShine} aria-hidden="true" />
             <div className={styles.nextTournamentTop}>
               <div className={styles.nextTournamentName}>{nextEvent.format?.displayName || 'Турнір'}</div>
-              <span
-                className={`${styles.statusBadge} ${
-                  nextEvent.status !== 'live' && registrationState({ ...nextEvent, status: 'scheduled' }) === 'soon'
-                    ? styles.statusBadgeSoon
-                    : ''
-                }`}
-              >
-                {nextEvent.status === 'live' ? 'Триває' : registrationLabel({ ...nextEvent, status: 'scheduled' })}
-              </span>
+              <div className={styles.nextTopRight}>
+                <span
+                  className={`${styles.statusBadge} ${
+                    nextEvent.status !== 'live' && registrationState({ ...nextEvent, status: 'scheduled' }) === 'soon'
+                      ? styles.statusBadgeSoon
+                      : ''
+                  }`}
+                >
+                  {nextEvent.status === 'live' ? 'Триває' : registrationLabel({ ...nextEvent, status: 'scheduled' })}
+                </span>
+                {/* Admin: the tournament's settings, as on the «Турніри» cards. */}
+                {player?.is_admin && nextEvent.id && (
+                  <Link
+                    href={nextEvent.status === 'live' ? `/tournaments/settings/${nextEvent.id}` : `/events/settings/${nextEvent.id}`}
+                    className={styles.nextGear}
+                    title="Налаштування"
+                    aria-label="Налаштування турніру"
+                  >
+                    ⚙
+                  </Link>
+                )}
+              </div>
             </div>
             <div className={styles.nextTournamentMeta}>
               {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}

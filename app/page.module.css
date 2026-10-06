@@ -888,3 +888,23 @@
 .nextTop .nextCountdown {
   position: relative;
 }
+
+/* Badge + the admin's ⚙ on the «Найближчий турнір» banner. */
+.nextTopRight {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex-shrink: 0;
+}
+
+.nextGear {
+  position: relative;
+  z-index: 2;
+  font-size: 16.5px;
+  line-height: 1;
+  text-decoration: none;
+  padding: 5px 8px;
+  border-radius: var(--r-sm);
+  background: rgba(255, 255, 255, 0.18);
+  color: #fff;
+}
