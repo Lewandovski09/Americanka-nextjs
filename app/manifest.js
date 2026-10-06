@@ -8,8 +8,13 @@ export default function manifest() {
     name: `${VENUE.brandName.toUpperCase()} — ${VENUE.venueName}`,
     short_name: VENUE.brandName,
     description: `Турніри пляжного волейболу: заявки, сітка, рейтинг Ело. ${VENUE.venueName}, ${VENUE.address}.`,
+    id: '/',
     start_url: '/',
     scope: '/',
+    // Links to the site open in the installed app where the system allows
+    // it (Chrome / Edge on computers; Android does it by itself).
+    handle_links: 'preferred',
+    launch_handler: { client_mode: ['navigate-existing', 'auto'] },
     display: 'standalone',
     orientation: 'portrait',
     background_color: '#0d2347',
