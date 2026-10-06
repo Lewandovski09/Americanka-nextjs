@@ -58,7 +58,8 @@ export default function EventRegisterPage({ params, searchParams }) {
     if (!event || nudged.current) return;
     const at = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : 0;
     if (!at || at > now || now - at > 2 * 24 * 3600 * 1000) return;
-    if (!event.announced_at || new Date(event.announced_at).getTime() >= at || event.open_announce_done_at) return;
+    if (event.open_announce_done_at) return;
+    if (event.announced_at ? new Date(event.announced_at).getTime() >= at : now - at < 90_000) return;
     nudged.current = true;
     fetch('/api/cron/registration-open', { method: 'POST', keepalive: true }).catch(() => {});
   }, [event, now]);

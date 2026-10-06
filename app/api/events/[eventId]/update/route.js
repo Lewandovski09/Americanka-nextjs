@@ -92,7 +92,11 @@ export async function POST(request, { params }) {
   if ('registrationOpensAt' in body) {
     const opens = parseRegistrationOpens(body.registrationOpensAt, scheduledAt);
     if (opens.error) return Response.json({ success: false, error: opens.error }, { status: 400 });
-    extra.registration_opens_at = opens.opensAt;
+    // «At once» keeps what was there; a planned opening switched to «at
+    // once» is stamped as now (069 — so «Заявки приймаються» goes out).
+    const prev = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : null;
+    extra.registration_opens_at =
+      opens.opensAt || (prev && prev > Date.now() ? new Date().toISOString() : event.registration_opens_at || null);
     const before = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : null;
     const after = opens.opensAt ? new Date(opens.opensAt).getTime() : null;
     // Moved to a new future moment → «Заявки приймаються» goes out then

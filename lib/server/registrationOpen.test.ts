@@ -56,8 +56,14 @@ describe('dueOpenings', () => {
     const sb: any = fakeSupabase(world({ announced_at: iso(NOW - 60_000) }));
     expect(await dueOpenings(sb, NOW)).toEqual([]);
   });
-  it('not when never announced, closed by the admin, or already done', async () => {
-    for (const extra of [{ announced_at: null }, { registration_open: false }, { open_announce_done_at: iso(NOW) }]) {
+  it('also when never announced (069) — after 90 s of grace', async () => {
+    let sb: any = fakeSupabase(world({ announced_at: null }));
+    expect((await dueOpenings(sb, NOW)).map((e: any) => e.id)).toEqual(['e1']);
+    sb = fakeSupabase(world({ announced_at: null, registration_opens_at: iso(NOW - 30_000) }));
+    expect(await dueOpenings(sb, NOW)).toEqual([]);
+  });
+  it('not when closed by the admin or by time, or already done', async () => {
+    for (const extra of [{ registration_open: false }, { open_announce_done_at: iso(NOW) }, { registration_closes_at: iso(NOW - 1000) }]) {
       const sb: any = fakeSupabase(world(extra));
       expect(await dueOpenings(sb, NOW)).toEqual([]);
     }

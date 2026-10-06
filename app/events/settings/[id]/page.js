@@ -22,6 +22,7 @@ import {
   CategoryPanel,
   StartEventButton,
   DeleteEventButton,
+  DeleteCategoryButton,
   PairRow,
   isMixFormat,
 } from '../../shared';
@@ -236,6 +237,14 @@ export default function EventSettingsPage({ params }) {
                   })
                 }
                 onRemove={(ref) => post('/api/admin/members/remove', { categoryId: activeCat.id, ...ref })}
+              />
+              <DeleteCategoryButton
+                key={`del-${activeCat.id}`}
+                event={event}
+                category={activeCat}
+                busy={busy}
+                post={post}
+                onDeleted={() => setActiveCatId(null)}
               />
               {/* Sign people up by hand, straight into the open league. */}
               <ManualEntry

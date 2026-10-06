@@ -2,14 +2,17 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareCategoryStart, commitCategoryStart } from '@/lib/server/startCategory';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { removeCategory } from '@/lib/server/removeCategory';
 
 // «Запустити» — the whole event goes off at once: every league that has
 // not started yet gets its matches generated and turns live.
 //
-// All or nothing. Every league is built first, in memory; if any of them
-// can't be (seeding not set, too few pairs, …) nothing is written and
-// the answer names the league at fault. Half a started event would leave
-// the admin with brackets they cannot take back.
+// Every league is built first, in memory. By default it is all or
+// nothing: if any league can't be built (too few players, …) nothing is
+// written and the answer names it. With { partial: true } — the admin
+// confirmed «Точно почати?» — the leagues that can be built start, and
+// the rest are cancelled (removed; their applications are closed), so
+// the tournament goes on with what got together.
 export async function POST(request, { params }) {
   const { eventId } = params;
 
@@ -50,11 +53,22 @@ export async function POST(request, { params }) {
       )
     )
   );
+  const { partial } = await request.json().catch(() => ({}));
   const prepFail = prepTries.find((t) => t.e);
-  if (prepFail) {
+  if (prepFail && !partial) {
     return Response.json({ success: false, error: `${categoryName(prepFail.c)}: ${prepFail.e.message}` }, { status: 400 });
   }
-  const prepared = prepTries.map((t) => t.p);
+  const prepared = prepTries.filter((t) => t.p).map((t) => t.p);
+  const left = prepTries.filter((t) => t.e);
+  if (prepared.length === 0) {
+    return Response.json(
+      {
+        success: false,
+        error: `Жодна категорія не готова до старту: ${left.map((t) => `${categoryName(t.c)} — ${t.e.message}`).join('; ')}`,
+      },
+      { status: 400 }
+    );
+  }
 
   // And started at once.
   const results = await Promise.all(prepared.map((p) => commitCategoryStart(supabaseAdmin, p.category, p.rows)));
@@ -70,7 +84,15 @@ export async function POST(request, { params }) {
   }
   const matches = results.reduce((n, r) => n + (r.matches || 0), 0);
 
-  return Response.json({ success: true, categories: prepared.length, matches });
+  // The leagues that didn't get together are cancelled.
+  const cancelled = [];
+  for (const t of left) {
+    const r = await removeCategory(supabaseAdmin, t.c.id, { eventStarted: true });
+    if (r.ok) cancelled.push(categoryName(t.c));
+    else console.error('[start] cancel category:', r.error);
+  }
+
+  return Response.json({ success: true, categories: prepared.length, matches, cancelled });
 }
 
 function categoryName(c) {

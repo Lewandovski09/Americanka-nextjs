@@ -22,6 +22,7 @@ import {
   CategoryTabs,
   StartEventButton,
   DeleteEventButton,
+  DeleteCategoryButton,
 } from '@/app/events/shared';
 import JudgesTab from '@/app/events/JudgesTab';
 import { useVenues, selectableVenues, venueLabel } from '@/hooks/useVenues';
@@ -106,6 +107,14 @@ export default function TournamentSettingsPage({ params }) {
             isPair={isPair}
             busy={busy}
             post={post}
+          />
+          <DeleteCategoryButton
+            key={`del-${activeCat.id}`}
+            event={event}
+            category={activeCat}
+            busy={busy}
+            post={post}
+            onDeleted={() => setActiveCatId(null)}
           />
           {/* Leagues that have not gone off yet — all of them at once. */}
           <StartEventButton

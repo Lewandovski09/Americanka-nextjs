@@ -30,7 +30,8 @@ export default function AnnounceButton({ event, onDone }) {
 
   // The second message — «Заявки приймаються» at the opening time (066).
   const opensMs = event.registration_opens_at ? new Date(event.registration_opens_at).getTime() : 0;
-  const openPlanned = !!opensMs && !!event.announced_at && new Date(event.announced_at).getTime() < opensMs;
+  // goes out for every tournament (069), unless the announcement came after the opening
+  const openPlanned = !!opensMs && (!event.announced_at || new Date(event.announced_at).getTime() < opensMs);
   const openNote = !openPlanned
     ? null
     : event.open_announce_done_at

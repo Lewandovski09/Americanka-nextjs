@@ -27,6 +27,7 @@ function tg() {
   return {
     log,
     trySendTelegramMessageWithButtons: async (chat: any, text: string, kb: any) => (log.push({ chat, text, kb }), { ok: true }),
+    trySendTelegramPhoto: async (chat: any, photo: string, text: string, kb: any) => (log.push({ chat, photo, text, kb }), { ok: true, photoId: 'PH1' }),
     broadcastPause: async () => {},
   };
 }
@@ -48,6 +49,9 @@ describe('sendScheduleNotice', () => {
 
     const again: any = await sendScheduleNotice(sb, 'e1', { siteUrl: SITE, telegram: t });
     expect(again.already).toBe(true);
+    // with the app's picture: the card URL first, then its Telegram id
+    expect(String(t.log[0].photo).includes('/api/og/event/e1')).toBe(true);
+    expect(t.log.slice(1).every((x) => x.photo === 'PH1')).toBe(true);
     expect(t.log.length).toBe(4);
   });
 });

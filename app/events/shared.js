@@ -326,6 +326,46 @@ export function CategoryTabs({ categories, activeId, onSelect }) {
 // The seeding does not have to be arranged first: leagues the admin
 // never got to are seeded by the order their applications were
 // distributed. Only an empty league blocks the start.
+// «🗑 Видалити категорію» — one league out of the tournament, while
+// applications are taken or after the start (lib/server/removeCategory).
+// Always asks first; after the start it says what goes with it (games,
+// Ело, AVP), which is put back as when deleting a whole tournament.
+export function DeleteCategoryButton({ event, category, busy, post, onDeleted }) {
+  const started = event.status !== 'scheduled';
+  const name = `${category.gender === 'M' ? 'Ч · ' : category.gender === 'F' ? 'Ж · ' : ''}${category.category_label || 'Категорія'}`;
+  const url = `/api/events/${event.id}/categories/${category.id}/delete`;
+
+  async function handle() {
+    let extra = started
+      ? 'Учасники, розклад і рахунок цієї категорії зникнуть, їхні заявки буде закрито.'
+      : 'Заявки, розподілені в неї, повернуться в чергу — їх можна буде розподілити в іншу категорію.';
+    if (started) {
+      try {
+        const res = await fetch(url, { method: 'POST', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ dryRun: true }) });
+        const data = await res.json();
+        const u = data.willUndo;
+        if (u?.eloRows > 0) extra += `\n\nЕло буде повернуто: ${u.eloRows} змін у ${u.eloPlayers} гравців.`;
+        if (u?.avpRows > 0) extra += `\nAVP: ${u.avpPoints} очок буде знято.`;
+      } catch {
+        // asked anyway
+      }
+    }
+    if (!(await appConfirm(`${extra}\n\nЦе незворотно.`, { title: `Точно видалити «${name}»?`, okText: 'Видалити', danger: true }))) return;
+    const ok = await post(url, {});
+    if (ok) {
+      invalidate('tournaments:');
+      invalidate('home:');
+      onDeleted?.();
+    }
+  }
+
+  return (
+    <button className={styles.deleteCatBtn} disabled={busy} onClick={handle}>
+      🗑 Видалити категорію «{name}»
+    </button>
+  );
+}
+
 export function StartEventButton({ event, categories, format, busy, post }) {
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   const rowsOf = (c) => (isPair ? c.tournament_teams || [] : c.tournament_players || []);
@@ -333,47 +373,49 @@ export function StartEventButton({ event, categories, format, busy, post }) {
   const pending = categories.filter((c) => c.status === 'scheduled');
   if (pending.length === 0) return null;
 
-  const empty = pending.filter((c) => rowsOf(c).length === 0);
-  const unseeded = pending.filter((c) => rowsOf(c).some((r) => r.slot_index == null));
-  // Americanka's schedule is built for exactly 8 players — the server
-  // refuses anything else, so the button is held back the same way an
-  // empty category holds it back, instead of letting the admin hit a
-  // failed start.
-  const shortHanded =
-    format?.kind === 'americanka' ? pending.filter((c) => rowsOf(c).length !== 8) : [];
+  // Leagues that can't start as they are: empty ones, and Americanka
+  // without exactly 8 players. They don't hold the start back any more —
+  // after «Точно почати?» they are cancelled and the rest go on.
+  const notReady = pending.filter(
+    (c) => rowsOf(c).length === 0 || (format?.kind === 'americanka' && rowsOf(c).length !== 8)
+  );
+  const ready = pending.filter((c) => !notReady.includes(c));
+  const unseeded = ready.filter((c) => rowsOf(c).some((r) => r.slot_index == null));
   const label = (c) =>
     `${c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}${c.category_label || 'Категорія'}`;
+  const count = (c) => (format?.kind === 'americanka' ? ` (${rowsOf(c).length}/8)` : ` (${rowsOf(c).length})`);
+
+  async function start() {
+    const lines = [
+      ready.length ? `Почнуть: ${ready.map(label).join(', ')}.` : null,
+      notReady.length
+        ? `Не зібралися й будуть анульовані: ${notReady.map((c) => label(c) + count(c)).join(', ')}.`
+        : null,
+      'Розклад піде в Telegram-канал і учасникам у бот.',
+    ].filter(Boolean);
+    if (!(await appConfirm(lines.join('\n\n'), { title: 'Точно готові почати турнір?', okText: 'Так, почати' }))) return;
+    const ok = await post(`/api/events/${event.id}/start`, { partial: true });
+    if (!ok) return;
+    // «📋 Розклад готовий» to the channel and every participant — in the
+    // background (lib/server/scheduleNotice); sent once.
+    fetch(`/api/events/${event.id}/schedule-notify`, { method: 'POST', keepalive: true }).catch(() => {});
+    if (ok.cancelled?.length) appAlert(`Анульовано: ${ok.cancelled.join(', ')}.`, { title: 'Турнір запущено ✅' });
+  }
 
   return (
     <div className={styles.startBox}>
-      {empty.length > 0 && (
+      {notReady.length > 0 && (
         <div className={styles.hint}>
-          Порожні категорії: {empty.map(label).join(', ')} — додайте учасників або видаліть їх.
+          Не зібралися: {notReady.map((c) => label(c) + count(c)).join(', ')} — при запуску їх буде анульовано.
         </div>
       )}
-      {empty.length === 0 && shortHanded.length > 0 && (
+      {unseeded.length > 0 && (
         <div className={styles.hint}>
-          Для Americanka потрібно рівно 8 гравців:{' '}
-          {shortHanded.map((c) => `${label(c)} (${rowsOf(c).length}/8)`).join(', ')}.
+          Посів розставлено не всюди ({unseeded.map(label).join(', ')}) — там порядок візьметься з черги заявок.
         </div>
       )}
-      {empty.length === 0 && shortHanded.length === 0 && unseeded.length > 0 && (
-        <div className={styles.hint}>
-          Посів розставлено не всюди ({unseeded.map(label).join(', ')}) — там порядок візьметься з
-          черги заявок.
-        </div>
-      )}
-      <button
-        className={styles.btnPrimary}
-        disabled={busy || empty.length > 0 || shortHanded.length > 0}
-        onClick={async () => {
-          const ok = await post(`/api/events/${event.id}/start`);
-          // «📋 Розклад готовий» to the channel and every participant —
-          // in the background (lib/server/scheduleNotice); sent once.
-          if (ok) fetch(`/api/events/${event.id}/schedule-notify`, { method: 'POST', keepalive: true }).catch(() => {});
-        }}
-      >
-        {busy ? 'Запуск…' : `Запустити${pending.length > 1 ? ` (${pending.length} категорії)` : ''}`}
+      <button className={styles.btnPrimary} disabled={busy} onClick={start}>
+        {busy ? 'Запуск…' : `Запустити${ready.length > 1 ? ` (${ready.length} категорії)` : ''}`}
       </button>
     </div>
   );

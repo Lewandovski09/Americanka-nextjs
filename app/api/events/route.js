@@ -112,7 +112,9 @@ export async function POST(request) {
       final_points_to_win: scoring.finalPoints,
       avp_tier: avp.tier,
       entry_fee: fee.fee,
-      registration_opens_at: opens.opensAt,
+      // «At once» is stamped as now: the minute check (069) then sends
+      // «Заявки приймаються» for it too, announced or not.
+      registration_opens_at: opens.opensAt || new Date().toISOString(),
       ...(closes.closesAt ? { registration_closes_at: closes.closesAt } : {}),
       ...(schedule.scheduleAt ? { schedule_at: schedule.scheduleAt } : {}),
       status: 'scheduled',
