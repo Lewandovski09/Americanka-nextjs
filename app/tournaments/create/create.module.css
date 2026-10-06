@@ -281,3 +281,26 @@
   color: var(--text2);
   line-height: 1.4;
 }
+
+/* A date field with a «clear» cross next to it. */
+.inlineField {
+  display: flex;
+  gap: 8px;
+  align-items: flex-start;
+}
+
+.inlineField .input {
+  flex: 1;
+}
+
+.clearBtn {
+  flex: none;
+  width: 44px;
+  height: 46px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid var(--border-light);
+  background: var(--surface);
+  color: var(--text2);
+  font-size: 15px;
+  cursor: pointer;
+}

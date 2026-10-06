@@ -50,11 +50,16 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Реєстрацію закрито адміністратором' }, { status: 400 });
   }
   // Applications open at the time the admin chose (migration 066).
-  if (registrationState(event) === 'soon') {
+  const regState = registrationState(event);
+  if (regState === 'soon') {
     return Response.json(
       { success: false, error: `Прийом заявок відкриється ${opensLabel(event.registration_opens_at)}` },
       { status: 400 }
     );
+  }
+  // …and stops at the closing time (migration 068).
+  if (regState === 'closed') {
+    return Response.json({ success: false, error: 'Прийом заявок закрито' }, { status: 400 });
   }
 
   const format = getFormat(event.format_kind);

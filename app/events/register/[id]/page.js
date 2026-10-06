@@ -20,7 +20,7 @@ import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 import PairInvites from '@/components/PairInvites';
 import { notifyInvite } from '@/lib/inviteNotify';
 import { appAlert } from '@/components/AppDialog';
-import { registrationState, msUntilOpen, opensLabel, feeLabel } from '@/lib/registrationWindow';
+import { registrationState, msUntilOpen, msUntilClose, opensLabel, feeLabel } from '@/lib/registrationWindow';
 import RegistrationCountdown from '@/components/RegistrationCountdown';
 
 
@@ -95,8 +95,11 @@ export default function EventRegisterPage({ params, searchParams }) {
 
   const activeCat = categories.find((c) => c.id === activeCatId) || categories.find((c) => c.id === preselectedCategoryId) || categories[0];
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
-  const regClosed = event.registration_open === false;
-  const regSoon = !regClosed && registrationState(event, now) === 'soon';
+  const regStateNow = registrationState(event, now);
+  // closed by the admin, or its closing time has passed (068)
+  const regClosed = event.registration_open === false || regStateNow === 'closed';
+  const regSoon = !regClosed && regStateNow === 'soon';
+  const closesAhead = !regClosed && !regSoon && msUntilClose(event, now) > 0;
   const fee = feeLabel(event.entry_fee);
 
   // One application per person — mine is the one I filed OR the one a
@@ -189,6 +192,15 @@ export default function EventRegisterPage({ params, searchParams }) {
           : '🟢 Реєстрація відкрита'}
       </div>
       {fee && <div className={styles.meta}>💰 Внесок: {fee}</div>}
+      {event.registration_closes_at && !regSoon && (
+        <div className={styles.meta}>🔒 Прийом заявок до {opensLabel(event.registration_closes_at)}</div>
+      )}
+      {event.schedule_at && <div className={styles.meta}>📋 Розклад — {opensLabel(event.schedule_at)}</div>}
+      {closesAhead && (
+        <div className={styles.myBox}>
+          <RegistrationCountdown mode="close" until={event.registration_closes_at} onOpen={() => setNow(Date.now())} />
+        </div>
+      )}
 
       {error && <div className={styles.errMsg}>{error}</div>}
 

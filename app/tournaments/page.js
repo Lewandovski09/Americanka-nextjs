@@ -98,7 +98,7 @@ export default function EventsPage() {
         .from('tournament_events')
         .select(
           `id, name, format_kind, status, location, scheduled_at, avp_tier,
-           registration_open, registration_opens_at, entry_fee,
+           registration_open, registration_opens_at, registration_closes_at, entry_fee,
            tournament_categories(id, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
@@ -209,6 +209,7 @@ export default function EventsPage() {
         visibleEvents.map((ev) => {
           const cats = ev.tournament_categories || [];
           const soon = ev.status === TABS.SCHEDULED && registrationState(ev) === 'soon';
+          const closing = ev.status === TABS.SCHEDULED && registrationState(ev) === 'open' && !!ev.registration_closes_at;
           const fee = ev.status === TABS.SCHEDULED ? feeLabel(ev.entry_fee) : null;
           const meta = (
             <div className={styles.cardMeta}>
@@ -279,6 +280,11 @@ export default function EventsPage() {
               {soon && (
                 <div className={styles.cardCountdown}>
                   <RegistrationCountdown compact opensAt={ev.registration_opens_at} onOpen={() => setEvents((list) => [...list])} />
+                </div>
+              )}
+              {closing && (
+                <div className={styles.cardCountdown}>
+                  <RegistrationCountdown compact mode="close" until={ev.registration_closes_at} onOpen={() => setEvents((list) => [...list])} />
                 </div>
               )}
               </div>

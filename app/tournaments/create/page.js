@@ -60,6 +60,9 @@ export default function CreateEventPage() {
   const [entryFee, setEntryFee] = useState('');
   const [opensMode, setOpensMode] = useState('now'); // 'now' | 'later'
   const [opensAt, setOpensAt] = useState('');
+  // When applications stop and when the schedule is out (068) — optional.
+  const [closesAt, setClosesAt] = useState('');
+  const [scheduleAt, setScheduleAt] = useState('');
   // «Оголосити в Telegram» — off unless the admin turns it on.
   const [announce, setAnnounce] = useState(false);
   const [announcing, setAnnouncing] = useState(null); // null | number sent so far
@@ -157,6 +160,12 @@ export default function CreateEventPage() {
       if (!opensAt) return setError('Вкажіть, коли відкриється прийом заявок');
       if (new Date(opensAt) >= new Date(scheduledAt)) return setError('Прийом заявок має початися раніше за турнір');
     }
+    if (closesAt) {
+      const from = opensMode === 'later' && opensAt ? new Date(opensAt) : new Date();
+      if (new Date(closesAt) <= from) return setError('Прийом заявок має закритися пізніше, ніж відкриється');
+      if (new Date(closesAt) > new Date(scheduledAt)) return setError('Прийом заявок має закритися до початку турніру');
+    }
+    if (scheduleAt && new Date(scheduleAt) > new Date(scheduledAt)) return setError('Розклад має бути готовий до початку турніру');
 
     if (format.needsBracketSystem && categories.some((c) => !c.bracketSystem)) {
       return setError('Виберіть систему турніру для кожної категорії');
@@ -178,6 +187,8 @@ export default function CreateEventPage() {
       avpTier,
       entryFee: Number(entryFee),
       registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
+      registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null,
+      scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null,
       categories,
     };
 
@@ -445,6 +456,10 @@ export default function CreateEventPage() {
         onOpensMode={setOpensMode}
         opensAt={opensAt}
         onOpensAt={setOpensAt}
+        closesAt={closesAt}
+        onClosesAt={setClosesAt}
+        scheduleAt={scheduleAt}
+        onScheduleAt={setScheduleAt}
       />
 
       <div className={styles.infoBox}>

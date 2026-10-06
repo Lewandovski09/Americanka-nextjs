@@ -9,7 +9,7 @@ import {
   resolveVenue,
 } from '@/lib/server/eventConfig';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
-import { parseEntryFee, parseRegistrationOpens } from '@/lib/registrationWindow';
+import { parseEntryFee, parseRegistrationOpens, parseRegistrationCloses, parseScheduleAt } from '@/lib/registrationWindow';
 
 // Update a scheduled event's secondary settings (name, date, venue,
 // courts, scoring) and reconcile its category list. The format itself is
@@ -106,6 +106,18 @@ export async function POST(request, { params }) {
         open_announce_channel_ok: null,
       });
     }
+  }
+  if ('registrationClosesAt' in body) {
+    const opensAt = 'registrationOpensAt' in body ? extra.registration_opens_at : event.registration_opens_at;
+    // the opening may lie in the past by now — then «after now» is not asked
+    const closes = parseRegistrationCloses(body.registrationClosesAt, { opensAt: opensAt || new Date(0).toISOString(), scheduledAt });
+    if (closes.error) return Response.json({ success: false, error: closes.error }, { status: 400 });
+    extra.registration_closes_at = closes.closesAt;
+  }
+  if ('scheduleAt' in body) {
+    const schedule = parseScheduleAt(body.scheduleAt, scheduledAt);
+    if (schedule.error) return Response.json({ success: false, error: schedule.error }, { status: 400 });
+    extra.schedule_at = schedule.scheduleAt;
   }
 
   const seen = new Set();

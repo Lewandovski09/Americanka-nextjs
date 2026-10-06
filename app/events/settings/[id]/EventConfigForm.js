@@ -53,6 +53,8 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   const opensFuture = event.registration_opens_at && new Date(event.registration_opens_at).getTime() > Date.now();
   const [opensMode, setOpensMode] = useState(opensFuture ? 'later' : 'now');
   const [opensAt, setOpensAt] = useState(opensFuture ? toLocalInput(event.registration_opens_at) : '');
+  const [closesAt, setClosesAt] = useState(toLocalInput(event.registration_closes_at));
+  const [scheduleAt, setScheduleAt] = useState(toLocalInput(event.schedule_at));
 
   const [categories, setCategories] = useState(() => fromRows(categoryRows, isPair));
   const [error, setError] = useState('');
@@ -157,6 +159,9 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       avpTier,
       entryFee: entryFee === '' ? null : Number(entryFee),
       registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
+      // sent only when there is something (works before SQL 068 as well)
+      ...(closesAt || event.registration_closes_at ? { registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null } : {}),
+      ...(scheduleAt || event.schedule_at ? { scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null } : {}),
       categories: categories.map(({ hasMembers, ...c }) => c),
     });
     if (ok) setSaved(true);
@@ -255,6 +260,10 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
         onOpensMode={setOpensMode}
         opensAt={opensAt}
         onOpensAt={setOpensAt}
+        closesAt={closesAt}
+        onClosesAt={setClosesAt}
+        scheduleAt={scheduleAt}
+        onScheduleAt={setScheduleAt}
       />
 
       {/* Category picker */}

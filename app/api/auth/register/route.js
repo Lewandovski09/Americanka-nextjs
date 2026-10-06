@@ -1,4 +1,7 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { notifyOwners, newPlayerNoticeText } from '@/lib/server/ownerNotify';
+import { publicSiteUrl } from '@/lib/server/siteUrl';
+import { appLink, browserButton } from '@/lib/server/openInApp';
 import { normalizeLogin, isValidLogin, isReservedLogin, RESERVED_LOGIN_ERROR, emailForLogin } from '@/lib/authIdentity';
 
 // Step 2 of registration: create the account.
@@ -170,6 +173,23 @@ export async function POST(request) {
     // The reservation has done its job. Failing to delete it is
     // harmless — it expires on its own.
     await supabaseAdmin.from('pending_registrations').delete().eq('nonce', nonce);
+
+    // «🆕 Новий гравець» to the owners in Telegram, with a button to the
+    // admin panel. Never holds the registration up if it fails.
+    const site = publicSiteUrl(request);
+    await notifyOwners(
+      supabaseAdmin,
+      newPlayerNoticeText({
+        first_name: firstName.trim(),
+        last_name: lastName.trim(),
+        login: normalizedLogin,
+        gender,
+        city,
+        requested_category: category,
+        telegram_username: pending.telegram_username,
+      }),
+      site ? browserButton('⚙ Розглянути в адмін-панелі', appLink(site, '/admin')) : undefined
+    );
 
     return Response.json({ success: true, userId: createdUserId });
   } catch (err) {

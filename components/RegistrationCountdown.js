@@ -4,7 +4,9 @@
 // · seconds; each digit pops when it changes) next to a little beach
 // scene: a ball flying back and forth over the net, its shadow running
 // on the sand. Shown while applications open later (migration 066).
-// `onOpen` — called once when the time comes.
+// `mode` — 'open': counting to the opening (`opensAt`); 'close': counting
+// to the closing (`until`, migration 068). `onOpen` — called once when
+// the time comes (in either mode).
 
 import { useEffect, useRef, useState } from 'react';
 import styles from './RegistrationCountdown.module.css';
@@ -51,8 +53,14 @@ export function BeachScene({ className = '' }) {
   );
 }
 
-export default function RegistrationCountdown({ opensAt, compact = false, onOpen }) {
-  const target = new Date(opensAt).getTime();
+const TITLES = {
+  open: ['До відкриття прийому заявок', 'Прийом заявок відкрито!'],
+  close: ['До закриття прийому заявок', 'Прийом заявок закрито'],
+};
+
+export default function RegistrationCountdown({ opensAt, until, mode = 'open', compact = false, onOpen }) {
+  const target = new Date(until || opensAt).getTime();
+  const [titleOn, titleOff] = TITLES[mode] || TITLES.open;
   const [now, setNow] = useState(() => Date.now());
   const fired = useRef(false);
 
@@ -73,7 +81,7 @@ export default function RegistrationCountdown({ opensAt, compact = false, onOpen
   return (
     <div className={`${styles.wrap} ${compact ? styles.compact : ''}`} role="timer" aria-live="off">
       <div className={styles.main}>
-        <div className={styles.title}>{left > 0 ? 'До відкриття прийому заявок' : 'Прийом заявок відкрито!'}</div>
+        <div className={styles.title}>{left > 0 ? titleOn : titleOff}</div>
         <div className={styles.units}>
           {d > 0 && <Unit value={String(d)} label="дн" />}
           <Unit value={pad(h)} label="год" />

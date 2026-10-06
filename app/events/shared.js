@@ -366,7 +366,12 @@ export function StartEventButton({ event, categories, format, busy, post }) {
       <button
         className={styles.btnPrimary}
         disabled={busy || empty.length > 0 || shortHanded.length > 0}
-        onClick={() => post(`/api/events/${event.id}/start`)}
+        onClick={async () => {
+          const ok = await post(`/api/events/${event.id}/start`);
+          // «📋 Розклад готовий» to the channel and every participant —
+          // in the background (lib/server/scheduleNotice); sent once.
+          if (ok) fetch(`/api/events/${event.id}/schedule-notify`, { method: 'POST', keepalive: true }).catch(() => {});
+        }}
       >
         {busy ? 'Запуск…' : `Запустити${pending.length > 1 ? ` (${pending.length} категорії)` : ''}`}
       </button>

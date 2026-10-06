@@ -171,7 +171,7 @@ export default function HomePage() {
       const [{ data: event }, { data: cats }] = await Promise.all([
         supabase
           .from('tournament_events')
-          .select('id, format_kind, avp_tier, location, status, registration_open, registration_opens_at, entry_fee')
+          .select('id, format_kind, avp_tier, location, status, registration_open, registration_opens_at, registration_closes_at, entry_fee')
           .eq('id', nearest.event_id)
           .maybeSingle(),
         supabase
@@ -198,6 +198,7 @@ export default function HomePage() {
         // When applications open, and the fee (migration 066).
         registration_open: event?.registration_open,
         registration_opens_at: event?.registration_opens_at || null,
+        registration_closes_at: event?.registration_closes_at || null,
         entry_fee: event?.entry_fee ?? null,
       };
       setNextEvent(shown);
@@ -474,6 +475,18 @@ export default function HomePage() {
                 <RegistrationCountdown compact opensAt={nextEvent.registration_opens_at} onOpen={() => setNextEvent((e) => (e ? { ...e } : e))} />
               </div>
             )}
+            {nextEvent.status !== 'live' &&
+              registrationState({ ...nextEvent, status: 'scheduled' }) === 'open' &&
+              nextEvent.registration_closes_at && (
+                <div className={styles.nextCountdown}>
+                  <RegistrationCountdown
+                    compact
+                    mode="close"
+                    until={nextEvent.registration_closes_at}
+                    onOpen={() => setNextEvent((e) => (e ? { ...e } : e))}
+                  />
+                </div>
+              )}
           </div>
 
           <div className={styles.nextBody}>

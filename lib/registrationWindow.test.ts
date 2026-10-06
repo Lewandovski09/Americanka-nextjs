@@ -93,3 +93,24 @@ describe('organizer and places', () => {
     expect(placesLabel(2, true)).toBe('2 пари');
   });
 });
+
+import { parseRegistrationCloses, parseScheduleAt, msUntilClose } from './registrationWindow';
+describe('closing and schedule (068)', () => {
+  const start = '2026-10-10T07:00:00.000Z';
+  it('closed after the closing time, open before', () => {
+    expect(registrationState({ status: 'scheduled', registration_closes_at: earlier }, NOW)).toBe('closed');
+    expect(registrationState({ status: 'scheduled', registration_closes_at: later }, NOW)).toBe('open');
+    expect(registrationLabel({ status: 'scheduled', registration_closes_at: later }, NOW)).toBe('Заявки до 7 жовтня о 12:00');
+    expect(msUntilClose({ registration_closes_at: later }, NOW)).toBe(Date.parse(later) - NOW);
+  });
+  it('the closing must be after the opening and not after the start', () => {
+    expect(parseRegistrationCloses(later, { opensAt: null, scheduledAt: start, now: NOW })).toEqual({ closesAt: later });
+    expect(parseRegistrationCloses(earlier, { now: NOW }).error).toBeTruthy();
+    expect(parseRegistrationCloses('2026-10-11T07:00:00Z', { scheduledAt: start, now: NOW }).error).toBeTruthy();
+    expect(parseRegistrationCloses('', {})).toEqual({ closesAt: null });
+  });
+  it('the schedule not after the start', () => {
+    expect(parseScheduleAt(later, start)).toEqual({ scheduleAt: later });
+    expect(parseScheduleAt('2026-10-11T07:00:00Z', start).error).toBeTruthy();
+  });
+});

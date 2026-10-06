@@ -10,7 +10,7 @@ import {
   resolveSport,
 } from '@/lib/server/eventConfig';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
-import { parseEntryFee, parseRegistrationOpens } from '@/lib/registrationWindow';
+import { parseEntryFee, parseRegistrationOpens, parseRegistrationCloses, parseScheduleAt } from '@/lib/registrationWindow';
 
 // Create an EVENT (tournament_events) plus its CATEGORIES (one
 // `tournaments` row each). Categories start empty and open for
@@ -75,6 +75,11 @@ export async function POST(request) {
   if (fee.error) return Response.json({ success: false, error: fee.error }, { status: 400 });
   const opens = parseRegistrationOpens(body.registrationOpensAt, scheduledAt);
   if (opens.error) return Response.json({ success: false, error: opens.error }, { status: 400 });
+  // When applications stop and when the schedule will be out (068).
+  const closes = parseRegistrationCloses(body.registrationClosesAt, { opensAt: opens.opensAt, scheduledAt });
+  if (closes.error) return Response.json({ success: false, error: closes.error }, { status: 400 });
+  const schedule = parseScheduleAt(body.scheduleAt, scheduledAt);
+  if (schedule.error) return Response.json({ success: false, error: schedule.error }, { status: 400 });
 
   // Validate every category against the format's rules before writing
   // anything, so a bad category can't leave a half-created event.
@@ -108,6 +113,8 @@ export async function POST(request) {
       avp_tier: avp.tier,
       entry_fee: fee.fee,
       registration_opens_at: opens.opensAt,
+      ...(closes.closesAt ? { registration_closes_at: closes.closesAt } : {}),
+      ...(schedule.scheduleAt ? { schedule_at: schedule.scheduleAt } : {}),
       status: 'scheduled',
       created_by: authUser.user.id,
     })
@@ -116,9 +123,9 @@ export async function POST(request) {
 
   if (eventError) {
     console.error('[create-event] event error:', eventError.message);
-    const missing = /entry_fee|registration_opens_at/.test(eventError.message || '');
+    const missing = /entry_fee|registration_opens_at|registration_closes_at|schedule_at/.test(eventError.message || '');
     return Response.json(
-      { success: false, error: missing ? 'Не вдалося створити подію — виконайте SQL 066 у Supabase' : 'Не вдалося створити подію' },
+      { success: false, error: missing ? 'Не вдалося створити подію — виконайте SQL 066 і 068 у Supabase' : 'Не вдалося створити подію' },
       { status: 500 }
     );
   }

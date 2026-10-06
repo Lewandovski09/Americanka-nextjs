@@ -117,9 +117,18 @@ export default function EventSettingsPage({ params }) {
           ? '🔒 Реєстрацію закрито'
           : registrationState(event) === 'soon'
           ? `⏳ Прийом заявок — з ${opensLabel(event.registration_opens_at)}`
+          : registrationState(event) === 'closed'
+          ? '🔒 Час прийому заявок вийшов'
           : '🟢 Реєстрація відкрита'}
         {feeLabel(event.entry_fee) ? ` · 💰 ${feeLabel(event.entry_fee)}` : ''}
       </div>
+      {(event.registration_closes_at || event.schedule_at) && (
+        <div className={styles.meta}>
+          {event.registration_closes_at ? `🔒 Заявки до ${opensLabel(event.registration_closes_at)}` : ''}
+          {event.registration_closes_at && event.schedule_at ? ' · ' : ''}
+          {event.schedule_at ? `📋 Розклад — ${opensLabel(event.schedule_at)}` : ''}
+        </div>
+      )}
       <AnnounceButton event={event} onDone={load} />
 
       <div className={styles.tabs}>
