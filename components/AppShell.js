@@ -6,6 +6,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import BottomNav from './BottomNav';
 import GlobalNotice from './GlobalNotice';
 import SideCourtDecor from './SideCourtDecor';
+import TelegramGate, { needsTelegram } from './TelegramGate';
 
 // Pages where the bottom nav AND the dark background card should
 // NEVER show — these are the public/auth screens, which have their
@@ -20,7 +21,7 @@ const GATED_PREFIXES = ['/tournaments', '/rating', '/profile', '/admin', '/playe
 export default function AppShell({ children }) {
   const pathname = usePathname();
   const router = useRouter();
-  const { player, loading } = useCurrentPlayer();
+  const { player, loading, refresh } = useCurrentPlayer();
   const [authGateOpen, setAuthGateOpen] = useState(false);
 
   const isAuthPage = NO_SHELL_PATHS.includes(pathname);
@@ -63,6 +64,11 @@ export default function AppShell({ children }) {
   if (isAuthPage) {
     // Auth screens render full-bleed with their own background.
     return <>{children}</>;
+  }
+
+  // No Telegram — no app (components/TelegramGate).
+  if (!loading && needsTelegram(player)) {
+    return <TelegramGate player={player} onLinked={refresh} />;
   }
 
   return (

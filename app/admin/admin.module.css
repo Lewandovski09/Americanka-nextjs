@@ -474,3 +474,21 @@
   color: #b3341f;
   font-size: 13.25px;
 }
+
+/* Who has no Telegram — names under the warning, each opens the profile. */
+.telegramWarningList {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 6px;
+  margin-top: 8px;
+}
+
+.telegramWarningName {
+  font-weight: 700;
+  color: #92400e;
+  background: #fff;
+  border: 1px solid rgba(217, 119, 6, 0.35);
+  border-radius: var(--r-pill);
+  padding: 4px 10px;
+  text-decoration: none;
+}

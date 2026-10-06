@@ -1,5 +1,7 @@
 'use client';
 
+import Link from 'next/link';
+
 import { USER_COLUMNS } from '@/lib/userColumns';
 import { useEffect, useState } from 'react';
 import { useRouter } from 'next/navigation';
@@ -73,14 +75,20 @@ export default function AdminPage() {
     // broadcast — either never linked, or linked and later blocked the
     // bot. telegram_linked_at is cleared when the bot is blocked, so this
     // counts both (the Telegram id itself is server-only, migration 058).
-    const [{ data: p }, { data: m }, { data: f }, { count: doneCount }, { count: matchesPlayed }, { count: noTelegramCount }] =
+    const [{ data: p }, { data: m }, { data: f }, { count: doneCount }, { count: matchesPlayed }, { data: noTg }] =
       await Promise.all([
         supabase.from('users').select(USER_COLUMNS).eq('approval_status', 'pending'),
         supabase.from('users').select(USER_COLUMNS).eq('gender', 'M').neq('approval_status', 'pending').order('elo', { ascending: false }),
         supabase.from('users').select(USER_COLUMNS).eq('gender', 'F').neq('approval_status', 'pending').order('elo', { ascending: false }),
         supabase.from('tournament_categories').select('id', { count: 'exact', head: true }).eq('status', 'done'),
         supabase.from('tournament_matches').select('id', { count: 'exact', head: true }).eq('played', true),
-        supabase.from('users').select('id', { count: 'exact', head: true }).neq('approval_status', 'pending').is('telegram_linked_at', null),
+        // who exactly — the warning below lists them
+        supabase
+          .from('users')
+          .select('id, full_name, last_name, gender, approval_status')
+          .neq('approval_status', 'pending')
+          .is('telegram_linked_at', null)
+          .order('full_name', { ascending: true }),
       ]);
     setPending(p || []);
     setMales(m || []);
@@ -101,7 +109,8 @@ export default function AdminPage() {
       pendingCount: (p || []).length,
       doneCount: doneCount || 0,
       matchesPlayed: matchesPlayed || 0,
-      noTelegramCount: noTelegramCount || 0,
+      noTelegramCount: (noTg || []).length,
+      noTelegram: noTg || [],
       categoryCountsMale,
       categoryCountsFemale,
     });
@@ -396,7 +405,15 @@ export default function AdminPage() {
       {stats && stats.noTelegramCount > 0 && (
         <div className={styles.telegramWarning}>
           {stats.noTelegramCount} {stats.noTelegramCount === 1 ? 'гравець' : 'гравців'} без підключеного
-          Telegram — не отримають жодного сповіщення.
+          Telegram — не отримають жодного сповіщення:
+          <div className={styles.telegramWarningList}>
+            {stats.noTelegram.map((u) => (
+              <Link key={u.id} href={`/players/${u.id}`} className={styles.telegramWarningName}>
+                {[u.full_name, u.last_name].filter(Boolean).join(' ') || 'Без імені'}
+                {u.approval_status === 'rejected' ? ' (відхилений)' : ''}
+              </Link>
+            ))}
+          </div>
         </div>
       )}
 
