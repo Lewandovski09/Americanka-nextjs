@@ -4,8 +4,8 @@ import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
 import { escapeHtml } from '@/lib/telegram';
 import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
-import { publicSiteUrl } from '@/lib/server/siteUrl';
-import { appLink } from '@/lib/server/openInApp';
+import { publicSiteUrl, playerAppOrigin } from '@/lib/server/siteUrl';
+import { appLink, siteAddresses, choiceKeyboard } from '@/lib/server/openInApp';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -209,15 +209,15 @@ async function sendInvite(supabaseAdmin, request, { eventId, categoryId, from, t
   if (them?.telegram_user_id && them?.telegram_linked_at) {
     // The button goes through the hand-over page — it opens the
     // installed app when the phone has it (lib/server/openInApp).
-    const site = publicSiteUrl(request);
+    const site = (await playerAppOrigin(supabaseAdmin, them.id, siteAddresses())) || publicSiteUrl(request);
     if (site) {
       await sendEventCardMessage(them.telegram_user_id, {
         siteUrl: site,
         eventId,
         caption:
           `🤝 <b>${escapeHtml(me?.full_name || 'Гравець')}</b> хоче зіграти з вами в парі на турнірі.\n\n` +
-          'Відкрийте турнір, щоб прийняти або відхилити запрошення.',
-        keyboard: { inline_keyboard: [[{ text: '🤝 Відкрити запрошення', url: appLink(site, `/events/register/${eventId}`) }]] },
+          'Відкрийте турнір — у застосунку або в браузері, — щоб прийняти або відхилити запрошення.',
+        keyboard: choiceKeyboard(appLink(site, `/events/register/${eventId}`)),
       });
     }
   }

@@ -4,8 +4,8 @@ import { eventParticipantIds } from '@/lib/server/registration';
 import { joinSeeker, dropPartnerAds } from '@/lib/server/pairing';
 import { escapeHtml } from '@/lib/telegram';
 import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
-import { publicSiteUrl } from '@/lib/server/siteUrl';
-import { appLink } from '@/lib/server/openInApp';
+import { publicSiteUrl, playerAppOrigin } from '@/lib/server/siteUrl';
+import { appLink, siteAddresses, choiceKeyboard } from '@/lib/server/openInApp';
 
 // A pair invitation (migration 058): someone who saw a «Шукаю пару»
 // notice asked to play with the player who applied alone. The invited
@@ -102,13 +102,13 @@ export async function POST(request, { params }) {
   const accepter = (people || []).find((u) => u.id === me);
   const inviter = (people || []).find((u) => u.id === inv.from_user);
   if (inviter?.telegram_user_id && inviter?.telegram_linked_at) {
-    const site = publicSiteUrl(request);
+    const site = (await playerAppOrigin(supabaseAdmin, inviter.id, siteAddresses())) || publicSiteUrl(request);
     if (site) {
       await sendEventCardMessage(inviter.telegram_user_id, {
         siteUrl: site,
         eventId,
         caption: `✅ <b>${escapeHtml(accepter?.full_name || 'Гравець')}</b> прийняв(-ла) ваше запрошення — ви в парі на турнірі!`,
-        keyboard: { inline_keyboard: [[{ text: 'Відкрити турнір', url: appLink(site, `/events/register/${eventId}`) }]] },
+        keyboard: choiceKeyboard(appLink(site, `/events/register/${eventId}`)),
       });
     }
   }

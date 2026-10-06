@@ -106,6 +106,22 @@ export default function EventRegisterPage({ params, searchParams }) {
     ...activeTeams.flatMap((t) => [t.user1_id, t.user2_id]).filter(Boolean),
   ];
 
+  // Partner search: players who applied ALONE and look for a partner stay
+  // pickable — choosing one sends them an invitation (the server checks the
+  // same). Before, they were hidden as «already in the event», so after
+  // declining someone's invitation you could not invite that person back.
+  const fullTeamIds = new Set(
+    categories.flatMap((c) =>
+      (c.tournament_teams || []).filter((t) => t.user1_id && t.user2_id).flatMap((t) => [t.user1_id, t.user2_id])
+    )
+  );
+  const openSeekerIds = new Set(
+    liveApps
+      .filter((a) => !a.partner_id && a.seeking_partner && a.user_id !== player?.id && !fullTeamIds.has(a.user_id))
+      .map((a) => a.user_id)
+  );
+  const partnerExcludeIds = takenIds.filter((id) => !openSeekerIds.has(id));
+
   async function apply(payload) {
     const ok = await post(`/api/events/${event.id}/apply`, payload);
     if (ok) setBoardVersion((n) => n + 1);
@@ -142,7 +158,7 @@ export default function EventRegisterPage({ params, searchParams }) {
         <MyRegistration
           isPair={isPair}
           me={player}
-          takenIds={takenIds}
+          takenIds={partnerExcludeIds}
           categories={categories}
           initialCategoryId={preselectedCategoryId}
           myApp={myApp}
