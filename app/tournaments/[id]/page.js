@@ -20,6 +20,7 @@ import { voteOptionsFrom } from '@/lib/voteOptions';
 import EventPhoto from '@/components/EventPhoto';
 import styles from './detail.module.css';
 import { pressable } from '@/lib/a11y';
+import { appAlert } from '@/components/AppDialog';
 
 // Parts not every visitor needs — the bracket, the zoomable table, the
 // poll, the partner board and the judge picker — load in their own
@@ -740,7 +741,7 @@ export default function TournamentDetailPage({ params }) {
       setScoreModal({ ...snapshot, saving: false, error: data.error || 'Не вдалося зберегти рахунок' });
       return;
     }
-    if (data.warning) window.alert(data.warning);
+    if (data.warning) appAlert(data.warning);
     // Profiles / «Твоя форма» shown in this tab must not keep the old
     // game list for their one-minute cache.
     invalidate('games:');

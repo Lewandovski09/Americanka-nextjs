@@ -267,7 +267,17 @@ function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, o
   }
 
   function Row({ a, reserved }) {
-    const target = choice[a.id] || '';
+    // Only the leagues this applicant can play in: a men's league takes
+    // men, a women's league women (a mix league has no gender).
+    const g = a.applicant?.gender;
+    const fits = catStats.filter((cs) => !cs.gender || !g || cs.gender === g);
+    // Ready to accept at once: the league they are parked in, or the one
+    // they asked for, or the only one there is.
+    const preset =
+      (reserved && fits.find((cs) => cs.id === a.assigned_category_id)?.id) ||
+      fits.find((cs) => a.requested_category && cs.label === a.requested_category)?.id ||
+      (fits.length === 1 ? fits[0].id : '');
+    const target = choice[a.id] ?? preset;
     const targetStat = catStats.find((c) => c.id === target);
     const full = targetStat && targetStat.free === 0;
     const reservedCat = reserved ? catStats.find((c) => c.id === a.assigned_category_id) : null;
@@ -294,18 +304,26 @@ function AdminQueue({ pending, reserve, catStats, isPair, mix, busy, onAssign, o
           {pref ? <span className={styles.appPref}>{pref}</span> : null}
         </PairRow>
         <div className={styles.appActions}>
-          <select
-            className={styles.select}
-            value={target}
-            onChange={(e) => setChoice((p) => ({ ...p, [a.id]: e.target.value }))}
-          >
-            <option value="">Ліга…</option>
-            {catStats.map((cs) => (
-              <option key={cs.id} value={cs.id}>
-                {catOption(cs)}
-              </option>
-            ))}
-          </select>
+          {fits.length === 1 ? (
+            // One league only — nothing to choose, it is just shown.
+            <span className={styles.select} style={{ display: 'inline-flex', alignItems: 'center' }}>
+              {catOption(fits[0])}
+            </span>
+          ) : (
+            <select
+              className={styles.select}
+              value={target}
+              onChange={(e) => setChoice((p) => ({ ...p, [a.id]: e.target.value }))}
+            >
+              {!target && <option value="">Ліга…</option>}
+              {fits.map((cs) => (
+                <option key={cs.id} value={cs.id}>
+                  {catOption(cs)}
+                </option>
+              ))}
+            </select>
+          )}
+          {fits.length === 0 && <span className={styles.appPref}>немає ліги для цієї статі</span>}
           <button
             className={styles.btnGhost}
             disabled={busy || !target || full}

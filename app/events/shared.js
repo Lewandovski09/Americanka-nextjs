@@ -14,6 +14,7 @@ import { scoreLabel } from '@/lib/formats/sets';
 import { stageWeight, stageLabel, groupTitle } from '@/lib/formats/stages';
 import { computePlaces } from '@/lib/formats/placements';
 import { BRACKET_SYSTEMS } from '@/lib/formats';
+import { appConfirm, appAlert } from '@/components/AppDialog';
 
 // Re-exported for the pages that historically imported them from here.
 export { stageWeight, stageLabel, computePlaces };
@@ -213,12 +214,12 @@ export function DeleteEventButton({ event, busy, post }) {
         });
         const data = await res.json();
         if (!data.success) {
-          window.alert(data.error || 'Не вдалося перевірити турнір');
+          appAlert(data.error || 'Не вдалося перевірити турнір');
           return;
         }
         willUndo = data.willUndo;
       } catch {
-        window.alert('Не вдалося зв’язатися з сервером');
+        appAlert('Не вдалося зв’язатися з сервером');
         return;
       }
     }
@@ -234,7 +235,7 @@ export function DeleteEventButton({ event, busy, post }) {
       }
     }
 
-    if (!window.confirm(text)) return;
+    if (!(await appConfirm(text, { okText: 'Видалити', danger: true }))) return;
     // The page is being left — no point reloading the deleted event.
     if (await post(url, { confirmRatingRollback: true }, { reload: false })) {
       // The lists must not show it from their memory.

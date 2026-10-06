@@ -13,6 +13,7 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './PartnerBoard.module.css';
+import { appConfirm } from '@/components/AppDialog';
 
 const NOTE_MAX = 200;
 
@@ -121,7 +122,7 @@ export default function PartnerBoard({
   }
 
   async function remove() {
-    if (!confirm('Зняти оголошення?')) return;
+    if (!(await appConfirm('Зняти оголошення?', { okText: 'Зняти' }))) return;
     setBusy(true);
     const supabase = createClient();
     const { error: e } = await supabase
@@ -139,7 +140,7 @@ export default function PartnerBoard({
 
   async function join(ad) {
     const name = ad.users?.full_name || 'цим гравцем';
-    if (!confirm(`Подати заявку в парі з ${name}?`)) return;
+    if (!(await appConfirm(`Подати заявку в парі з ${name}?`, { okText: 'Подати' }))) return;
     setBusy(true);
     const ok = await onJoin(ad);
     setBusy(false);

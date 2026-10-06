@@ -7,6 +7,7 @@
 import { useState } from 'react';
 import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
 import styles from './Announce.module.css';
+import { appConfirm } from '@/components/AppDialog';
 
 export default function AnnounceButton({ event, onDone }) {
   const [busy, setBusy] = useState(false);
@@ -17,7 +18,7 @@ export default function AnnounceButton({ event, onDone }) {
   const started = !!event.announced_at;
 
   async function go(retryChannel = false) {
-    if (!started && !window.confirm('Надіслати оголошення про турнір у Telegram-канал і всім гравцям у бот?')) return;
+    if (!started && !(await appConfirm('Надіслати оголошення про турнір у Telegram-канал і всім гравцям у бот?', { okText: 'Надіслати' }))) return;
     setBusy(true);
     setResult(null);
     const r = await runAnnouncement(event.id, setProgress, { retryChannel });

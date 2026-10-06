@@ -27,7 +27,11 @@ export async function POST(request, { params }) {
 
   // The application and the league (with its event's format) at once.
   const [{ data: application }, { data: category }] = await Promise.all([
-    supabaseAdmin.from('tournament_applications').select('*').eq('id', applicationId).maybeSingle(),
+    supabaseAdmin
+      .from('tournament_applications')
+      .select('*, applicant:users!tournament_applications_user_id_fkey(gender)')
+      .eq('id', applicationId)
+      .maybeSingle(),
     supabaseAdmin.from('tournament_categories').select('*, tournament_events(format_kind)').eq('id', categoryId).maybeSingle(),
   ]);
   if (!application) return Response.json({ success: false, error: 'Заявку не знайдено' }, { status: 404 });
@@ -37,6 +41,13 @@ export async function POST(request, { params }) {
   const format = getFormat(category?.tournament_events?.format_kind);
 
   if (!category) return Response.json({ success: false, error: 'Категорію не знайдено' }, { status: 400 });
+  // A men's league takes men, a women's league women.
+  if (category.gender && application.applicant?.gender && category.gender !== application.applicant.gender) {
+    return Response.json(
+      { success: false, error: category.gender === 'M' ? 'Це чоловіча ліга' : 'Це жіноча ліга' },
+      { status: 400 }
+    );
+  }
   if (category.status !== 'scheduled') {
     return Response.json({ success: false, error: 'Категорію вже розпочато' }, { status: 400 });
   }

@@ -1,0 +1,83 @@
+.backdrop {
+  position: fixed;
+  inset: 0;
+  z-index: 1000;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 20px;
+  background: rgba(13, 35, 71, 0.35);
+  -webkit-backdrop-filter: blur(3px);
+  backdrop-filter: blur(3px);
+  animation: fadeIn var(--dur-fast) var(--ease);
+}
+
+.box {
+  width: 100%;
+  max-width: 360px;
+  background: var(--surface);
+  border-radius: var(--r-lg);
+  padding: 20px 18px 16px;
+  box-shadow: 0 20px 60px rgba(13, 35, 71, 0.35);
+  animation: popIn var(--dur-base) var(--ease);
+}
+
+.title {
+  font-size: 17px;
+  font-weight: 800;
+  color: var(--text);
+  margin-bottom: 8px;
+}
+
+.text {
+  font-size: 15px;
+  line-height: 1.45;
+  color: var(--text);
+  white-space: pre-line;
+}
+
+.buttons {
+  display: flex;
+  gap: 10px;
+  margin-top: 18px;
+}
+
+.buttons button {
+  flex: 1;
+  padding: 12px 14px;
+  border-radius: var(--r-pill);
+  font: inherit;
+  font-size: 15px;
+  font-weight: 700;
+  cursor: pointer;
+  border: none;
+}
+
+.cancel {
+  background: var(--surface-alt);
+  color: var(--text);
+}
+
+.ok {
+  background: var(--rust);
+  color: #fff;
+  box-shadow: var(--shadow-cta);
+}
+
+.danger {
+  background: var(--danger);
+  box-shadow: 0 4px 16px rgba(220, 38, 38, 0.3);
+}
+
+@keyframes fadeIn {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes popIn {
+  from {
+    opacity: 0;
+    transform: scale(0.96) translateY(6px);
+  }
+}

@@ -19,6 +19,7 @@ import { voteOptionsFrom } from '@/lib/voteOptions';
 import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 import PairInvites from '@/components/PairInvites';
 import { notifyInvite } from '@/lib/inviteNotify';
+import { appAlert } from '@/components/AppDialog';
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -131,7 +132,7 @@ export default function EventRegisterPage({ params, searchParams }) {
     if (ok?.invited) {
       notifyInvite(event.id, ok.inviteId); // the Telegram note, in the background
       setInvitesVersion((n) => n + 1);
-      window.alert('Запрошення надіслано ✅\n\nНапарник має його прийняти (у застосунку або через повідомлення в Telegram) — тоді ви будете в парі.');
+      appAlert('Напарник має його прийняти (у застосунку або через повідомлення в Telegram) — тоді ви будете в парі.', { title: 'Запрошення надіслано ✅' });
     }
     return ok;
   }

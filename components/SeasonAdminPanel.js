@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { PRIMARY_SPORT_ID } from '@/lib/sports';
 import { CATEGORY_STARTING_ELO } from '@/lib/elo';
 import { invalidate } from '@/lib/clientCache';
+import { appConfirm } from '@/components/AppDialog';
 
 const START_ELO_TEXT = Object.entries(CATEGORY_STARTING_ELO)
   .map(([cat, elo]) => `${cat} ${elo}`)
@@ -66,10 +67,11 @@ export default function SeasonAdminPanel({ styles, kind }) {
         : eloMode === 'category'
         ? 'Ело КОЖНОГО гравця буде скинуто до стартового значення його категорії.'
         : 'Ело гравців переноситься без змін.';
-    const ok = window.confirm(
+    const ok = await appConfirm(
       `Почати «${name.trim()}» з ${fmt(startsOn)}?\n\n` +
         `${current ? `«${current.name}» буде закрито, ${track.archive}.\n` : ''}` +
-        `${resetText}\n\nЦю дію не можна скасувати.`
+        `${resetText}\n\nЦю дію не можна скасувати.`,
+      { okText: 'Почати' }
     );
     if (!ok) return;
 

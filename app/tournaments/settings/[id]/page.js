@@ -29,6 +29,7 @@ import AvpTierPicker from '@/components/AvpTierPicker';
 import createStyles from '@/app/tournaments/create/create.module.css';
 import styles from '@/app/events/event.module.css';
 import VenueName from '@/components/VenueName';
+import { appAlert } from '@/components/AppDialog';
 
 const TABS = { MAIN: 'main', JUDGES: 'judges' };
 
@@ -272,7 +273,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
               className={styles.maintBtn}
               disabled={busy}
               onClick={async () => {
-                if (await post('/api/admin/placements/recalc', { eventId: event.id })) window.alert('Місця перераховано');
+                if (await post('/api/admin/placements/recalc', { eventId: event.id })) appAlert('Місця перераховано ✅');
               }}
             >
               Перерахувати місця
@@ -282,7 +283,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
               className={styles.maintBtn}
               disabled={busy}
               onClick={async () => {
-                if (await post('/api/admin/avp/recalc', { eventId: event.id })) window.alert('AVP перераховано');
+                if (await post('/api/admin/avp/recalc', { eventId: event.id })) appAlert('AVP перераховано ✅');
               }}
             >
               Перерахувати AVP

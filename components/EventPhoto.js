@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { toJpegDataUrl } from '@/lib/photo';
 import { invalidate } from '@/lib/clientCache';
 import styles from './EventPhoto.module.css';
+import { appConfirm } from '@/components/AppDialog';
 
 export default function EventPhoto({ eventId, photoUrl, canEdit: canEditProp, ownerCanEdit, onChange }) {
   const [url, setUrl] = useState(photoUrl || null);
@@ -82,7 +83,7 @@ export default function EventPhoto({ eventId, photoUrl, canEdit: canEditProp, ow
   }
 
   async function remove() {
-    if (!confirm('Прибрати фото турніру?')) return;
+    if (!(await appConfirm('Прибрати фото турніру?', { okText: 'Прибрати', danger: true }))) return;
     setBusy(true);
     const res = await fetch(`/api/events/${eventId}/photo`, { method: 'DELETE' });
     const data = await res.json().catch(() => ({}));

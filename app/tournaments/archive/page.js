@@ -11,6 +11,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import { invalidate, setCached } from '@/lib/clientCache';
 import styles from './archive.module.css';
+import { appConfirm } from '@/components/AppDialog';
 
 const STATUS = { scheduled: 'Не почався', live: 'Йшов', done: 'Завершений', cancelled: 'Скасований' };
 
@@ -132,8 +133,8 @@ export default function DeletedArchivePage() {
               <button
                 className={styles.purgeBtn}
                 disabled={busyId !== null}
-                onClick={() =>
-                  window.confirm(`Видалити «${r.name}» з архіву назавжди? Повернути його вже не вийде.`) && call(r, 'purge')
+                onClick={async () =>
+                  (await appConfirm(`Видалити «${r.name}» з архіву назавжди? Повернути його вже не вийде.`, { okText: 'Видалити', danger: true })) && call(r, 'purge')
                 }
               >
                 Видалити назавжди

@@ -10,6 +10,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './admin.module.css';
 import SeasonAdminPanel from '@/components/SeasonAdminPanel';
 import TelegramWebhookPanel from '@/components/TelegramWebhookPanel';
+import { appConfirm, appAlert } from '@/components/AppDialog';
 
 const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
 
@@ -211,7 +212,7 @@ export default function AdminPage() {
   }
 
   async function handleReject(playerId, playerName) {
-    if (!confirm(`Відхилити заявку і повністю видалити ${playerName}? Це незворотно.`)) return;
+    if (!(await appConfirm(`Відхилити заявку і повністю видалити ${playerName}? Це незворотно.`, { okText: 'Відхилити', danger: true }))) return;
     await runPlayerAction(playerId, `/api/admin/players/${playerId}/reject`, { method: 'POST' });
   }
 
@@ -233,7 +234,7 @@ export default function AdminPage() {
 
   async function handleSendNotification() {
     if (!notifTitle.trim() || !notifBody.trim()) {
-      alert("Заповніть заголовок і текст повідомлення");
+      appAlert("Заповніть заголовок і текст повідомлення");
       return;
     }
     setNotifSending(true);
@@ -264,7 +265,7 @@ export default function AdminPage() {
         .limit(10);
       setExistingAnnouncements(notifs || []);
     } else {
-      alert(data.error || 'Не вдалося надіслати повідомлення');
+      appAlert(data.error || 'Не вдалося надіслати повідомлення');
     }
   }
 
