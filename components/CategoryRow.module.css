@@ -76,3 +76,16 @@
   background: linear-gradient(90deg, #ffb39f, #e85d4a);
   border-radius: 4px;
 }
+
+/* Men's league — navy; women's — the coral of the women's tabs. */
+.badgeM {
+  background: #0d2347;
+  border-color: #0d2347;
+  color: #fff;
+}
+
+.badgeF {
+  background: #f04e36;
+  border-color: #f04e36;
+  color: #fff;
+}

@@ -9,9 +9,14 @@ export default function CategoryRow({ category: c, href, showGender }) {
     <a href={href} className={styles.row}>
       <div className={styles.top}>
         <span className={styles.label}>{c.category_label}</span>
-        {showGender && (
-          <span className={styles.badge}>{c.gender === 'M' ? 'Чоловіки' : c.gender === 'F' ? 'Жінки' : 'Мікс'}</span>
-        )}
+        {/* Men's / women's league — always said; «Мікс» only for pair formats. */}
+        {c.gender === 'M' || c.gender === 'F' ? (
+          <span className={`${styles.badge} ${c.gender === 'F' ? styles.badgeF : styles.badgeM}`}>
+            {c.gender === 'M' ? 'Чоловіки' : 'Жінки'}
+          </span>
+        ) : showGender ? (
+          <span className={styles.badge}>Мікс</span>
+        ) : null}
         {c.bracketLabel && <span className={styles.badge}>{c.bracketLabel}</span>}
         {c.avpTier ? <span className={styles.badge}>AVP {c.avpTier}</span> : null}
       </div>
