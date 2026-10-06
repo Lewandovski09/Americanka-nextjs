@@ -150,7 +150,9 @@ export function useEventPost(load) {
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState('');
 
-  async function post(url, body) {
+  // `background: true` — return as soon as the server answers; the page
+  // reloads its data meanwhile instead of first.
+  async function post(url, body, { background = false } = {}) {
     setError('');
     setBusy(true);
     const res = await fetch(url, {
@@ -164,7 +166,8 @@ export function useEventPost(load) {
       setError(data.error || 'Сталася помилка');
       return false;
     }
-    await load();
+    if (background) load();
+    else await load();
     // Done, but with something the admin should know (e.g. one of two
     // writes did not go through) — shown in the same place as an error.
     if (data.warning) setError(data.warning);

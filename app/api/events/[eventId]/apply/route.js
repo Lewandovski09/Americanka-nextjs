@@ -2,10 +2,6 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds } from '@/lib/server/registration';
-import { escapeHtml } from '@/lib/telegram';
-import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
-import { publicSiteUrl } from '@/lib/server/siteUrl';
-import { appLink, browserButton } from '@/lib/server/openInApp';
 
 // A player submits an application to an event, choosing the league
 // (category) they want. It always lands in the pending pool — the admin
@@ -135,7 +131,7 @@ export async function POST(request, { params }) {
       }
       const sent = await sendInvite(supabaseAdmin, request, { eventId, categoryId, from: playerId, to: p.id, kind: 'join_seeker' });
       if (sent.error) return Response.json({ success: false, error: sent.error }, { status: 500 });
-      return Response.json({ success: true, invited: true });
+      return Response.json({ success: true, invited: true, inviteId: sent.repeat ? null : sent.inviteId });
     }
     // Not in the event yet: they are not put into a pair without saying
     // yes either. This player's application is filed alone (waiting for
@@ -169,14 +165,17 @@ export async function POST(request, { params }) {
   if (invitee) {
     const sent = await sendInvite(supabaseAdmin, request, { eventId, categoryId, from: playerId, to: invitee.id, kind: 'join_inviter' });
     if (sent.error) return Response.json({ success: false, error: sent.error }, { status: 500 });
-    return Response.json({ success: true, invited: true });
+    return Response.json({ success: true, invited: true, inviteId: sent.repeat ? null : sent.inviteId });
   }
 
   return Response.json({ success: true });
 }
 
-// A pair invitation (migrations 058, 061) plus a note in the invitee's
-// Telegram when it is linked. kind:
+// A pair invitation (migrations 058, 061). The Telegram note to the
+// invitee is NOT sent here: drawing and sending the tournament card takes
+// a few seconds, and the player waited for it before seeing «Запрошення
+// надіслано». The page asks for the note separately, right after
+// (…/invites/[inviteId]/notify). kind:
 //   'join_seeker'  — the inviter joins the invitee's application;
 //   'join_inviter' — the invitee joins the inviter's application.
 async function sendInvite(supabaseAdmin, request, { eventId, categoryId, from, to, kind }) {
@@ -188,38 +187,23 @@ async function sendInvite(supabaseAdmin, request, { eventId, categoryId, from, t
     .eq('to_user', to)
     .eq('status', 'pending')
     .maybeSingle();
-  if (dup) return {};
-  let { error } = await supabaseAdmin
+  if (dup) return { inviteId: dup.id, repeat: true };
+  let { data: inserted, error } = await supabaseAdmin
     .from('pair_invites')
-    .insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to, kind });
+    .insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to, kind })
+    .select('id')
+    .maybeSingle();
   if (error && /kind/.test(error.message || '') && kind === 'join_seeker') {
     // before migration 061 (no «kind» column yet)
-    ({ error } = await supabaseAdmin.from('pair_invites').insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to }));
+    ({ data: inserted, error } = await supabaseAdmin
+      .from('pair_invites')
+      .insert({ event_id: eventId, category_id: categoryId, from_user: from, to_user: to })
+      .select('id')
+      .maybeSingle());
   }
   if (error) {
     console.error('[apply] invite:', error.message);
     return { error: 'Не вдалося надіслати запрошення. Чи виконано SQL міграцій 058 і 061?' };
   }
-  const { data: people } = await supabaseAdmin
-    .from('users')
-    .select('id, full_name, telegram_user_id, telegram_linked_at')
-    .in('id', [from, to]);
-  const me = (people || []).find((u) => u.id === from);
-  const them = (people || []).find((u) => u.id === to);
-  if (them?.telegram_user_id && them?.telegram_linked_at) {
-    // The button goes through the hand-over page — it opens the
-    // installed app when the phone has it (lib/server/openInApp).
-    const site = publicSiteUrl(request);
-    if (site) {
-      await sendEventCardMessage(them.telegram_user_id, {
-        siteUrl: site,
-        eventId,
-        caption:
-          `🤝 <b>${escapeHtml(me?.full_name || 'Гравець')}</b> хоче зіграти з вами в парі на турнірі.\n\n` +
-          'Відкрийте турнір, щоб прийняти або відхилити запрошення.',
-        keyboard: browserButton('🤝 Відкрити запрошення', appLink(site, `/events/register/${eventId}`)),
-      });
-    }
-  }
-  return {};
+  return { inviteId: inserted?.id || null };
 }

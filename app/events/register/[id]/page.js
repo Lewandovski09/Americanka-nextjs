@@ -18,6 +18,7 @@ import VotePoll from '@/components/VotePoll';
 import { voteOptionsFrom } from '@/lib/voteOptions';
 import PartnerBoard, { postPartnerAd } from '@/components/PartnerBoard';
 import PairInvites from '@/components/PairInvites';
+import { notifyInvite } from '@/lib/inviteNotify';
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -123,11 +124,14 @@ export default function EventRegisterPage({ params, searchParams }) {
   const partnerExcludeIds = takenIds.filter((id) => !openSeekerIds.has(id));
 
   async function apply(payload) {
-    const ok = await post(`/api/events/${event.id}/apply`, payload);
+    // Not waiting for the page to reload its data — the answer is shown
+    // the moment the server has saved the application / invitation.
+    const ok = await post(`/api/events/${event.id}/apply`, payload, { background: true });
     if (ok) setBoardVersion((n) => n + 1);
     if (ok?.invited) {
-      window.alert('Запрошення надіслано ✅\n\nНапарник має його прийняти (у застосунку або через повідомлення в Telegram) — тоді ви будете в парі.');
+      notifyInvite(event.id, ok.inviteId); // the Telegram note, in the background
       setInvitesVersion((n) => n + 1);
+      window.alert('Запрошення надіслано ✅\n\nНапарник має його прийняти (у застосунку або через повідомлення в Telegram) — тоді ви будете в парі.');
     }
     return ok;
   }

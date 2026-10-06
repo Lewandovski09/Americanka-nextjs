@@ -34,11 +34,15 @@ export interface PlaceMemberResult {
 export async function eventParticipantIds(supabaseAdmin: SupabaseAdmin, eventId: string): Promise<Set<string>> {
   const ids = new Set<string>();
 
-  const { data: apps } = await supabaseAdmin
-    .from('tournament_applications')
-    .select('user_id, partner_id')
-    .eq('event_id', eventId)
-    .not('status', 'in', '(withdrawn,rejected)');
+  // Applications and the event's leagues at once.
+  const [{ data: apps }, { data: cats }] = await Promise.all([
+    supabaseAdmin
+      .from('tournament_applications')
+      .select('user_id, partner_id')
+      .eq('event_id', eventId)
+      .not('status', 'in', '(withdrawn,rejected)'),
+    supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId),
+  ]);
   (apps || []).forEach((a: { user_id: string | null; partner_id: string | null }) => {
     if (a.user_id) ids.add(a.user_id);
     if (a.partner_id) ids.add(a.partner_id);
@@ -46,7 +50,6 @@ export async function eventParticipantIds(supabaseAdmin: SupabaseAdmin, eventId:
 
   // Rosters too: a manually entered player or one distributed long ago
   // must not be offered again even if the application rows drifted.
-  const { data: cats } = await supabaseAdmin.from('tournament_categories').select('id').eq('event_id', eventId);
   const catIds = (cats || []).map((c: { id: string }) => c.id);
   if (catIds.length > 0) {
     const [{ data: solos }, { data: teams }] = await Promise.all([

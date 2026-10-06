@@ -11,12 +11,14 @@ import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './PairInvites.module.css';
+import { notifyInvite } from '@/lib/inviteNotify';
 
 export default function PairInvites({ eventId, version = 0, onChanged }) {
   const { player } = useCurrentPlayer();
   const [rows, setRows] = useState([]);
   const [busy, setBusy] = useState(null);
   const [error, setError] = useState('');
+  const [done, setDone] = useState('');
   const [reload, setReload] = useState(0);
 
   useEffect(() => {
@@ -39,7 +41,7 @@ export default function PairInvites({ eventId, version = 0, onChanged }) {
     };
   }, [eventId, player?.id, version, reload]);
 
-  if (!player || rows.length === 0) return null;
+  if (!player || (rows.length === 0 && !done)) return null;
 
   async function act(id, action) {
     setBusy(id);
@@ -51,9 +53,20 @@ export default function PairInvites({ eventId, version = 0, onChanged }) {
     });
     const data = await res.json().catch(() => ({}));
     setBusy(null);
-    if (!data.success) setError(data.error || 'Сталася помилка');
+    if (!data.success) {
+      setError(data.error || 'Сталася помилка');
+      setReload((n) => n + 1);
+      return;
+    }
+    // Answer at once; the lists refresh behind it.
+    const row = rows.find((r) => r.id === id);
+    setRows((list) => list.filter((r) => r.id !== id));
+    if (action === 'accept') {
+      setDone(`✅ Ви в парі з ${row?.sender?.full_name || 'напарником'}!`);
+      notifyInvite(eventId, id);
+    }
     setReload((n) => n + 1);
-    if (data.success) onChanged?.();
+    onChanged?.();
   }
 
   const incoming = rows.filter((r) => r.to_user === player.id);
@@ -71,7 +84,7 @@ export default function PairInvites({ eventId, version = 0, onChanged }) {
           </div>
           <div className={styles.btns}>
             <button type="button" className={styles.yes} disabled={busy !== null} onClick={() => act(r.id, 'accept')}>
-              Прийняти
+              {busy === r.id ? 'Приймаємо…' : 'Прийняти'}
             </button>
             <button type="button" className={styles.no} disabled={busy !== null} onClick={() => act(r.id, 'decline')}>
               Ні
@@ -93,6 +106,7 @@ export default function PairInvites({ eventId, version = 0, onChanged }) {
           </button>
         </div>
       ))}
+      {done && <div className={styles.done}>{done}</div>}
       {error && <div className={styles.error}>{error}</div>}
     </section>
   );
