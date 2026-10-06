@@ -208,23 +208,18 @@ describe('sendEventCardMessage (invitations)', () => {
   });
 });
 
-describe('per-player app address', () => {
-  it('links each player to the address their app is installed from', async () => {
-    const w: any = world(2);
-    w.users[0].app_origin = 'https://americanka-nextjs-fiqe.vercel.app';
-    w.users[1].app_origin = 'https://evil.example';
-    const sb: any = fakeSupabase(w);
-    const urls: any[] = [];
+describe('the button', () => {
+  it('always opens in the browser (plain http link)', async () => {
+    const sb: any = fakeSupabase(world(1));
+    const urls: string[] = [];
     const tg: any = fakeTelegram();
-    const orig = tg.trySendTelegramPhoto;
-    tg.trySendTelegramPhoto = async (chat: any, photo: string, caption: string, kb: any) => {
-      urls.push({ chat, url: kb?.inline_keyboard?.[0]?.[0]?.url });
-      return orig(chat, photo);
+    const orig = tg.trySendTelegramPhotoFile;
+    tg.trySendTelegramPhotoFile = async (chat: any, bytes: any, caption: string, kb: any) => {
+      urls.push(kb?.inline_keyboard?.[0]?.[0]?.url);
+      return orig(chat);
     };
     let r: any = { done: false };
     while (!r.done) r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
-    const byChat = Object.fromEntries(urls.filter((u) => !String(u.chat).startsWith('@')).map((u) => [u.chat, u.url]));
-    expect(byChat[1000]).toBe('https://americanka-nextjs-fiqe.vercel.app/open/event/e1');
-    expect(byChat[1001]).toBe(`${SITE}/open/event/e1`); // unknown address → the main one
+    expect(urls[0]).toBe('http://americanka.test/open/event/e1');
   });
 });
