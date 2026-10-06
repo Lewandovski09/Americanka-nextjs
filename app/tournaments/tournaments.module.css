@@ -307,3 +307,8 @@
   margin-top: 3px;
   font-weight: 600;
 }
+
+/* The countdown to the opening of applications, on the card's banner. */
+.cardCountdown {
+  position: relative;
+}

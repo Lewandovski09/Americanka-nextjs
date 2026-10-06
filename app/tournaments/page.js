@@ -15,6 +15,7 @@ import TabBtn from '@/components/TabBtn';
 import VenueName from '@/components/VenueName';
 import { useVenues, findVenue } from '@/hooks/useVenues';
 import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
+import RegistrationCountdown from '@/components/RegistrationCountdown';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 const DONE_PAGE = 15;
@@ -275,6 +276,11 @@ export default function EventsPage() {
                 </div>
               </div>
               {meta}
+              {soon && (
+                <div className={styles.cardCountdown}>
+                  <RegistrationCountdown compact opensAt={ev.registration_opens_at} onOpen={() => setEvents((list) => [...list])} />
+                </div>
+              )}
               </div>
 
               <div className={styles.cardBody}>
