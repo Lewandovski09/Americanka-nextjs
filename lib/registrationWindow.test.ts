@@ -74,3 +74,22 @@ describe('parseRegistrationOpens', () => {
     expect(parseRegistrationOpens('nope', start, NOW).error).toBeTruthy();
   });
 });
+
+import { formatPhone, formatTelegram } from './organizer';
+import { placesLabel } from './server/eventCardData';
+describe('organizer and places', () => {
+  it('formats the phone and the Telegram name', () => {
+    expect(formatPhone('0671874410')).toBe('067 187 44 10');
+    expect(formatPhone('+380671874410')).toBe('067 187 44 10');
+    expect(formatTelegram('https://t.me/george_bv')).toBe('@george_bv');
+    expect(formatTelegram('@george_bv')).toBe('@george_bv');
+    expect(formatTelegram('')).toBe(null);
+  });
+  it('places', () => {
+    expect(placesLabel(8, false)).toBe('8 місць');
+    expect(placesLabel(21, false)).toBe('21 місце');
+    expect(placesLabel(3, false)).toBe('3 місця');
+    expect(placesLabel(16, true)).toBe('16 пар');
+    expect(placesLabel(2, true)).toBe('2 пари');
+  });
+});

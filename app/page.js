@@ -19,6 +19,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconMail, IconChat } from '@/components/Icons';
 import styles from './page.module.css';
 import { registrationState, registrationLabel, feeLabel } from '@/lib/registrationWindow';
+import RegistrationCountdown from '@/components/RegistrationCountdown';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isFresh = (finishedAt) => !!finishedAt && Date.now() - new Date(finishedAt).getTime() < DAY_MS;
@@ -454,6 +455,11 @@ export default function HomePage() {
               {nextEvent.avpTier ? ` · AVP ${nextEvent.avpTier}` : ''}
               {feeLabel(nextEvent.entry_fee) ? ` · 💰 ${feeLabel(nextEvent.entry_fee)}` : ''}
             </div>
+            {nextEvent.status !== 'live' && registrationState({ ...nextEvent, status: 'scheduled' }) === 'soon' && (
+              <div className={styles.nextCountdown}>
+                <RegistrationCountdown compact opensAt={nextEvent.registration_opens_at} onOpen={() => setNextEvent((e) => (e ? { ...e } : e))} />
+              </div>
+            )}
           </div>
 
           <div className={styles.nextBody}>

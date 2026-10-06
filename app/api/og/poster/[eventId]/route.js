@@ -20,12 +20,23 @@ const fonts = Promise.all([
   fetch(new URL('./Inter-ExtraBold.otf', import.meta.url)).then((r) => r.arrayBuffer()),
 ]);
 
+// The app's logo (public/icons/icon-512, made smaller) as a data: URL.
+const logo = fetch(new URL('./logo.png', import.meta.url))
+  .then((r) => r.arrayBuffer())
+  .then((buf) => {
+    const bytes = new Uint8Array(buf);
+    let bin = '';
+    for (let i = 0; i < bytes.length; i += 0x8000) bin += String.fromCharCode(...bytes.subarray(i, i + 0x8000));
+    return `data:image/png;base64,${btoa(bin)}`;
+  })
+  .catch(() => null);
+
 export async function GET(_request, { params }) {
   const data = await loadEventCardData(createAdminClient(), params.eventId);
   if (!data) return new Response('Not found', { status: 404 });
 
-  const [medium, semibold, bold, extrabold] = await fonts;
-  return new ImageResponse(<EventPoster data={data} />, {
+  const [[medium, semibold, bold, extrabold], logoSrc] = await Promise.all([fonts, logo]);
+  return new ImageResponse(<EventPoster data={data} logo={logoSrc} />, {
     width: POSTER_WIDTH,
     height: POSTER_HEIGHT,
     fonts: [

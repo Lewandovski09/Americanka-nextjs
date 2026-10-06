@@ -884,3 +884,7 @@
   background: #f59e0b;
   border-color: #b45309;
 }
+
+.nextTop .nextCountdown {
+  position: relative;
+}

@@ -74,13 +74,15 @@ describe('announcementCaption', () => {
   const data: any = {
     title: 'Americanka', name: 'Кубок <1>', statusLabel: 'Реєстрація відкрита', dateLabel: 'Субота',
     venue: 'Пляж 13', avpTier: 300,
-    categories: [{ id: 'c', label: 'Light', genderLabel: 'Чоловіки', taken: 0, total: 8, left: 8, unit: 'гравців' }],
+    categories: [{ id: 'c', label: 'Light', genderLabel: 'Чоловіки', taken: 0, total: 8, left: 8, unit: 'гравців', places: '8 місць' }],
+    organizer: { telegram: '@george', phone: '067 187 44 10' },
   };
   it('escapes names and lists the leagues', () => {
     const c = announcementCaption(data, `${SITE}/events/register/e`);
     expect(c.includes('Кубок &lt;1&gt;')).toBe(true);
     expect(c.includes('Light')).toBe(true);
-    expect(c.includes('0/8 гравців, 8 вільно')).toBe(true);
+    expect(c.includes('Light</b> · Чоловіки — 8 місць')).toBe(true);
+    expect(c.includes('Питання до організатора: ✈️ @george · 📞 067 187 44 10')).toBe(true);
   });
   it('keeps a caption under Telegram’s 1024 characters', () => {
     const many = { ...data, categories: Array.from({ length: 40 }, (_, i) => ({ ...data.categories[0], id: String(i) })) };

@@ -21,16 +21,8 @@ import PairInvites from '@/components/PairInvites';
 import { notifyInvite } from '@/lib/inviteNotify';
 import { appAlert } from '@/components/AppDialog';
 import { registrationState, msUntilOpen, opensLabel, feeLabel } from '@/lib/registrationWindow';
+import RegistrationCountdown from '@/components/RegistrationCountdown';
 
-/** «через 2 дн 3 год» / «через 5 хв» — how long until applications open. */
-function untilText(ms) {
-  const min = Math.max(1, Math.ceil(ms / 60000));
-  if (min < 60) return `через ${min} хв`;
-  const h = Math.floor(min / 60);
-  if (h < 24) return `через ${h} год${min % 60 ? ` ${min % 60} хв` : ''}`;
-  const d = Math.floor(h / 24);
-  return `через ${d} дн${h % 24 ? ` ${h % 24} год` : ''}`;
-}
 
 export default function EventRegisterPage({ params, searchParams }) {
   const { id } = params;
@@ -211,7 +203,9 @@ export default function EventRegisterPage({ params, searchParams }) {
           myApp={myApp}
           regClosed={regClosed}
           regSoon={regSoon}
-          opensText={regSoon ? `${opensLabel(event.registration_opens_at)} · ${untilText(waitMs)}` : ''}
+          opensText={regSoon ? opensLabel(event.registration_opens_at) : ''}
+          opensAt={event.registration_opens_at}
+          onOpen={() => setNow(Date.now())}
           busy={busy}
           isMix={event.format_kind === 'mix'}
           onApply={async ({ partnerAd, partnerAdNote, ...payload }) => {
@@ -274,7 +268,7 @@ export default function EventRegisterPage({ params, searchParams }) {
   );
 }
 
-function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCategories, initialCategoryId, myApp, regClosed, regSoon, opensText, busy, onApply, onWithdraw }) {
+function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCategories, initialCategoryId, myApp, regClosed, regSoon, opensText, opensAt, onOpen, busy, onApply, onWithdraw }) {
   // A men's league takes men, a women's league women (the server refuses
   // the rest too) — so only the leagues this player may enter are offered.
   const categories = allCategories.filter((c) => !c.gender || c.gender === me?.gender);
@@ -337,6 +331,7 @@ function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCateg
       <div className={`${styles.myBox} ${styles.soonBox}`}>
         <div className={styles.myStatus}>⏳ Прийом заявок ще не почався</div>
         <div className={styles.soonText}>Відкриється {opensText}. Тоді тут з’явиться кнопка «Подати заявку».</div>
+        <RegistrationCountdown opensAt={opensAt} onOpen={onOpen} />
       </div>
     );
   }

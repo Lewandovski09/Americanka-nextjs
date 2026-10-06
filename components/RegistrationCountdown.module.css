@@ -1,0 +1,291 @@
+/* The countdown to the opening of applications + the beach scene. */
+
+.wrap {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  margin-top: 10px;
+}
+
+.main {
+  flex: 1;
+  min-width: 0;
+}
+
+.title {
+  font-size: 11px;
+  font-weight: 800;
+  letter-spacing: 0.6px;
+  text-transform: uppercase;
+  color: #c8432f;
+  margin-bottom: 7px;
+}
+
+.units {
+  display: flex;
+  gap: 6px;
+}
+
+.unit {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 3px;
+}
+
+.box {
+  min-width: 46px;
+  height: 46px;
+  padding: 0 6px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  border-radius: 12px;
+  background: linear-gradient(180deg, #16306b 0%, #2a4d94 100%);
+  border: 1px solid #0b1e45;
+  box-shadow: 0 3px 0 #0b1e45;
+  overflow: hidden;
+}
+
+.digits {
+  display: inline-block;
+  color: #fff;
+  font-size: 22px;
+  font-weight: 800;
+  font-variant-numeric: tabular-nums;
+  animation: pop 0.45s cubic-bezier(0.2, 0.9, 0.3, 1.3);
+}
+
+.unitLabel {
+  font-size: 10.5px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+@keyframes pop {
+  0% {
+    transform: translateY(-60%) scale(0.7);
+    opacity: 0;
+  }
+  100% {
+    transform: none;
+    opacity: 1;
+  }
+}
+
+/* ---------- the beach scene ---------- */
+
+.scene {
+  position: relative;
+  flex: none;
+  width: 118px;
+  height: 84px;
+  border-radius: 16px;
+  overflow: hidden;
+  background: linear-gradient(180deg, #8fd3ff 0%, #c9ecff 55%);
+  border: 1px solid #d3dbe9;
+  box-shadow: 0 3px 0 #cbd4e3;
+}
+
+.sun {
+  position: absolute;
+  top: 8px;
+  right: 10px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: #ffd166;
+  box-shadow: 0 0 0 4px rgba(255, 209, 102, 0.35);
+  animation: glow 3s ease-in-out infinite;
+}
+
+.sea {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 22px;
+  height: 12px;
+  background: linear-gradient(90deg, #2a8fd8, #4fb3f0, #2a8fd8);
+  background-size: 200% 100%;
+  animation: waves 4s linear infinite;
+}
+
+.sand {
+  position: absolute;
+  left: 0;
+  right: 0;
+  bottom: 0;
+  height: 24px;
+  background: linear-gradient(180deg, #f7dca4 0%, #ecc47f 100%);
+}
+
+.net {
+  position: absolute;
+  left: 57px;
+  bottom: 14px;
+  width: 4px;
+  height: 46px;
+  background: #34486e;
+  border-radius: 2px;
+}
+
+.netMesh {
+  position: absolute;
+  left: -16px;
+  top: 0;
+  width: 36px;
+  height: 14px;
+  border-top: 3px solid #fff;
+  background:
+    repeating-linear-gradient(90deg, rgba(255, 255, 255, 0.85) 0 1px, transparent 1px 5px),
+    repeating-linear-gradient(0deg, rgba(255, 255, 255, 0.85) 0 1px, transparent 1px 5px);
+}
+
+/* The ball: left↔right steadily, up and down like a throw, spinning. */
+.ballTrack,
+.shadowTrack {
+  position: absolute;
+  left: 10px;
+  bottom: 18px;
+  animation: across 2.6s ease-in-out infinite alternate;
+}
+
+.shadowTrack {
+  bottom: 6px;
+}
+
+.ballLift {
+  display: block;
+  animation: lift 1.3s ease-in-out infinite alternate;
+  animation-direction: alternate;
+}
+
+.ball {
+  display: block;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background:
+    radial-gradient(circle at 30% 30%, #fff 0 35%, transparent 36%),
+    conic-gradient(#ffffff 0 33%, #ffd166 0 66%, #2a4d94 0);
+  border: 1.5px solid #0d2347;
+  animation: spin 0.9s linear infinite;
+}
+
+.shadow {
+  display: block;
+  width: 16px;
+  height: 5px;
+  border-radius: 50%;
+  background: rgba(13, 35, 71, 0.25);
+  animation: shrink 1.3s ease-in-out infinite alternate;
+}
+
+@keyframes across {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(82px);
+  }
+}
+
+/* one flight = 2.6 s across; the lift goes up and back down in that time */
+@keyframes lift {
+  from {
+    transform: translateY(0);
+    animation-timing-function: cubic-bezier(0.3, 0.6, 0.6, 1);
+  }
+  to {
+    transform: translateY(-48px);
+  }
+}
+
+@keyframes shrink {
+  from {
+    transform: scale(1);
+    opacity: 1;
+  }
+  to {
+    transform: scale(0.45);
+    opacity: 0.5;
+  }
+}
+
+@keyframes spin {
+  to {
+    transform: rotate(360deg);
+  }
+}
+
+@keyframes waves {
+  to {
+    background-position: 200% 0;
+  }
+}
+
+@keyframes glow {
+  50% {
+    box-shadow: 0 0 0 7px rgba(255, 209, 102, 0.2);
+  }
+}
+
+/* On the dark banner of the home card. */
+.compact .title {
+  color: #ffd7cc;
+}
+
+.compact .unitLabel {
+  color: rgba(255, 255, 255, 0.75);
+}
+
+.compact .box {
+  min-width: 40px;
+  height: 40px;
+  background: rgba(255, 255, 255, 0.14);
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: 0 3px 0 rgba(0, 0, 0, 0.25);
+}
+
+.compact .digits {
+  font-size: 19px;
+}
+
+.compact .scene {
+  width: 100px;
+  height: 72px;
+  border-color: rgba(255, 255, 255, 0.35);
+  box-shadow: none;
+}
+
+.compact .net {
+  left: 48px;
+  height: 40px;
+}
+
+.compact .ballTrack,
+.compact .shadowTrack {
+  animation-name: acrossSmall;
+}
+
+@keyframes acrossSmall {
+  from {
+    transform: translateX(0);
+  }
+  to {
+    transform: translateX(66px);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .digits,
+  .ballTrack,
+  .shadowTrack,
+  .ballLift,
+  .ball,
+  .shadow,
+  .sea,
+  .sun {
+    animation: none;
+  }
+}
