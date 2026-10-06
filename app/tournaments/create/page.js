@@ -11,7 +11,7 @@ import {
   defaultParticipantsFor,
 } from '@/lib/formats';
 import AvpTierPicker from '@/components/AvpTierPicker';
-import AnnounceSwitch from '@/components/AnnounceSwitch';
+import AnnounceSwitch, { TestEventSwitch } from '@/components/AnnounceSwitch';
 import RegistrationFields from '@/components/RegistrationFields';
 import { opensLabel } from '@/lib/registrationWindow';
 import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
@@ -65,6 +65,8 @@ export default function CreateEventPage() {
   const [scheduleAt, setScheduleAt] = useState('');
   // «Оголосити в Telegram» — off unless the admin turns it on.
   const [announce, setAnnounce] = useState(false);
+  // «Тестовий турнір» — nothing goes to Telegram (070).
+  const [isTest, setIsTest] = useState(false);
   const [announcing, setAnnouncing] = useState(null); // null | number sent so far
   const [created, setCreated] = useState(null); // the event, when it was created but the announcement failed
 
@@ -189,6 +191,7 @@ export default function CreateEventPage() {
       registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
       registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null,
       scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+      ...(isTest ? { isTest: true } : {}),
       categories,
     };
 
@@ -205,7 +208,7 @@ export default function CreateEventPage() {
       return setError(data.error || 'Не вдалося створити турнір');
     }
 
-    if (announce && data.event?.id) {
+    if (announce && !isTest && data.event?.id) {
       setAnnouncing(0);
       const r = await runAnnouncement(data.event.id, setAnnouncing);
       setAnnouncing(null);
@@ -471,10 +474,19 @@ export default function CreateEventPage() {
         формуються після закриття реєстрації.
       </div>
 
-      <AnnounceSwitch
-        checked={announce}
-        onChange={setAnnounce}
+      <TestEventSwitch
+        checked={isTest}
+        onChange={(v) => {
+          setIsTest(v);
+          if (v) setAnnounce(false);
+        }}
         disabled={loading || !!created}
+      />
+
+      <AnnounceSwitch
+        checked={announce && !isTest}
+        onChange={setAnnounce}
+        disabled={loading || !!created || isTest}
         sub={
           opensLater
             ? `Зараз — афіша турніру (з внеском і часом прийому заявок) у канал і всім гравцям у бот. ${opensLabel(
@@ -496,8 +508,10 @@ export default function CreateEventPage() {
             ? `Надсилаємо оголошення… ${announcing}`
             : loading
             ? 'Створення...'
-            : announce
+            : announce && !isTest
             ? 'Створити й оголосити →'
+            : isTest
+            ? 'Створити тестовий турнір →'
             : 'Створити подію →'}
         </button>
       )}

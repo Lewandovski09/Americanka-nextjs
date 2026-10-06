@@ -53,7 +53,10 @@ export default function EventSettingsPage({ params }) {
   if (event.status !== 'scheduled') {
     return (
       <div className={styles.page}>
-        <h2 className={styles.title}>⚙ {event.name}</h2>
+        <h2 className={styles.title}>
+          ⚙ {event.name}
+          {event.is_test && <span className={styles.testTag}>🧪 Тест</span>}
+        </h2>
         <div className={styles.meta}>Турнір вже розпочато.</div>
         <Link href={`/tournaments/settings/${event.id}`} className={styles.openLink}>
           Керування турніром →

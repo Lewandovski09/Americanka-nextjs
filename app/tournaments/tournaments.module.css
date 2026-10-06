@@ -312,3 +312,12 @@
 .cardCountdown {
   position: relative;
 }
+
+/* A test tournament (070) — nothing about it goes to Telegram. */
+.cardTop .testBadge,
+.testBadge {
+  background: #f59e0b;
+  color: #fff;
+  border: 1px solid #b45309;
+  margin-right: 6px;
+}

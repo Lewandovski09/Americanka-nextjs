@@ -246,3 +246,13 @@ describe('applications open later (migration 066)', () => {
     expect(sb.db.tournament_events[0].open_announced_at ?? null).toBe(null);
   });
 });
+
+describe('test tournaments (070)', () => {
+  it('are never announced', async () => {
+    const sb: any = fakeSupabase(world(3, { event: { is_test: true } }));
+    const tg = fakeTelegram();
+    const r: any = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
+    expect(r.error).toBeTruthy();
+    expect(tg.log.length).toBe(0);
+  });
+});

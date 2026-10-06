@@ -95,3 +95,10 @@ describe('runOpenAnnouncements', () => {
     expect(t.log.length).toBe(before);
   });
 });
+
+describe('test tournaments (070)', () => {
+  it('never get «Заявки приймаються»', async () => {
+    const sb: any = fakeSupabase(world({ is_test: true }));
+    expect(await dueOpenings(sb, NOW)).toEqual([]);
+  });
+});

@@ -19,6 +19,7 @@ import OptionBtn from '@/components/OptionBtn';
 import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
 import { divisionsFor } from '@/lib/sports';
 import RegistrationFields from '@/components/RegistrationFields';
+import { TestEventSwitch } from '@/components/AnnounceSwitch';
 
 function catKey(gender, label) {
   return `${gender || 'X'}:${label}`;
@@ -55,6 +56,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   const [opensAt, setOpensAt] = useState(opensFuture ? toLocalInput(event.registration_opens_at) : '');
   const [closesAt, setClosesAt] = useState(toLocalInput(event.registration_closes_at));
   const [scheduleAt, setScheduleAt] = useState(toLocalInput(event.schedule_at));
+  const [isTest, setIsTest] = useState(!!event.is_test);
 
   const [categories, setCategories] = useState(() => fromRows(categoryRows, isPair));
   const [error, setError] = useState('');
@@ -162,6 +164,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
       // sent only when there is something (works before SQL 068 as well)
       ...(closesAt || event.registration_closes_at ? { registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null } : {}),
       ...(scheduleAt || event.schedule_at ? { scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null } : {}),
+      ...(isTest !== !!event.is_test ? { isTest } : {}),
       categories: categories.map(({ hasMembers, ...c }) => c),
     });
     if (ok) setSaved(true);
@@ -265,6 +268,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
         scheduleAt={scheduleAt}
         onScheduleAt={setScheduleAt}
       />
+      <TestEventSwitch checked={isTest} onChange={setIsTest} disabled={busy} />
 
       {/* Category picker */}
       <label className={styles.label}>Категорії</label>

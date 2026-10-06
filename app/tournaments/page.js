@@ -98,7 +98,7 @@ export default function EventsPage() {
         .from('tournament_events')
         .select(
           `id, name, format_kind, status, location, scheduled_at, avp_tier,
-           registration_open, registration_opens_at, registration_closes_at, entry_fee,
+           registration_open, registration_opens_at, registration_closes_at, entry_fee, is_test,
            tournament_categories(id, category_label, gender, status, max_participants, avp_tier, bracket_system)`
         )
         .eq('status', tab)
@@ -225,9 +225,12 @@ export default function EventsPage() {
             </div>
           );
           const badge = (
-            <span className={styles.badge}>
-              {ev.format?.displayName || ev.format_kind}
-            </span>
+            <>
+              {ev.is_test && <span className={`${styles.badge} ${styles.testBadge}`}>🧪 Тест</span>}
+              <span className={styles.badge}>
+                {ev.format?.displayName || ev.format_kind}
+              </span>
+            </>
           );
           const isPairFormat = ev.format?.registrationType && ev.format.registrationType !== 'solo';
 

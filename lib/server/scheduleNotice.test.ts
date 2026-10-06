@@ -67,3 +67,15 @@ describe('firstGameOf', () => {
     expect(t.includes('Ж · Pro')).toBe(true);
   });
 });
+
+describe('test tournaments (070)', () => {
+  it('send no schedule', async () => {
+    const w: any = world();
+    w.tournament_events[0].is_test = true;
+    const sb: any = fakeSupabase(w);
+    const t = tg();
+    const r: any = await sendScheduleNotice(sb, 'e1', { siteUrl: SITE, telegram: t });
+    expect(r.skipped).toBe('test');
+    expect(t.log.length).toBe(0);
+  });
+});

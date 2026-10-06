@@ -943,3 +943,15 @@
 .deleteCatBtn:disabled {
   opacity: 0.5;
 }
+
+.testTag {
+  display: inline-block;
+  margin-left: 8px;
+  padding: 2px 8px;
+  border-radius: var(--r-pill);
+  background: #f59e0b;
+  color: #fff;
+  font-size: 11px;
+  font-weight: 800;
+  vertical-align: middle;
+}

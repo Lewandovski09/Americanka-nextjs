@@ -118,6 +118,7 @@ export async function POST(request, { params }) {
     if (closes.error) return Response.json({ success: false, error: closes.error }, { status: 400 });
     extra.registration_closes_at = closes.closesAt;
   }
+  if ('isTest' in body) extra.is_test = !!body.isTest; // 070
   if ('scheduleAt' in body) {
     const schedule = parseScheduleAt(body.scheduleAt, scheduledAt);
     if (schedule.error) return Response.json({ success: false, error: schedule.error }, { status: 400 });

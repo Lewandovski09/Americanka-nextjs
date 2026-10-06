@@ -18,7 +18,7 @@ export async function POST(request, { params }) {
     request.json().catch(() => ({})),
     supabaseAdmin
       .from('tournament_events')
-      .select('id, name, format_kind, status, scheduled_at')
+      .select('*')
       .eq('id', eventId)
       .maybeSingle(),
     supabaseAdmin.from('tournament_categories').select('id, status').eq('event_id', eventId),
@@ -157,7 +157,8 @@ export async function POST(request, { params }) {
     const appPartner = liveApp ? (liveApp.user_id === playerId ? liveApp.partner_id : liveApp.user_id) : null;
     const partnerId = seen.partnerId || appPartner || null;
     try {
-      await notifyWithdrawal(supabaseAdmin, request, {
+      // a test tournament (070) sends nothing to Telegram
+      if (!event.is_test) await notifyWithdrawal(supabaseAdmin, request, {
         event,
         playerId,
         withPartner: !!withPartner && !!partnerId,

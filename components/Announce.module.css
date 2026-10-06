@@ -104,3 +104,29 @@
   font-size: 12.5px;
   color: var(--danger);
 }
+
+/* «🧪 Тестовий турнір» — amber instead of Telegram blue. */
+.testOn {
+  border-color: #fcd34d;
+  background: #fffbeb;
+}
+
+.testOn .track {
+  background: #f59e0b;
+}
+
+.testNote {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: #b45309;
+  background: #fffbeb;
+  border: 1px solid #fcd34d;
+  border-radius: var(--r-sm);
+  padding: 8px 12px;
+  margin: 10px 0 14px;
+}
+
+.switchRow:disabled {
+  opacity: 0.5;
+  cursor: default;
+}

@@ -117,6 +117,8 @@ export async function POST(request) {
       registration_opens_at: opens.opensAt || new Date().toISOString(),
       ...(closes.closesAt ? { registration_closes_at: closes.closesAt } : {}),
       ...(schedule.scheduleAt ? { schedule_at: schedule.scheduleAt } : {}),
+      // «Тестовий турнір» — nothing goes to Telegram (070)
+      ...(body.isTest ? { is_test: true } : {}),
       status: 'scheduled',
       created_by: authUser.user.id,
     })
@@ -125,9 +127,9 @@ export async function POST(request) {
 
   if (eventError) {
     console.error('[create-event] event error:', eventError.message);
-    const missing = /entry_fee|registration_opens_at|registration_closes_at|schedule_at/.test(eventError.message || '');
+    const missing = /entry_fee|registration_opens_at|registration_closes_at|schedule_at|is_test/.test(eventError.message || '');
     return Response.json(
-      { success: false, error: missing ? 'Не вдалося створити подію — виконайте SQL 066 і 068 у Supabase' : 'Не вдалося створити подію' },
+      { success: false, error: missing ? 'Не вдалося створити подію — виконайте SQL 066, 068 і 070 у Supabase' : 'Не вдалося створити подію' },
       { status: 500 }
     );
   }

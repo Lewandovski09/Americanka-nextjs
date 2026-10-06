@@ -391,7 +391,9 @@ export function StartEventButton({ event, categories, format, busy, post }) {
       notReady.length
         ? `Не зібралися й будуть анульовані: ${notReady.map((c) => label(c) + count(c)).join(', ')}.`
         : null,
-      'Розклад піде в Telegram-канал і учасникам у бот.',
+      event.is_test
+        ? '🧪 Тестовий турнір — у Telegram нічого не піде.'
+        : 'Розклад піде в Telegram-канал і учасникам у бот.',
     ].filter(Boolean);
     if (!(await appConfirm(lines.join('\n\n'), { title: 'Точно готові почати турнір?', okText: 'Так, почати' }))) return;
     const ok = await post(`/api/events/${event.id}/start`, { partial: true });

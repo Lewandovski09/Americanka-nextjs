@@ -11,6 +11,14 @@ import { appConfirm } from '@/components/AppDialog';
 import { opensLabel } from '@/lib/registrationWindow';
 
 export default function AnnounceButton({ event, onDone }) {
+  // A test tournament (070) never goes to Telegram.
+  if (event.is_test) {
+    return <div className={styles.testNote}>🧪 Тестовий турнір — у Telegram-канал і бот нічого не надсилається.</div>;
+  }
+  return <AnnounceButtonInner event={event} onDone={onDone} />;
+}
+
+function AnnounceButtonInner({ event, onDone }) {
   const [busy, setBusy] = useState(false);
   const [progress, setProgress] = useState(null);
   const [result, setResult] = useState(null);

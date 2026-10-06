@@ -26,3 +26,29 @@ export default function AnnounceSwitch({ checked, onChange, disabled, sub }) {
     </button>
   );
 }
+
+// «🧪 Тестовий турнір» (migration 070) — nothing about it goes to Telegram.
+export function TestEventSwitch({ checked, onChange, disabled }) {
+  return (
+    <button
+      type="button"
+      role="switch"
+      aria-checked={checked}
+      disabled={disabled}
+      className={`${styles.switchRow} ${styles.testRow} ${checked ? `${styles.on} ${styles.testOn}` : ''}`}
+      onClick={() => onChange(!checked)}
+    >
+      <span className={styles.switchText}>
+        <span className={styles.switchTitle}>🧪 Тестовий турнір</span>
+        <span className={styles.switchSub}>
+          {checked
+            ? 'Увімкнено: жодного повідомлення в Telegram-канал чи бот — ні афіші, ні «Заявки приймаються», ні розкладу, ні запрошень.'
+            : 'Увімкніть, щоб перевірити турнір без жодних повідомлень у Telegram.'}
+        </span>
+      </span>
+      <span className={styles.track} aria-hidden="true">
+        <span className={styles.knob} />
+      </span>
+    </button>
+  );
+}

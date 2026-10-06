@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { isTestEvent, TEST_SKIP } from '@/lib/server/testEvent';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { escapeHtml } from '@/lib/telegram';
 import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
@@ -31,6 +32,7 @@ export async function POST(request, { params }) {
     .eq('event_id', eventId)
     .maybeSingle();
   if (!inv) return Response.json({ success: false }, { status: 404 });
+  if (await isTestEvent(supabaseAdmin, eventId)) return Response.json(TEST_SKIP);
 
   let to;
   let caption;
