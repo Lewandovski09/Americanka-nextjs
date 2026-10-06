@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
+import { notifyWithdrawal } from '@/lib/server/withdrawNotice';
 
 // A player withdraws from an event.
 //  - Solo: remove their tournament_players row.
@@ -20,7 +21,7 @@ export async function POST(request, { params }) {
 
   const { data: event } = await supabaseAdmin
     .from('tournament_events')
-    .select('id, format_kind, status')
+    .select('id, name, format_kind, status, scheduled_at')
     .eq('id', eventId)
     .single();
   if (!event) return Response.json({ success: false, error: 'Подію не знайдено' }, { status: 404 });
@@ -67,6 +68,9 @@ export async function POST(request, { params }) {
     .eq('status', 'scheduled');
   const categoryIds = (cats || []).map((c) => c.id);
 
+  // What the admin's Telegram note will say (lib/server/withdrawNotice).
+  const seen = { categoryId: null, partnerId: null, inRoster: false };
+
   if (categoryIds.length > 0) {
     if (isPair) {
       const { data: team } = await supabaseAdmin
@@ -77,6 +81,9 @@ export async function POST(request, { params }) {
         .maybeSingle();
 
       if (team) {
+        seen.categoryId = team.category_id;
+        seen.inRoster = true;
+        seen.partnerId = team.user1_id === playerId ? team.user2_id : team.user1_id;
         const alone = !team.user2_id;
         if (withPartner || alone) {
           await supabaseAdmin.from('tournament_teams').delete().eq('id', team.id);
@@ -95,11 +102,16 @@ export async function POST(request, { params }) {
         }
       }
     } else {
-      await supabaseAdmin
+      const { data: removed } = await supabaseAdmin
         .from('tournament_players')
         .delete()
         .eq('user_id', playerId)
-        .in('category_id', categoryIds);
+        .in('category_id', categoryIds)
+        .select('category_id');
+      if ((removed || []).length > 0) {
+        seen.categoryId = removed[0].category_id;
+        seen.inRoster = true;
+      }
     }
   }
 
@@ -109,9 +121,10 @@ export async function POST(request, { params }) {
   // withdrawn or handed over to whoever stays on.
   const { data: appRows } = await supabaseAdmin
     .from('tournament_applications')
-    .select('id, user_id, partner_id')
+    .select('id, user_id, partner_id, status, requested_category, assigned_category_id')
     .eq('event_id', eventId)
     .or(`user_id.eq.${playerId},partner_id.eq.${playerId}`);
+  const liveApp = (appRows || []).find((r) => r.status !== 'withdrawn' && r.status !== 'rejected') || null;
 
   const withdraw = (id) =>
     supabaseAdmin
@@ -140,6 +153,28 @@ export async function POST(request, { params }) {
       if (error) await withdraw(row.id);
     } else {
       await withdraw(row.id);
+    }
+  }
+
+  // The owner of the app hears about it in Telegram — who left, from
+  // which tournament and league, and with whom. Only when something
+  // actually changed (a place in a league or a live application).
+  if (seen.inRoster || liveApp) {
+    const appPartner = liveApp ? (liveApp.user_id === playerId ? liveApp.partner_id : liveApp.user_id) : null;
+    const partnerId = seen.partnerId || appPartner || null;
+    try {
+      await notifyWithdrawal(supabaseAdmin, request, {
+        event,
+        playerId,
+        withPartner: !!withPartner && !!partnerId,
+        partnerId,
+        categoryId: seen.categoryId || liveApp?.assigned_category_id || null,
+        requestedLabel: liveApp?.requested_category || null,
+        where: seen.inRoster ? 'roster' : liveApp?.status === 'reserve' ? 'reserve' : 'queue',
+        isPair,
+      });
+    } catch (e) {
+      console.error('[withdraw] owner note:', e?.message || e);
     }
   }
 
