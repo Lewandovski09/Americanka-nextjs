@@ -6,12 +6,13 @@
 
 import { useEffect, useState } from 'react';
 import Link from 'next/link';
+import { useRouter } from 'next/navigation';
 import { createClient } from '@/lib/supabase/client';
 import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { getFormat } from '@/lib/formats';
 import { invalidate, setCached } from '@/lib/clientCache';
 import styles from './archive.module.css';
-import { appConfirm } from '@/components/AppDialog';
+import { appConfirm, appAlert } from '@/components/AppDialog';
 
 const STATUS = { scheduled: 'Не почався', live: 'Йшов', done: 'Завершений', cancelled: 'Скасований' };
 
@@ -21,6 +22,7 @@ function fmt(d, withTime = true) {
 }
 
 export default function DeletedArchivePage() {
+  const router = useRouter();
   const { player, loading: playerLoading } = useCurrentPlayer();
   const [rows, setRows] = useState(null);
   const [busyId, setBusyId] = useState(null);
@@ -72,11 +74,14 @@ export default function DeletedArchivePage() {
       // The tournaments lists cached in this tab are stale now.
       ['scheduled', 'live', 'done'].forEach((t) => invalidate(`tournaments:${t}`));
       invalidate('home:');
-      setNotice({
-        text: data.warning || `«${row.name}» відновлено`,
-        href: row.event_status === 'scheduled' ? `/events/register/${row.event_id}` : null,
-        error: !!data.warning,
-      });
+      if (data.warning) await appAlert(data.warning);
+      // Back to the tournaments, on the tab the tournament is on again —
+      // «Розклад», «Активні» or «Завершені», just as it was before.
+      const tab = row.event_status === 'scheduled' || row.event_status === 'live' ? row.event_status : 'done';
+      setCached('tournaments:tab', tab);
+      setCached('tournaments:tabChosen', true);
+      router.push('/tournaments');
+      return;
     } else {
       setNotice({ text: `«${row.name}» видалено назавжди` });
     }
