@@ -21,7 +21,7 @@ import EventPhoto from '@/components/EventPhoto';
 import styles from './detail.module.css';
 import { pressable } from '@/lib/a11y';
 import { appAlert } from '@/components/AppDialog';
-import { winChances, chanceLabel, sideKey } from '@/lib/winChance';
+import { winChances, chanceLabel, sideKey, forecastBasis } from '@/lib/winChance';
 
 // Parts not every visitor needs — the bracket, the zoomable table, the
 // poll, the partner board and the judge picker — load in their own
@@ -290,7 +290,10 @@ export default function TournamentDetailPage({ params }) {
 
   // «Шанс на перемогу» (lib/winChance): while the category is being
   // played — the rest of it simulated thousands of times from Ело, the
-  // record of past tournaments and AVP; played games stay as they were.
+  // record of past tournaments and AVP. Two numbers:
+  //   «До старту» — as it looked before the first game (no results, the
+  //                 Ело each player had before the tournament);
+  //   «Зараз»     — after every fully played round / stage.
   const chances = useMemo(() => {
     if (!tournament || tournament.status !== 'live' || matches.length === 0) return null;
     const pairMode = teams.length > 0;
@@ -318,14 +321,31 @@ export default function TournamentDetailPage({ params }) {
       sides = tournamentPlayers.map((tp) => [tp.user_id]);
     }
     if (sides.length < 2) return null;
+
+    // Ело before the tournament: the «before» of each player's first game here.
+    const firstBefore = new Map();
+    const ordered = [...matches].sort((x, y) => String(x.played_at || '9').localeCompare(String(y.played_at || '9')));
+    for (const m of ordered) {
+      const rows = eloByMatch[m.id] || {};
+      for (const [uid, r] of Object.entries(rows)) if (!firstBefore.has(uid) && r?.before != null) firstBefore.set(uid, r.before);
+    }
+    const nowPlayers = [...people.values()];
+    const prePlayers = nowPlayers.map((p) => (firstBefore.has(p.id) ? { ...p, elo: firstBefore.get(p.id) } : p));
     try {
-      return winChances({ sides, players: [...people.values()], matches, sims: 3000 });
+      const pre = forecastBasis(matches, 'pre');
+      const cur = forecastBasis(matches, 'rounds');
+      return {
+        pre: winChances({ sides, players: prePlayers, matches: pre.matches, sims: 3000, seed: 11 }),
+        now: winChances({ sides, players: nowPlayers, matches: cur.matches, sims: 3000, seed: 7 }),
+        rounds: cur.completedRounds,
+      };
     } catch (e) {
       console.error('[win chances]', e);
       return null;
     }
-  }, [tournament, matches, teams, tournamentPlayers, avpByUser]);
-  const chanceOf = (ids) => (chances ? chances.get(sideKey(ids)) : null);
+  }, [tournament, matches, teams, tournamentPlayers, avpByUser, eloByMatch]);
+  const chanceOf = (ids) => (chances ? { pre: chances.pre.get(sideKey(ids)), now: chances.now.get(sideKey(ids)) } : null);
+  const chanceHead = chances ? (chances.rounds > 0 ? `Зараз · ${chances.rounds} ${chances.rounds === 1 ? 'раунд' : chances.rounds < 5 ? 'раунди' : 'раундів'}` : 'Зараз') : null;
 
   if (!tournament) return <div className={styles.loading}>Завантаження...</div>;
 
@@ -949,7 +969,12 @@ export default function TournamentDetailPage({ params }) {
                       <th>Прізвище 2</th>
                       <th>Ім&apos;я 2</th>
                       <th>Місто 2</th>
-                      {chances && <th className={styles.chanceHead} title="Шанс на перемогу в турнірі">Шанс</th>}
+                      {chances && (
+                        <>
+                          <th className={styles.chanceHead} title="Шанс на перемогу — як виглядало до першої гри">До старту</th>
+                          <th className={styles.chanceHead} title="Шанс на перемогу — після кожного зіграного раунду / етапу">{chanceHead}</th>
+                        </>
+                      )}
                     </tr>
                   </thead>
                   <tbody>
@@ -973,7 +998,15 @@ export default function TournamentDetailPage({ params }) {
                         <td className={styles.pairCityCell}>{tt.p2?.city || '—'}</td>
                         {chances && (
                           <td className={styles.chanceCell}>
-                            <ChanceBadge p={chanceOf([tt.user1_id, tt.user2_id].filter(Boolean))} />
+                            <ChanceBadge p={chanceOf([tt.user1_id, tt.user2_id].filter(Boolean))?.pre} muted />
+                          </td>
+                        )}
+                        {chances && (
+                          <td className={styles.chanceCell}>
+                            <ChanceBadge
+                              p={chanceOf([tt.user1_id, tt.user2_id].filter(Boolean))?.now}
+                              was={chanceOf([tt.user1_id, tt.user2_id].filter(Boolean))?.pre}
+                            />
                           </td>
                         )}
                       </tr>
@@ -990,7 +1023,12 @@ export default function TournamentDetailPage({ params }) {
                 <tr>
                   <th>#</th>
                   <th>Гравець</th>
-                  {chances && <th className={styles.chanceHead} title="Шанс на перемогу в турнірі">Шанс</th>}
+                  {chances && (
+                        <>
+                          <th className={styles.chanceHead} title="Шанс на перемогу — як виглядало до першої гри">До старту</th>
+                          <th className={styles.chanceHead} title="Шанс на перемогу — після кожного зіграного раунду / етапу">{chanceHead}</th>
+                        </>
+                      )}
                 </tr>
               </thead>
               <tbody>
@@ -1003,7 +1041,12 @@ export default function TournamentDetailPage({ params }) {
                     </td>
                     {chances && (
                       <td className={styles.chanceCell}>
-                        <ChanceBadge p={chanceOf([s.player.id])} />
+                        <ChanceBadge p={chanceOf([s.player.id])?.pre} muted />
+                      </td>
+                    )}
+                    {chances && (
+                      <td className={styles.chanceCell}>
+                        <ChanceBadge p={chanceOf([s.player.id])?.now} was={chanceOf([s.player.id])?.pre} />
                       </td>
                     )}
                   </tr>
@@ -1851,13 +1894,21 @@ function TabBtn({ active, onClick, children }) {
 
 // One participant's chance to win the category — a number and a thin bar
 // (the width is the chance; the leader's bar is coral).
-function ChanceBadge({ p }) {
+function ChanceBadge({ p, was, muted = false }) {
   if (p == null) return <span className={styles.chanceNum}>—</span>;
+  const diff = was != null ? p - was : 0;
+  const arrow = was == null || Math.abs(diff) < 0.01 ? null : diff > 0 ? '▲' : '▼';
   return (
     <span className={styles.chanceWrap} title="Шанс на перемогу: тисячі симуляцій решти турніру за Ело, історією турнірів і AVP">
-      <span className={styles.chanceNum}>{chanceLabel(p)}</span>
+      <span className={`${styles.chanceNum} ${muted ? styles.chanceMuted : ''}`}>
+        {arrow && <span className={diff > 0 ? styles.chanceUp : styles.chanceDown}>{arrow}</span>}
+        {chanceLabel(p)}
+      </span>
       <span className={styles.chanceBar}>
-        <span className={`${styles.chanceFill} ${p >= 0.25 ? styles.chanceHot : ''}`} style={{ width: `${Math.max(3, Math.round(p * 100))}%` }} />
+        <span
+          className={`${styles.chanceFill} ${muted ? styles.chanceFillMuted : p >= 0.25 ? styles.chanceHot : ''}`}
+          style={{ width: `${Math.max(3, Math.round(p * 100))}%` }}
+        />
       </span>
     </span>
   );

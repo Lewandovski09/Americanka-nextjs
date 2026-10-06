@@ -75,3 +75,33 @@ describe('winChances', () => {
     expect(chanceLabel(1, { decided: true })).toBe('100%');
   });
 });
+
+import { forecastBasis } from './winChance';
+describe('forecastBasis', () => {
+  const ms = [
+    { id: 'r1a', round_number: 1, played: true, set1: [16, 15], team_a_players: ['a'], team_b_players: ['b'] },
+    { id: 'r1b', round_number: 1, played: true, set1: [10, 21], team_a_players: ['c'], team_b_players: ['d'] },
+    { id: 'r2a', round_number: 2, played: true, set1: [21, 3], team_a_players: ['a'], team_b_players: ['c'] },
+    { id: 'r2b', round_number: 2, played: false, team_a_players: ['b'], team_b_players: ['d'] },
+  ];
+  it('«до старту» forgets every result', () => {
+    const { matches } = forecastBasis(ms, 'pre');
+    expect(matches.every((m: any) => !m.played)).toBe(true);
+  });
+  it('«зараз» keeps only fully played rounds', () => {
+    const { matches, completedRounds } = forecastBasis(ms, 'rounds');
+    expect(completedRounds).toBe(1);
+    expect(matches.find((m: any) => m.id === 'r1a').played).toBe(true);
+    expect(matches.find((m: any) => m.id === 'r2a').played).toBe(false);
+  });
+  it('a bracket place fed by a result that does not count is emptied', () => {
+    const b = [
+      { id: 's1', stage: 'sf', round_number: 1, played: true, set1: [21, 10], team_a_players: ['a'], team_b_players: ['b'], winner_to_match_id: 'f', winner_to_slot: 'a' },
+      { id: 's2', stage: 'sf', round_number: 1, played: false, team_a_players: ['c'], team_b_players: ['d'], winner_to_match_id: 'f', winner_to_slot: 'b' },
+      { id: 'f', stage: 'final', round_number: 2, played: false, team_a_players: ['a'], team_b_players: [] },
+    ];
+    const { matches } = forecastBasis(b, 'rounds');
+    expect(matches.find((m: any) => m.id === 's1').played).toBe(false);
+    expect(matches.find((m: any) => m.id === 'f').team_a_players).toEqual([]);
+  });
+});

@@ -1219,3 +1219,27 @@
 .chanceHot {
   background: linear-gradient(90deg, #ffb39f, #e85d4a);
 }
+
+.chanceMuted {
+  color: var(--text2);
+  font-weight: 700;
+}
+
+.chanceFillMuted {
+  background: #b8c2d6;
+}
+
+.chanceUp,
+.chanceDown {
+  font-size: 9px;
+  margin-right: 3px;
+  vertical-align: 1px;
+}
+
+.chanceUp {
+  color: #1ea672;
+}
+
+.chanceDown {
+  color: #dc2626;
+}
