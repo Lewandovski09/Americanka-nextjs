@@ -237,7 +237,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
 
       {/* ── The selected category ── */}
       <div className={styles.poolTitle} style={{ marginTop: 22 }}>
-        Категорія {category.gender === 'M' ? '♂ ' : category.gender === 'F' ? '♀ ' : ''}
+        Категорія {category.gender === 'M' ? 'Ч · ' : category.gender === 'F' ? 'Ж · ' : ''}
         {category.category_label}
       </div>
       <div className={styles.panelMeta}>

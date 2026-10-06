@@ -781,10 +781,10 @@ export default function TournamentDetailPage({ params }) {
           {siblings.map((c) => (
             <button
               key={c.id}
-              className={`${styles.leagueTab} ${c.id === tournament.id ? styles.leagueTabOn : ''}`}
+              className={`${styles.leagueTab} ${c.id === tournament.id ? (c.gender === 'F' ? styles.leagueTabOnF : styles.leagueTabOn) : ''}`}
               onClick={() => c.id !== tournament.id && router.push(`/tournaments/${c.id}`)}
             >
-              {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+              {c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}
               {c.category_label || 'Категорія'}
               {c.status === 'scheduled' && <span className={styles.leagueTabNote}> · не почалась</span>}
             </button>
@@ -966,7 +966,7 @@ export default function TournamentDetailPage({ params }) {
       {tab === TABS.PLAYERS && (
         <VotePoll
           categoryId={tournament.id}
-          title={`${tournament.gender === 'M' ? '♂ ' : tournament.gender === 'F' ? '♀ ' : ''}${tournament.category_label || ''}`.trim()}
+          title={`${tournament.gender === 'M' ? 'Ч · ' : tournament.gender === 'F' ? 'Ж · ' : ''}${tournament.category_label || ''}`.trim()}
           options={voteOptionsFrom({ isPair, players: tournamentPlayers, teams })}
           open={tournament.status === 'scheduled'}
           winnerIds={

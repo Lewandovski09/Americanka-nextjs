@@ -904,3 +904,14 @@
 .maintBtn:disabled {
   opacity: 0.6;
 }
+
+.catTabOnF {
+  /* A women's league: the coral 3D look of «Дивитись усі турніри» on the home page. */
+  border-color: #a51f0c;
+  background: linear-gradient(180deg, #ff6a52 0%, #e8341c 100%);
+  color: #fff;
+  box-shadow:
+    inset 0 1px 0 rgba(255, 255, 255, 0.4),
+    0 2px 0 #a51f0c,
+    0 4px 10px rgba(232, 52, 28, 0.35);
+}

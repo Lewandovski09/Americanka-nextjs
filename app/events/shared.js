@@ -308,10 +308,10 @@ export function CategoryTabs({ categories, activeId, onSelect }) {
       {categories.map((c) => (
         <button
           key={c.id}
-          className={`${styles.catTab} ${c.id === activeId ? styles.catTabOn : ''}`}
+          className={`${styles.catTab} ${c.id === activeId ? (c.gender === 'F' ? styles.catTabOnF : styles.catTabOn) : ''}`}
           onClick={() => onSelect(c.id)}
         >
-          {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+          {c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}
           {c.category_label}
         </button>
       ))}
@@ -342,7 +342,7 @@ export function StartEventButton({ event, categories, format, busy, post }) {
   const shortHanded =
     format?.kind === 'americanka' ? pending.filter((c) => rowsOf(c).length !== 8) : [];
   const label = (c) =>
-    `${c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}${c.category_label || 'Категорія'}`;
+    `${c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}${c.category_label || 'Категорія'}`;
 
   return (
     <div className={styles.startBox}>

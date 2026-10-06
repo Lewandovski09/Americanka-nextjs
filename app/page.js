@@ -405,7 +405,7 @@ export default function HomePage() {
               {(recentEvent.categories || []).map((c) => (
                 <a key={c.id} href={`/tournaments/${c.id}`} className={styles.winnerRow}>
                   <span className={styles.winnerCat}>
-                    {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+                    {c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}
                     {c.category_label || 'Категорія'}
                   </span>
                   <span className={styles.winnerName}>

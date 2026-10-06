@@ -52,7 +52,7 @@ export default function EventRegisterPage({ params, searchParams }) {
         <div style={{ marginTop: 12 }}>
           {categories.map((c) => (
             <Link key={c.id} href={`/tournaments/${c.id}`} className={styles.openLink}>
-              {c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : ''}
+              {c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}
               {c.category_label} →
             </Link>
           ))}
@@ -220,7 +220,7 @@ export default function EventRegisterPage({ params, searchParams }) {
           <VotePoll
             key={activeCat.id}
             categoryId={activeCat.id}
-            title={`${activeCat.gender === 'M' ? '♂ ' : activeCat.gender === 'F' ? '♀ ' : ''}${activeCat.category_label || ''}`.trim()}
+            title={`${activeCat.gender === 'M' ? 'Ч · ' : activeCat.gender === 'F' ? 'Ж · ' : ''}${activeCat.category_label || ''}`.trim()}
             options={voteOptionsFrom({ isPair, players: activeCat.tournament_players, teams: activeCat.tournament_teams })}
             open={activeCat.status === 'scheduled'}
           />

@@ -74,6 +74,6 @@ export async function POST(request, { params }) {
 }
 
 function categoryName(c) {
-  const g = c.gender === 'M' ? '♂ ' : c.gender === 'F' ? '♀ ' : '';
+  const g = c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : '';
   return `${g}${c.category_label || 'Категорія'}`;
 }
