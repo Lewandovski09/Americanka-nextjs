@@ -1,6 +1,6 @@
 'use client';
 
-import { useEffect, useState, useCallback, useRef } from 'react';
+import { useEffect, useState, useCallback, useRef, useMemo } from 'react';
 import { useRouter } from 'next/navigation';
 import dynamic from 'next/dynamic';
 import { createClient } from '@/lib/supabase/client';
@@ -21,6 +21,7 @@ import EventPhoto from '@/components/EventPhoto';
 import styles from './detail.module.css';
 import { pressable } from '@/lib/a11y';
 import { appAlert } from '@/components/AppDialog';
+import { winChances, chanceLabel, sideKey } from '@/lib/winChance';
 
 // Parts not every visitor needs — the bracket, the zoomable table, the
 // poll, the partner board and the judge picker — load in their own
@@ -54,6 +55,8 @@ export default function TournamentDetailPage({ params }) {
   const [siblings, setSiblings] = useState(cachedRest?.sibs || []); // the event's other leagues
   const [tournamentPlayers, setTournamentPlayers] = useState(cachedRest?.tps || []);
   const [teams, setTeams] = useState(cachedRest?.tt || []);
+  // AVP points of everyone here (all seasons) — for the win chances.
+  const [avpByUser, setAvpByUser] = useState({});
   const [matches, setMatches] = useState(cachedLive?.m || []);
   // Americanka: each game's Ело change per player, from elo_history —
   // { [matchId]: { [userId]: { delta, before } } }.
@@ -140,7 +143,7 @@ export default function TournamentDetailPage({ params }) {
       fetchLive(supabase),
       supabase
         .from('tournament_players')
-        .select('user_id, users(full_name, last_name, photo_url, elo)')
+        .select('user_id, users(full_name, last_name, photo_url, elo, tournaments_played, tournaments_won)')
         .eq('category_id', id),
       // Pair formats keep participants in tournament_teams — load them too
       // so match sides and the score dialog can show names.
@@ -148,13 +151,29 @@ export default function TournamentDetailPage({ params }) {
         .from('tournament_teams')
         .select(
           `id, user1_id, user2_id,
-           p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url),
-           p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url)`
+           p1:users!tournament_teams_user1_id_fkey(full_name, first_name, last_name, city, photo_url, elo, tournaments_played, tournaments_won),
+           p2:users!tournament_teams_user2_id_fkey(full_name, first_name, last_name, city, photo_url, elo, tournaments_played, tournaments_won)`
         )
         .eq('category_id', id),
     ]);
     setTournamentPlayers(tps || []);
     setTeams(tt || []);
+
+    // AVP for the win chances — in the background, nothing waits for it.
+    const everyone = [...new Set([...(tps || []).map((x) => x.user_id), ...(tt || []).flatMap((x) => [x.user1_id, x.user2_id])])].filter(Boolean);
+    if (everyone.length > 0) {
+      supabase
+        .from('avp_standings')
+        .select('user_id, points')
+        .in('user_id', everyone)
+        .then(({ data }) => {
+          const sum = {};
+          (data || []).forEach((r) => {
+            sum[r.user_id] = (sum[r.user_id] || 0) + (r.points || 0);
+          });
+          setAvpByUser(sum);
+        });
+    }
 
     // Then what hangs off the EVENT: the other leagues of the day (for the
     // switcher above the tabs) and the judging crew — the same people
@@ -268,6 +287,45 @@ export default function TournamentDetailPage({ params }) {
     const el = document.getElementById(`match-${focus.matchId}`);
     if (el) el.scrollIntoView({ behavior: 'smooth', block: 'center', inline: 'center' });
   }, [focus?.matchId, focus?.seq]);
+
+  // «Шанс на перемогу» (lib/winChance): while the category is being
+  // played — the rest of it simulated thousands of times from Ело, the
+  // record of past tournaments and AVP; played games stay as they were.
+  const chances = useMemo(() => {
+    if (!tournament || tournament.status !== 'live' || matches.length === 0) return null;
+    const pairMode = teams.length > 0;
+    const people = new Map();
+    const addP = (uid, u) => {
+      if (!uid || people.has(uid)) return;
+      people.set(uid, {
+        id: uid,
+        full_name: u?.full_name || '',
+        elo: u?.elo,
+        tournaments_played: u?.tournaments_played,
+        tournaments_won: u?.tournaments_won,
+        avp: avpByUser[uid] || 0,
+      });
+    };
+    let sides;
+    if (pairMode) {
+      teams.forEach((t) => {
+        addP(t.user1_id, t.p1);
+        addP(t.user2_id, t.p2);
+      });
+      sides = teams.map((t) => [t.user1_id, t.user2_id].filter(Boolean));
+    } else {
+      tournamentPlayers.forEach((tp) => addP(tp.user_id, tp.users));
+      sides = tournamentPlayers.map((tp) => [tp.user_id]);
+    }
+    if (sides.length < 2) return null;
+    try {
+      return winChances({ sides, players: [...people.values()], matches, sims: 3000 });
+    } catch (e) {
+      console.error('[win chances]', e);
+      return null;
+    }
+  }, [tournament, matches, teams, tournamentPlayers, avpByUser]);
+  const chanceOf = (ids) => (chances ? chances.get(sideKey(ids)) : null);
 
   if (!tournament) return <div className={styles.loading}>Завантаження...</div>;
 
@@ -891,6 +949,7 @@ export default function TournamentDetailPage({ params }) {
                       <th>Прізвище 2</th>
                       <th>Ім&apos;я 2</th>
                       <th>Місто 2</th>
+                      {chances && <th className={styles.chanceHead} title="Шанс на перемогу в турнірі">Шанс</th>}
                     </tr>
                   </thead>
                   <tbody>
@@ -912,6 +971,11 @@ export default function TournamentDetailPage({ params }) {
                         <td>{tt.p2?.last_name || '—'}</td>
                         <td>{tt.p2?.first_name || '—'}</td>
                         <td className={styles.pairCityCell}>{tt.p2?.city || '—'}</td>
+                        {chances && (
+                          <td className={styles.chanceCell}>
+                            <ChanceBadge p={chanceOf([tt.user1_id, tt.user2_id].filter(Boolean))} />
+                          </td>
+                        )}
                       </tr>
                     ))}
                   </tbody>
@@ -926,6 +990,7 @@ export default function TournamentDetailPage({ params }) {
                 <tr>
                   <th>#</th>
                   <th>Гравець</th>
+                  {chances && <th className={styles.chanceHead} title="Шанс на перемогу в турнірі">Шанс</th>}
                 </tr>
               </thead>
               <tbody>
@@ -936,6 +1001,11 @@ export default function TournamentDetailPage({ params }) {
                       <PlayerAvatar player={playerById(s.player.id)} size={22} />
                       {s.player.full_name}
                     </td>
+                    {chances && (
+                      <td className={styles.chanceCell}>
+                        <ChanceBadge p={chanceOf([s.player.id])} />
+                      </td>
+                    )}
                   </tr>
                 ))}
               </tbody>
@@ -1776,5 +1846,19 @@ function TabBtn({ active, onClick, children }) {
     <button className={`${styles.tabBtn} ${active ? styles.tabBtnOn : ''}`} onClick={onClick}>
       {children}
     </button>
+  );
+}
+
+// One participant's chance to win the category — a number and a thin bar
+// (the width is the chance; the leader's bar is coral).
+function ChanceBadge({ p }) {
+  if (p == null) return <span className={styles.chanceNum}>—</span>;
+  return (
+    <span className={styles.chanceWrap} title="Шанс на перемогу: тисячі симуляцій решти турніру за Ело, історією турнірів і AVP">
+      <span className={styles.chanceNum}>{chanceLabel(p)}</span>
+      <span className={styles.chanceBar}>
+        <span className={`${styles.chanceFill} ${p >= 0.25 ? styles.chanceHot : ''}`} style={{ width: `${Math.max(3, Math.round(p * 100))}%` }} />
+      </span>
+    </span>
   );
 }
