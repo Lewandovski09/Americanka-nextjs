@@ -2,7 +2,8 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { eventParticipantIds } from '@/lib/server/registration';
 import { joinSeeker, dropPartnerAds } from '@/lib/server/pairing';
-import { trySendTelegramMessageWithButtons, escapeHtml } from '@/lib/telegram';
+import { escapeHtml } from '@/lib/telegram';
+import { sendEventCardMessage } from '@/lib/server/eventAnnouncement';
 import { publicSiteUrl } from '@/lib/server/siteUrl';
 import { appLink } from '@/lib/server/openInApp';
 
@@ -102,11 +103,14 @@ export async function POST(request, { params }) {
   const inviter = (people || []).find((u) => u.id === inv.from_user);
   if (inviter?.telegram_user_id && inviter?.telegram_linked_at) {
     const site = publicSiteUrl(request);
-    await trySendTelegramMessageWithButtons(
-      inviter.telegram_user_id,
-      `✅ <b>${escapeHtml(accepter?.full_name || 'Гравець')}</b> прийняв(-ла) ваше запрошення — ви в парі на турнірі!`,
-      site ? { inline_keyboard: [[{ text: 'Відкрити турнір', url: appLink(site, `/events/register/${eventId}`) }]] } : undefined
-    );
+    if (site) {
+      await sendEventCardMessage(inviter.telegram_user_id, {
+        siteUrl: site,
+        eventId,
+        caption: `✅ <b>${escapeHtml(accepter?.full_name || 'Гравець')}</b> прийняв(-ла) ваше запрошення — ви в парі на турнірі!`,
+        keyboard: { inline_keyboard: [[{ text: 'Відкрити турнір', url: appLink(site, `/events/register/${eventId}`) }]] },
+      });
+    }
   }
   return Response.json({ success: true });
 }

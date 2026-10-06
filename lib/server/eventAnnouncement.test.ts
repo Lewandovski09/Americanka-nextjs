@@ -1,5 +1,5 @@
 import { describe, it, expect } from 'vitest';
-import { announceBatch, announcementCaption } from './eventAnnouncement';
+import { announceBatch, announcementCaption, sendEventCardMessage } from './eventAnnouncement';
 import { eventDateLabel } from './eventCardData';
 import { fakeSupabase } from '../testing/fakeSupabase';
 
@@ -189,5 +189,21 @@ describe('announceBatch', () => {
     const chats = tg.log.filter((x) => x.chat != null && !String(x.chat).startsWith('@')).map((x) => x.chat);
     expect(chats.length).toBe(new Set(chats).size);
     expect(tg.log.filter((x) => String(x.chat).startsWith('@'))).toHaveLength(1);
+  });
+});
+
+describe('sendEventCardMessage (invitations)', () => {
+  it('sends the card picture with the text and the button', async () => {
+    const tg = fakeTelegram();
+    const r: any = await sendEventCardMessage(42, { siteUrl: SITE, eventId: 'e1', caption: 'hi', keyboard: {}, telegram: tg });
+    expect(r.ok).toBe(true);
+    expect(r.textOnly).toBeUndefined();
+    expect(tg.log.map((x) => x.kind)).toEqual(['draw', 'upload']);
+  });
+  it('falls back to text only when no picture can be sent', async () => {
+    const tg = fakeTelegram({ photoFails: true });
+    const r: any = await sendEventCardMessage(42, { siteUrl: SITE, eventId: 'e1', caption: 'hi', keyboard: {}, telegram: tg });
+    expect(r.ok).toBe(true);
+    expect(r.textOnly).toBe(true);
   });
 });
