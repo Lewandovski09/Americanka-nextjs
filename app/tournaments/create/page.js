@@ -185,7 +185,7 @@ export default function CreateEventPage() {
       const r = await runAnnouncement(data.event.id, setAnnouncing);
       setAnnouncing(null);
       setLoading(false);
-      if (!r.ok || r.channel?.ok === false) {
+      if (!r.ok || r.channel?.ok === false || r.channel?.photo === false || r.photoError) {
         // The tournament exists — only the announcement needs another try
         // (the event settings have the button for it).
         setCreated(data.event);

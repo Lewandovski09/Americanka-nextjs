@@ -2,7 +2,9 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { eventParticipantIds } from '@/lib/server/registration';
 import { joinSeeker, dropPartnerAds } from '@/lib/server/pairing';
-import { trySendTelegramMessage, escapeHtml } from '@/lib/telegram';
+import { trySendTelegramMessageWithButtons, escapeHtml } from '@/lib/telegram';
+import { publicSiteUrl } from '@/lib/server/siteUrl';
+import { appLink } from '@/lib/server/openInApp';
 
 // A pair invitation (migration 058): someone who saw a «Шукаю пару»
 // notice asked to play with the player who applied alone. The invited
@@ -99,9 +101,11 @@ export async function POST(request, { params }) {
   const accepter = (people || []).find((u) => u.id === me);
   const inviter = (people || []).find((u) => u.id === inv.from_user);
   if (inviter?.telegram_user_id && inviter?.telegram_linked_at) {
-    await trySendTelegramMessage(
+    const site = publicSiteUrl(request);
+    await trySendTelegramMessageWithButtons(
       inviter.telegram_user_id,
-      `✅ <b>${escapeHtml(accepter?.full_name || 'Гравець')}</b> прийняв(-ла) ваше запрошення — ви в парі на турнірі!`
+      `✅ <b>${escapeHtml(accepter?.full_name || 'Гравець')}</b> прийняв(-ла) ваше запрошення — ви в парі на турнірі!`,
+      site ? { inline_keyboard: [[{ text: 'Відкрити турнір', url: appLink(site, `/events/register/${eventId}`) }]] } : undefined
     );
   }
   return Response.json({ success: true });

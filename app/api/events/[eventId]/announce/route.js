@@ -1,23 +1,13 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { announceBatch } from '@/lib/server/eventAnnouncement';
+import { publicSiteUrl } from '@/lib/server/siteUrl';
 
 // «Оголосити в Telegram» — admin only. Each call posts to the channel (the
 // first call only) and sends the card to the next batch of players; the
 // page calls again until { done: true }. See lib/server/eventAnnouncement.
 export const runtime = 'nodejs';
 export const maxDuration = 60;
-
-// The address players open from Telegram: the production site — not the
-// preview link the admin may happen to be on.
-function siteUrl(request) {
-  const env = process.env.NEXT_PUBLIC_SITE_URL?.trim().replace(/\/+$/, '');
-  if (env) return env;
-  if (process.env.VERCEL_PROJECT_PRODUCTION_URL) return `https://${process.env.VERCEL_PROJECT_PRODUCTION_URL}`;
-  const host = request.headers.get('x-forwarded-host') || request.headers.get('host');
-  const proto = request.headers.get('x-forwarded-proto') || 'https';
-  return host ? `${proto}://${host}` : null;
-}
 
 export async function POST(request, { params }) {
   const supabase = createClient();
@@ -31,7 +21,7 @@ export async function POST(request, { params }) {
   if (!process.env.TELEGRAM_BOT_TOKEN) {
     return Response.json({ success: false, error: 'Telegram-бот не налаштований (TELEGRAM_BOT_TOKEN)' }, { status: 400 });
   }
-  const site = siteUrl(request);
+  const site = publicSiteUrl(request);
   if (!site || !site.startsWith('https://')) {
     return Response.json(
       { success: false, error: 'Оголошення надсилається лише з опублікованого сайту (https)' },

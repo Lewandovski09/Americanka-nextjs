@@ -33,18 +33,29 @@ function world(players: number, extra: any = {}) {
   };
 }
 
-function fakeTelegram({ photoFails = false, channelFails = false } = {}) {
+function fakeTelegram({ photoFails = false, channelFails = false, urlFails = false, drawFails = false } = {}) {
   const log: any[] = [];
+  const toChannel = (chat: any) => String(chat).startsWith('@');
   return {
     log,
+    fetchCardPng: async () => {
+      log.push({ kind: 'draw' });
+      return drawFails ? { error: 'картинка: HTTP 500' } : { bytes: new Uint8Array([1, 2, 3]) };
+    },
+    trySendTelegramPhotoFile: async (chat: any) => {
+      log.push({ kind: 'upload', chat });
+      if (photoFails || (channelFails && toChannel(chat))) return { ok: false, blocked: false, error: 'bad photo' };
+      return { ok: true, blocked: false, photoId: 'FILE123' };
+    },
     trySendTelegramPhoto: async (chat: any, photo: string) => {
       log.push({ kind: 'photo', chat, photo });
-      if (photoFails || (channelFails && String(chat).startsWith('@'))) return { ok: false, blocked: false, error: 'bad photo' };
+      if (photoFails || (channelFails && toChannel(chat))) return { ok: false, blocked: false, error: 'bad photo' };
+      if (urlFails && photo.startsWith('http')) return { ok: false, blocked: false, error: 'failed to get HTTP URL content' };
       return { ok: true, blocked: false, photoId: 'FILE123' };
     },
     trySendTelegramMessageWithButtons: async (chat: any) => {
       log.push({ kind: 'text', chat });
-      if (channelFails && String(chat).startsWith('@')) return { ok: false, blocked: false, error: 'not admin' };
+      if (channelFails && toChannel(chat)) return { ok: false, blocked: false, error: 'not admin' };
       return { ok: true, blocked: false };
     },
     broadcastPause: async () => {},
@@ -93,9 +104,11 @@ describe('announceBatch', () => {
     expect(r.sent).toBe(5);
     const channelPosts = tg.log.filter((x) => String(x.chat).startsWith('@'));
     expect(channelPosts).toHaveLength(1);
-    const chats = tg.log.filter((x) => !String(x.chat).startsWith('@')).map((x) => x.chat);
+    const chats = tg.log.filter((x) => x.chat != null && !String(x.chat).startsWith('@')).map((x) => x.chat);
     expect(new Set(chats).size).toBe(5); // nobody twice
-    // after the first picture, everyone gets it by its Telegram id
+    // the picture is drawn and uploaded once (channel); everyone gets it by its Telegram id
+    expect(tg.log.filter((x) => x.kind === 'draw').length).toBe(1);
+    expect(tg.log.filter((x) => x.kind === 'upload').length).toBe(1);
     expect(tg.log.filter((x) => x.kind === 'photo' && x.photo === 'FILE123').length).toBe(5);
   });
 
@@ -127,8 +140,29 @@ describe('announceBatch', () => {
     let r: any = { done: false };
     while (!r.done) r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
     expect(r.sent).toBe(3);
-    // the picture is tried once (channel), then everyone gets text straight away
-    expect(tg.log.filter((x) => x.kind === 'photo').length).toBe(1);
+    expect(r.photoError).toBeTruthy();
+    // the picture is tried once per run, then the rest get text straight away
+    expect(tg.log.filter((x) => x.kind === 'upload').length <= 2).toBe(true);
+    expect(tg.log.filter((x) => x.kind === 'text').length).toBe(4); // channel + 3 players
+  });
+
+  it('a picture Telegram can\u2019t download itself is uploaded from our server', async () => {
+    const sb: any = fakeSupabase(world(2));
+    const tg = fakeTelegram({ urlFails: true });
+    let r: any = { done: false };
+    while (!r.done) r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
+    expect(r.photoError).toBeUndefined();
+    expect(r.channel.photo).toBe(true);
+    expect(tg.log.filter((x) => x.kind === 'text').length).toBe(0);
+  });
+
+  it('if drawing fails, Telegram is given the link to try itself', async () => {
+    const sb: any = fakeSupabase(world(1));
+    const tg = fakeTelegram({ drawFails: true });
+    let r: any = { done: false };
+    while (!r.done) r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg });
+    expect(r.channel.photo).toBe(true);
+    expect(tg.log.filter((x) => x.kind === 'photo' && String(x.photo).startsWith('http')).length).toBe(1);
   });
 
   it('a failed channel post can be retried later', async () => {
@@ -142,7 +176,7 @@ describe('announceBatch', () => {
     r = await announceBatch(sb, 'e1', { siteUrl: SITE, telegram: tg2, retryChannel: true });
     expect(r.channel.ok).toBe(true);
     expect(tg2.log.filter((x) => String(x.chat).startsWith('@'))).toHaveLength(1);
-    expect(tg2.log.filter((x) => !String(x.chat).startsWith('@'))).toHaveLength(0); // players not again
+    expect(tg2.log.filter((x) => x.chat != null && !String(x.chat).startsWith('@'))).toHaveLength(0); // players not again
   });
 
   it('two runs at once do not send a batch twice', async () => {
@@ -152,7 +186,7 @@ describe('announceBatch', () => {
       announceBatch(sb, 'e1', { siteUrl: SITE, batchSize: 4, telegram: tg }),
       announceBatch(sb, 'e1', { siteUrl: SITE, batchSize: 4, telegram: tg }),
     ]);
-    const chats = tg.log.filter((x) => !String(x.chat).startsWith('@')).map((x) => x.chat);
+    const chats = tg.log.filter((x) => x.chat != null && !String(x.chat).startsWith('@')).map((x) => x.chat);
     expect(chats.length).toBe(new Set(chats).size);
     expect(tg.log.filter((x) => String(x.chat).startsWith('@'))).toHaveLength(1);
   });

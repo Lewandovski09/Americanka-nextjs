@@ -287,3 +287,62 @@ export async function trySendTelegramMessageWithButtons(
 export function broadcastPause(): Promise<void> {
   return sleep(BROADCAST_INTERVAL_MS);
 }
+
+/**
+ * Best-effort photo UPLOADED from our server (multipart), not a link for
+ * Telegram to download — Telegram's own download of a freshly drawn
+ * picture can time out, and then it gives up on the picture. Same
+ * result shape as trySendTelegramPhoto. Never throws.
+ */
+export async function trySendTelegramPhotoFile(
+  chatId: string | number,
+  bytes: Uint8Array,
+  caption: string,
+  replyMarkup?: Record<string, unknown>,
+  filename = 'card.png'
+): Promise<TrySendPhotoResult> {
+  let lastError = 'Unknown Telegram error';
+  for (let attempt = 1; attempt <= MAX_ATTEMPTS; attempt++) {
+    const form = new FormData();
+    form.append('chat_id', String(chatId));
+    form.append('caption', caption);
+    form.append('parse_mode', 'HTML');
+    if (replyMarkup) form.append('reply_markup', JSON.stringify(replyMarkup));
+    form.append('photo', new Blob([bytes as unknown as BlobPart], { type: 'image/png' }), filename);
+
+    const controller = new AbortController();
+    const timeout = setTimeout(() => controller.abort(), 30_000);
+    try {
+      const response = await fetch(`${TELEGRAM_API_BASE}/bot${getBotToken()}/sendPhoto`, {
+        method: 'POST',
+        body: form,
+        signal: controller.signal,
+      });
+      const data = await response.json();
+      if (data.ok) {
+        const sizes: { file_id: string }[] = data.result?.photo || [];
+        return { ok: true, blocked: false, photoId: sizes[sizes.length - 1]?.file_id };
+      }
+      lastError = data.description || `HTTP ${response.status}`;
+      const code: number = data.error_code ?? response.status;
+      if (isDeadChatError(code, lastError)) return { ok: false, blocked: true, error: lastError };
+      if (code === 429 && attempt < MAX_ATTEMPTS) {
+        await sleep((data.parameters?.retry_after ?? 1) * 1000);
+        continue;
+      }
+      if (code >= 500 && attempt < MAX_ATTEMPTS) {
+        await sleep(attempt * 500);
+        continue;
+      }
+      break;
+    } catch (err) {
+      const e = err as { name?: string; message?: string };
+      lastError = e.name === 'AbortError' ? 'timeout' : e.message || lastError;
+      if (attempt < MAX_ATTEMPTS) await sleep(attempt * 500);
+    } finally {
+      clearTimeout(timeout);
+    }
+  }
+  console.error('[Telegram] sendPhoto (upload) failed:', chatId, lastError);
+  return { ok: false, blocked: false, error: lastError };
+}
