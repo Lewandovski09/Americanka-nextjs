@@ -321,6 +321,7 @@ export default function AdminPage() {
       }
       setNotifTitle('');
       setNotifBody('');
+      if (data.channel === 'failed') appAlert('Оголошення надіслано в бот, але в канал не вдалося — перевірте, що бот є адміністратором каналу.');
       setNotifSent(true);
       setTimeout(() => setNotifSent(false), 3000);
       // Refresh so the new one shows up in the "already sent" list
@@ -775,7 +776,7 @@ export default function AdminPage() {
             />
             <textarea
               className={styles.notifTextarea}
-              placeholder="Текст повідомлення для всіх учасників..."
+              placeholder="Текст — піде в Telegram-канал і кожному гравцю в бот..."
               aria-label="Текст оголошення"
               value={notifBody}
               onChange={(e) => setNotifBody(e.target.value)}

@@ -1,10 +1,12 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
-import { broadcastTelegramMessage, escapeHtml } from '@/lib/telegram';
+import { broadcastTelegramMessage } from '@/lib/telegram';
+import { announcementText } from '@/lib/server/adminAnnouncement';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
-// Sends an admin announcement (already saved by ../route) to every
-// player's Telegram. Called by the admin page right after saving, in the
+// Sends an admin announcement (already saved — and posted to the
+// channel — by ../route) to every player's Telegram bot chat.
+// Called by the admin page right after saving, in the
 // background — the page doesn't wait for it. Only a fresh announcement
 // (saved in the last 10 minutes) is sent, so a stray repeat of an old one
 // can't message everyone again.
@@ -36,9 +38,8 @@ export async function POST(request, { params }) {
     .not('telegram_user_id', 'is', null)
     .not('telegram_linked_at', 'is', null); // linked_at is nulled when someone blocks the bot
 
-  // Admin-typed text goes through escapeHtml: a stray "<" would
-  // otherwise make Telegram reject every single send with a 400.
-  const text = `📢 <b>${escapeHtml(notification.title)}</b>\n\n${escapeHtml(notification.body)}`;
+  // (The channel got it already, from ../route.)
+  const text = announcementText(notification.title, notification.body);
   const { sent, failed, deadChatIds } = await broadcastTelegramMessage(
     (allPlayers || []).map((p) => p.telegram_user_id),
     text

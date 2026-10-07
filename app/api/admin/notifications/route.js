@@ -1,6 +1,9 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { trySendTelegramMessage } from '@/lib/telegram';
+import { channelId } from '@/lib/server/eventAnnouncement';
+import { announcementText } from '@/lib/server/adminAnnouncement';
 
 export async function POST(request) {
   const { title, body } = await request.json();
@@ -34,8 +37,18 @@ export async function POST(request) {
     return Response.json({ success: false, error: 'Не вдалося надіслати оголошення' }, { status: 500 });
   }
 
-  // The Telegram push to everyone goes separately (./[id]/broadcast) —
+  // The club's channel — one post, right here (once per click). A failure
+  // doesn't undo the announcement: the page says the channel was missed.
+  const chat = channelId();
+  let channel = null;
+  if (chat) {
+    const r = await trySendTelegramMessage(chat, announcementText(title.trim(), body.trim()));
+    channel = r.ok ? 'ok' : 'failed';
+    if (!r.ok) console.error('[send-notification] channel:', r.error);
+  }
+
+  // The Telegram push to every player goes separately (./[id]/broadcast) —
   // sending to every player one by one takes a while, and the admin's
   // button used to wait for all of it.
-  return Response.json({ success: true, notification });
+  return Response.json({ success: true, notification, channel });
 }
