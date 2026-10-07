@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getJudgeRole, loadMatchContext } from '@/lib/server/judges';
 import { getAuthUser } from '@/lib/server/authUser';
+import { notifyJudge } from '@/lib/server/judgeNotice';
 
 // Who judges ONE game. Set by an admin or by the head judge — they are
 // the two people who run the day and shuffle the crew between courts.
@@ -42,6 +43,7 @@ export async function POST(request, { params }) {
   }
 
   const { playerId } = await request.json();
+  let joinedCrew = false; // a fresh face → gets the «Вас призначено суддею» note
 
   if (playerId) {
     const { data: judgePlayer } = await supabaseAdmin
@@ -64,10 +66,17 @@ export async function POST(request, { params }) {
     // Join the crew (as an ordinary judge) if this is a fresh face.
     // Legacy categories have no event to join.
     if (eventId) {
+      const { data: already } = await supabaseAdmin
+        .from('tournament_judges')
+        .select('user_id')
+        .eq('event_id', eventId)
+        .eq('user_id', playerId)
+        .maybeSingle();
       const { error: crewError } = await supabaseAdmin
         .from('tournament_judges')
         .upsert({ event_id: eventId, user_id: playerId }, { onConflict: 'event_id,user_id', ignoreDuplicates: true });
       if (crewError) console.error('[match judge] crew upsert:', crewError.message);
+      else joinedCrew = !already;
     }
   }
 
@@ -80,5 +89,6 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Не вдалося призначити суддю' }, { status: 500 });
   }
 
+  if (joinedCrew) await notifyJudge(supabaseAdmin, request, { eventId, userId: playerId });
   return Response.json({ success: true });
 }

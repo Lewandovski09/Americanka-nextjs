@@ -1,6 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { notifyJudge } from '@/lib/server/judgeNotice';
 
 // The judging crew of an event: add a judge, remove one, or hand the
 // «головний суддя» badge to somebody. Any number of ordinary judges,
@@ -104,7 +105,9 @@ export async function POST(request, { params }) {
       console.error('[judges add]:', error.message);
       return Response.json({ success: false, error: 'Не вдалося додати суддю' }, { status: 500 });
     }
-    return Response.json({ success: true });
+    // «⚖️ Вас призначено суддею» in the bot (never for a test tournament)
+    const notified = await notifyJudge(supabaseAdmin, request, { eventId, userId: playerId });
+    return Response.json({ success: true, notified });
   }
 
   // set_head — demote the current head first (one per event), then
@@ -127,5 +130,7 @@ export async function POST(request, { params }) {
     return Response.json({ success: false, error: 'Не вдалося призначити головного суддю' }, { status: 500 });
   }
 
-  return Response.json({ success: true });
+  // «🎖 Вас призначено головним суддею» in the bot
+  const notified = await notifyJudge(supabaseAdmin, request, { eventId, userId: playerId });
+  return Response.json({ success: true, notified });
 }
