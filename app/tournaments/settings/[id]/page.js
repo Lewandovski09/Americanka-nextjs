@@ -94,7 +94,7 @@ export default function TournamentSettingsPage({ params }) {
 
       {/* The schedule is a draft after «Запустити» until published (071). */}
       {event.status !== 'scheduled' && event.schedule_published_at === null && (
-        <PublishScheduleBar eventId={event.id} onPublished={load} />
+        <PublishScheduleBar eventId={event.id} onPublished={load} americanka={format?.scoring === 'sum31'} />
       )}
 
       {tab === TABS.JUDGES ? (

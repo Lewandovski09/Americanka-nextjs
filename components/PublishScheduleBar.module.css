@@ -31,3 +31,18 @@
 .draftBarBtn:disabled {
   opacity: 0.7;
 }
+
+.draftBarGhost {
+  padding: 10px;
+  border-radius: var(--r-sm);
+  border: 1.5px solid #fcd34d;
+  background: #fff;
+  color: #92400e;
+  font-size: 13px;
+  font-weight: 700;
+  cursor: pointer;
+}
+
+.draftBarGhost:disabled {
+  opacity: 0.6;
+}

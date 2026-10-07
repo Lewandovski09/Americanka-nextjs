@@ -3,6 +3,8 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { prepareCategoryStart, commitCategoryStart } from '@/lib/server/startCategory';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
 import { removeCategory } from '@/lib/server/removeCategory';
+import { getFormat } from '@/lib/formats';
+import { planAmericankaCourts } from '@/lib/schedule';
 
 // «Запустити» — the whole event goes off at once: every league that has
 // not started yet gets its matches generated and turns live.
@@ -68,6 +70,23 @@ export async function POST(request, { params }) {
       },
       { status: 400 }
     );
+  }
+
+  // Americanka: one category — one court; every game 15 min after the
+  // previous one on that court (lib/schedule). The categories take the
+  // event's courts in turn, in the order they are listed.
+  const { data: ev } = await supabaseAdmin.from('tournament_events').select('format_kind, courts').eq('id', eventId).maybeSingle();
+  if (getFormat(ev?.format_kind)?.scoring === 'sum31' && prepared.length > 0) {
+    const order = new Map((categories || []).map((c, i) => [c.id, i]));
+    prepared.sort((a, b) => (order.get(a.category.id) ?? 0) - (order.get(b.category.id) ?? 0));
+    const courts = ev?.courts?.length ? ev.courts : prepared[0].category.courts || [1];
+    const planned = planAmericankaCourts(
+      prepared.map((p) => ({ rows: p.rows, startAt: p.category.scheduled_at })),
+      courts
+    );
+    prepared.forEach((p, i) => {
+      p.rows = planned[i];
+    });
   }
 
   // And started at once.

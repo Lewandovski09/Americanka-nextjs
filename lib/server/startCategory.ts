@@ -199,10 +199,10 @@ async function dropUndistributedApplications(supabaseAdmin: SupabaseAdmin, categ
   if (pendErr) console.error('[start] pending cleanup:', pendErr.message);
 }
 
-// Planned start time for every generated game. A long game (до 21, or
-// американка's sum-to-31) blocks its court for 45 min, a short one (до
-// 15) for 30 — so the slot length follows the same points target the
-// score dialog validates against.
+// Planned start time for every generated game. A long game (до 21)
+// blocks its court for 45 min, a short one (до 15) for 30, американка
+// (sum-to-31) for 15 — so the slot length follows the same points target
+// the score dialog validates against (lib/schedule).
 function withScheduledTimes(matchRows: Match[], category: CategoryRow, format: { scoring: string }): Match[] {
   const event = category.tournament_events;
   const isSum = format.scoring === 'sum31';

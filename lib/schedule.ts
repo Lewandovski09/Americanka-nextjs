@@ -12,8 +12,13 @@
 import type { Match } from './types';
 
 // A game holds its court for half an hour when the sets go to 15, and for
-// three quarters otherwise (до 21, and американка's sum-to-31).
+// three quarters when they go to 21. Американка (sum-to-31) is a quick
+// game: the first starts at the tournament's start time and every next
+// one on the court 15 minutes later.
+export const AMERICANKA_SLOT_MIN = 15;
+
 export function slotMinutes(pointsTarget: number): number {
+  if (pointsTarget === 31) return AMERICANKA_SLOT_MIN;
   return pointsTarget <= 15 ? 30 : 45;
 }
 
@@ -68,4 +73,38 @@ export function cursorsFromMatches(
     if (cursors[court] == null || end > cursors[court]) cursors[court] = end;
   }
   return cursors;
+}
+
+export interface CourtPlanGroup<T extends Match> {
+  rows: T[];
+  /** ISO start time of this category. */
+  startAt: string | null | undefined;
+}
+
+/**
+ * Americanka: one category — one court. The categories (in the order
+ * given) take the event's courts in turn; every game of a category is on
+ * its court, one after another, AMERICANKA_SLOT_MIN apart, from the
+ * category's start. With more categories than courts, a court's next
+ * category goes on after the previous one has finished there.
+ *
+ * @returns the same groups with `court` and `scheduled_at` set
+ */
+export function planAmericankaCourts<T extends Match>(groups: CourtPlanGroup<T>[], courts: number[]): T[][] {
+  const pool = courts && courts.length ? courts : [1];
+  const cursors: CourtCursors = {};
+  return groups.map((g, i) => {
+    const court = pool[i % pool.length];
+    const ordered = [...g.rows].sort(
+      (a, b) =>
+        ((a as Match & { round_number?: number }).round_number || 0) - ((b as Match & { round_number?: number }).round_number || 0) ||
+        ((a as Match & { order_index?: number }).order_index || 0) - ((b as Match & { order_index?: number }).order_index || 0)
+    );
+    const startMs = g.startAt ? new Date(g.startAt).getTime() : NaN;
+    const withCourt = ordered.map((r) => ({ ...r, court }));
+    if (Number.isNaN(startMs)) return withCourt;
+    // the court is free at the later of: this category's start, or when the previous one there ends
+    cursors[court] = Math.max(cursors[court] ?? startMs, startMs);
+    return assignScheduledTimes(withCourt, { startAt: g.startAt, targetFor: () => 31, cursors });
+  });
 }

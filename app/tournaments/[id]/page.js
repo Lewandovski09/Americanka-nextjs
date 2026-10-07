@@ -883,7 +883,7 @@ export default function TournamentDetailPage({ params }) {
           📋 Розклад ще готується. Щойно організатор його опублікує, він з’явиться тут і прийде вам у Telegram.
         </div>
       )}
-      {scheduleDraft && isAdmin && <PublishScheduleBar eventId={tournament.event_id} />}
+      {scheduleDraft && isAdmin && <PublishScheduleBar eventId={tournament.event_id} americanka={isSum} />}
 
       <div className={styles.tabs} style={hideSchedule ? { display: 'none' } : undefined}>
         <TabBtn active={tab === TABS.PLAYERS} onClick={() => pickTab(TABS.PLAYERS)}>
