@@ -118,8 +118,10 @@ export interface RateLimitRule {
 // unauthenticated and cheap to hammer. Everything else defaults to a
 // generous general-purpose limit further down in middleware.js.
 export const RATE_LIMITS: RateLimitRule[] = [
-  { prefix: '/api/auth/', limit: 10 },
+  // On a tournament day the whole beach is often on one Wi-Fi, i.e. one
+  // address — so the limits are per address but roomy.
+  { prefix: '/api/auth/', limit: 30 },
   { prefix: '/api/telegram/link/', limit: 20 },
   { prefix: '/api/players/search', limit: 30 },
 ];
-export const DEFAULT_API_LIMIT = 60;
+export const DEFAULT_API_LIMIT = 300;
