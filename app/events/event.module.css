@@ -55,6 +55,9 @@
 /* Page-level tab switcher (same look as the /tournaments tabs). */
 .tabs {
   display: flex;
+  /* five tabs on a phone: never wider than the screen */
+  overflow-x: auto;
+  scrollbar-width: none;
   background: var(--surface);
   border-radius: var(--r-sm);
   padding: 4px;
@@ -64,7 +67,8 @@
 
 .tabBtn {
   flex: 1;
-  padding: 10px;
+  padding: 10px 6px;
+  white-space: nowrap;
   border: none;
   border-radius: 11px;
   background: transparent;
@@ -954,4 +958,16 @@
   font-size: 11px;
   font-weight: 800;
   vertical-align: middle;
+}
+
+/* «Організатор має право переводити…» — under the application form */
+.ruleNote {
+  font-size: 12.5px;
+  line-height: 1.4;
+  color: var(--text);
+  background: var(--surface-alt);
+  border-left: 3px solid var(--rust);
+  border-radius: 8px;
+  padding: 8px 10px;
+  margin: 0 0 10px;
 }

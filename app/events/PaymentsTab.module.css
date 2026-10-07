@@ -1,0 +1,147 @@
+.summary {
+  display: flex;
+  justify-content: space-between;
+  align-items: flex-end;
+  gap: 12px;
+  margin: 4px 0 8px;
+}
+
+.big {
+  font-size: 22px;
+  font-weight: 800;
+  color: var(--text);
+  line-height: 1.1;
+}
+
+.big span {
+  font-size: 14px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.small {
+  font-size: 12px;
+  color: var(--text2);
+}
+
+.money {
+  text-align: right;
+}
+
+.bar {
+  height: 6px;
+  border-radius: var(--r-pill);
+  background: var(--surface-alt);
+  overflow: hidden;
+  margin-bottom: 12px;
+}
+
+.fill {
+  height: 100%;
+  background: var(--accent-green);
+  border-radius: var(--r-pill);
+  transition: width 0.25s ease;
+}
+
+.group {
+  margin-top: 14px;
+}
+
+.groupHead {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  font-size: 13.75px;
+  font-weight: 800;
+  color: var(--text);
+  padding-bottom: 6px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.count {
+  font-size: 12.5px;
+  font-weight: 700;
+  color: var(--text2);
+}
+
+.allPaid {
+  font-size: 12.5px;
+  font-weight: 800;
+  color: var(--accent-green);
+}
+
+.unit {
+  border-bottom: 1px solid var(--border-light);
+}
+
+/* the two halves of a pair, one under the other, with a thin rail */
+.pair {
+  border-left: 3px solid var(--surface-alt);
+  padding-left: 6px;
+  margin: 4px 0;
+}
+
+.row {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 9px 2px;
+  border: none;
+  background: transparent;
+  text-align: left;
+  font: inherit;
+  font-size: 13.75px;
+  color: var(--text);
+  cursor: pointer;
+}
+
+.row:disabled {
+  opacity: 0.6;
+}
+
+.box {
+  flex: none;
+  width: 22px;
+  height: 22px;
+  border-radius: 7px;
+  border: 2px solid #c5ccd9;
+  display: grid;
+  place-items: center;
+  font-size: 14px;
+  font-weight: 900;
+  color: #fff;
+  transition: background 0.15s ease, border-color 0.15s ease;
+}
+
+.boxOn {
+  background: var(--accent-green);
+  border-color: var(--accent-green);
+}
+
+.name {
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tag,
+.tagOn {
+  flex: none;
+  font-size: 11.5px;
+  font-weight: 700;
+  padding: 3px 8px;
+  border-radius: var(--r-pill);
+}
+
+.tag {
+  color: var(--rust-dark);
+  background: var(--rust-tint);
+}
+
+.tagOn {
+  color: #137a53;
+  background: #e3f6ee;
+}

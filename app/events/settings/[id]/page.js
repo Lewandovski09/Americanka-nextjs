@@ -7,6 +7,7 @@
 //   bracket is built from.
 //   «Судді» — the judging crew of the event (one head judge + as many
 //   ordinary judges as needed).
+//   «Оплата» — the admin's own ticks of who paid the entry fee (072).
 //   «Налаштування» — the creation form again (minus the format choice) to
 //   tweak the secondary settings. Once the event goes live, management
 //   moves to /tournaments/settings/[eventId].
@@ -28,6 +29,7 @@ import {
 } from '../../shared';
 import SeedingTab from '../../SeedingTab';
 import JudgesTab from '../../JudgesTab';
+import PaymentsTab from '../../PaymentsTab';
 import EventConfigForm from './EventConfigForm';
 import ManualEntry from './ManualEntry';
 import styles from '../../event.module.css';
@@ -35,7 +37,7 @@ import VenueName from '@/components/VenueName';
 import AnnounceButton from '@/components/AnnounceButton';
 import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
 
-const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', CONFIG: 'config' };
+const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', PAY: 'pay', CONFIG: 'config' };
 
 export default function EventSettingsPage({ params }) {
   const { id } = params;
@@ -158,6 +160,13 @@ export default function EventSettingsPage({ params }) {
           Судді
         </button>
         <button
+          className={`${styles.tabBtn} ${tab === TABS.PAY ? styles.tabBtnOn : ''}`}
+          onClick={() => setTab(TABS.PAY)}
+          aria-pressed={tab === TABS.PAY}
+        >
+          Оплата
+        </button>
+        <button
           className={`${styles.tabBtn} ${tab === TABS.CONFIG ? styles.tabBtnOn : ''}`}
           onClick={() => setTab(TABS.CONFIG)}
           aria-pressed={tab === TABS.CONFIG}
@@ -185,6 +194,8 @@ export default function EventSettingsPage({ params }) {
         )
       ) : tab === TABS.JUDGES ? (
         <JudgesTab event={event} judges={judges} busy={busy} post={post} />
+      ) : tab === TABS.PAY ? (
+        <PaymentsTab event={event} categories={categories} isPair={isPair} />
       ) : tab === TABS.CONFIG ? (
         <EventConfigForm
           event={event}

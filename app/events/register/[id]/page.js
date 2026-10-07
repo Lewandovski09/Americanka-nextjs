@@ -363,6 +363,10 @@ function MyRegistration({ isPair, isMix, me, takenIds = [], categories: allCateg
     <div className={styles.myBox}>
       <div className={styles.myStatus}>Заявка на участь</div>
       <div className={styles.hint}>Оберіть лігу — адмін підтвердить розподіл.</div>
+      <div className={styles.ruleNote}>
+        ℹ️ Організатор має право переводити учасників з однієї категорії в іншу — навіть після того, як заявку
+        прийнято.
+      </div>
 
       {/* League choice (always required) */}
       <select className={styles.select} value={catId} onChange={(e) => setCatId(e.target.value)}>

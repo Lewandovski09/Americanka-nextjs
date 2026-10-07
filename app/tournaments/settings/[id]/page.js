@@ -25,6 +25,7 @@ import {
   DeleteCategoryButton,
 } from '@/app/events/shared';
 import JudgesTab from '@/app/events/JudgesTab';
+import PaymentsTab from '@/app/events/PaymentsTab';
 import PublishScheduleBar from '@/components/PublishScheduleBar';
 import { useVenues, selectableVenues, venueLabel } from '@/hooks/useVenues';
 import AvpTierPicker from '@/components/AvpTierPicker';
@@ -33,7 +34,7 @@ import styles from '@/app/events/event.module.css';
 import VenueName from '@/components/VenueName';
 import { appAlert } from '@/components/AppDialog';
 
-const TABS = { MAIN: 'main', JUDGES: 'judges' };
+const TABS = { MAIN: 'main', JUDGES: 'judges', PAY: 'pay' };
 
 export default function TournamentSettingsPage({ params }) {
   const { id } = params;
@@ -88,6 +89,13 @@ export default function TournamentSettingsPage({ params }) {
         >
           Судді
         </button>
+        <button
+          className={`${styles.tabBtn} ${tab === TABS.PAY ? styles.tabBtnOn : ''}`}
+          onClick={() => setTab(TABS.PAY)}
+          aria-pressed={tab === TABS.PAY}
+        >
+          Оплата
+        </button>
       </div>
 
       {error && <div className={styles.errMsg}>{error}</div>}
@@ -99,6 +107,8 @@ export default function TournamentSettingsPage({ params }) {
 
       {tab === TABS.JUDGES ? (
         <JudgesTab event={event} judges={judges} busy={busy} post={post} />
+      ) : tab === TABS.PAY ? (
+        <PaymentsTab event={event} categories={categories} isPair={isPair} />
       ) : categories.length === 0 ? (
         <div className={styles.loading}>Категорій немає</div>
       ) : (
