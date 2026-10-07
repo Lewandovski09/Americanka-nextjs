@@ -392,16 +392,18 @@ export function StartEventButton({ event, categories, format, busy, post }) {
         ? `Не зібралися й будуть анульовані: ${notReady.map((c) => label(c) + count(c)).join(', ')}.`
         : null,
       event.is_test
-        ? '🧪 Тестовий турнір — у Telegram нічого не піде.'
-        : 'Розклад піде в Telegram-канал і учасникам у бот.',
+        ? 'Розклад спершу побачите лише ви. 🧪 Тестовий турнір — у Telegram нічого не піде.'
+        : 'Розклад спершу побачите лише ви (і судді): перевірте корти й час, тоді «Розклад готовий» — і він піде учасникам і в Telegram.',
     ].filter(Boolean);
     if (!(await appConfirm(lines.join('\n\n'), { title: 'Точно готові почати турнір?', okText: 'Так, почати' }))) return;
     const ok = await post(`/api/events/${event.id}/start`, { partial: true });
     if (!ok) return;
-    // «📋 Розклад готовий» to the channel and every participant — in the
-    // background (lib/server/scheduleNotice); sent once.
-    fetch(`/api/events/${event.id}/schedule-notify`, { method: 'POST', keepalive: true }).catch(() => {});
-    if (ok.cancelled?.length) appAlert(`Анульовано: ${ok.cancelled.join(', ')}.`, { title: 'Турнір запущено ✅' });
+    // The schedule is a draft now (071): the admin checks courts and times
+    // and publishes it from the category page / the settings.
+    appAlert(
+      `${ok.cancelled?.length ? `Анульовано: ${ok.cancelled.join(', ')}.\n\n` : ''}Розклад поки чернетка — його бачите лише ви. Перевірте корти й час, потім натисніть «✅ Розклад готовий — опублікувати».`,
+      { title: 'Турнір запущено ✅' }
+    );
   }
 
   return (

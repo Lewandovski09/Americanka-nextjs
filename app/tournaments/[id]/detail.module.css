@@ -1243,3 +1243,17 @@
 .chanceDown {
   color: #dc2626;
 }
+
+/* The schedule while it is a draft (migration 071). */
+.draftNote {
+  margin: 0 0 14px;
+  padding: 14px 16px;
+  border-radius: var(--r-md);
+  background: #fffbeb;
+  border: 1.5px dashed #fcd34d;
+  color: #92400e;
+  font-size: 14px;
+  font-weight: 600;
+  line-height: 1.45;
+}
+

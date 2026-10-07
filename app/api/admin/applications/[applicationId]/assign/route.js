@@ -3,6 +3,7 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { placeMember } from '@/lib/server/registration';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
+import { notifyAccepted } from '@/lib/server/acceptNotice';
 
 // Admin distributes an application. Two outcomes:
 //   • into a category roster (places the player/pair), or
@@ -63,6 +64,13 @@ export async function POST(request, { params }) {
       console.error('[assign] reserve error:', error.message);
       return Response.json({ success: false, error: 'Не вдалося оновити заявку' }, { status: 500 });
     }
+    // «🟡 Прийнято в резерв» to the player (and partner) in the bot
+    await notifyAccepted(supabaseAdmin, request, {
+      eventId: application.event_id,
+      categoryId: category.id,
+      userIds: [application.user_id, application.partner_id],
+      reserve: true,
+    });
     return Response.json({ success: true, reserved: true });
   }
 
@@ -81,6 +89,13 @@ export async function POST(request, { params }) {
     console.error('[assign] update error:', error.message);
     return Response.json({ success: false, error: 'Не вдалося оновити заявку' }, { status: 500 });
   }
+
+  // «✅ Вашу заявку прийнято» to the player (and partner) in the bot
+  await notifyAccepted(supabaseAdmin, request, {
+    eventId: application.event_id,
+    categoryId: category.id,
+    userIds: [application.user_id, application.partner_id],
+  });
 
   return Response.json({ success: true });
 }

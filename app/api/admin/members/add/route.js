@@ -1,4 +1,5 @@
 import { createClient } from '@/lib/supabase/server';
+import { notifyAccepted } from '@/lib/server/acceptNotice';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { eventParticipantIds, placeMember } from '@/lib/server/registration';
@@ -127,6 +128,13 @@ export async function POST(request) {
       });
     }
   }
+
+  // «✅ Вашу заявку прийнято» — entered by hand counts as accepted too
+  await notifyAccepted(supabaseAdmin, request, {
+    eventId: category.event_id,
+    categoryId: category.id,
+    userIds: [playerId, partnerId],
+  });
 
   return Response.json({ success: true });
 }

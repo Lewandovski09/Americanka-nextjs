@@ -25,6 +25,7 @@ import {
   DeleteCategoryButton,
 } from '@/app/events/shared';
 import JudgesTab from '@/app/events/JudgesTab';
+import PublishScheduleBar from '@/components/PublishScheduleBar';
 import { useVenues, selectableVenues, venueLabel } from '@/hooks/useVenues';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import createStyles from '@/app/tournaments/create/create.module.css';
@@ -90,6 +91,11 @@ export default function TournamentSettingsPage({ params }) {
       </div>
 
       {error && <div className={styles.errMsg}>{error}</div>}
+
+      {/* The schedule is a draft after «Запустити» until published (071). */}
+      {event.status !== 'scheduled' && event.schedule_published_at === null && (
+        <PublishScheduleBar eventId={event.id} onPublished={load} />
+      )}
 
       {tab === TABS.JUDGES ? (
         <JudgesTab event={event} judges={judges} busy={busy} post={post} />

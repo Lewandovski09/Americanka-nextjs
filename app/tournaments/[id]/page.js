@@ -21,6 +21,7 @@ import EventPhoto from '@/components/EventPhoto';
 import styles from './detail.module.css';
 import { pressable } from '@/lib/a11y';
 import { appAlert } from '@/components/AppDialog';
+import PublishScheduleBar from '@/components/PublishScheduleBar';
 import { winChances, chanceLabel, sideKey, forecastBasis } from '@/lib/winChance';
 
 // Parts not every visitor needs — the bracket, the zoomable table, the
@@ -63,7 +64,7 @@ export default function TournamentDetailPage({ params }) {
   const [eloByMatch, setEloByMatch] = useState(cachedLive?.elo || {});
   const [judges, setJudges] = useState(cachedRest?.crew || []); // the event's judging crew
   const [judgeInfo, setJudgeInfo] = useState(cachedRest?.info || {}); // player id → profile, for the «Суддя» column
-  const [tab, setTab] = useState(TABS.PLAYERS);
+  const [tabState, setTab] = useState(TABS.PLAYERS);
   const tabChosen = useRef(false); // the viewer picked a tab themselves
   function pickTab(t) {
     tabChosen.current = true;
@@ -102,7 +103,7 @@ export default function TournamentDetailPage({ params }) {
     const [{ data: t }, first] = await Promise.all([
       supabase
         .from('tournament_categories')
-        .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier)')
+        .select('*, tournament_events(format_kind, points_to_win, points_mode, final_points_to_win, avp_tier, schedule_published_at)')
         .eq('id', id)
         .single(),
       matchesQuery(true),
@@ -465,6 +466,13 @@ export default function TournamentDetailPage({ params }) {
   const isAdmin = !!player?.is_admin;
   const isJudge = judges.some((j) => j.user_id === player?.id);
   const isHeadJudge = judges.some((j) => j.is_head && j.user_id === player?.id);
+  // The schedule is a draft until the admin publishes it (migration 071):
+  // only the admin and the judges see games, table and bracket; everyone
+  // else sees the participants and «Розклад готується».
+  const scheduleDraft =
+    tournament.status !== 'scheduled' && !!event && event.schedule_published_at === null;
+  const hideSchedule = scheduleDraft && !isAdmin && !isJudge;
+  const tab = hideSchedule ? TABS.PLAYERS : tabState;
   const live = tournament.status !== 'done';
   // Entering a score belongs to the crew, same as the server enforces.
   // Everyone else still sees every game and every result — they just
@@ -870,7 +878,14 @@ export default function TournamentDetailPage({ params }) {
         </div>
       )}
 
-      <div className={styles.tabs}>
+      {hideSchedule && (
+        <div className={styles.draftNote}>
+          📋 Розклад ще готується. Щойно організатор його опублікує, він з’явиться тут і прийде вам у Telegram.
+        </div>
+      )}
+      {scheduleDraft && isAdmin && <PublishScheduleBar eventId={tournament.event_id} />}
+
+      <div className={styles.tabs} style={hideSchedule ? { display: 'none' } : undefined}>
         <TabBtn active={tab === TABS.PLAYERS} onClick={() => pickTab(TABS.PLAYERS)}>
           Учасники
         </TabBtn>
@@ -1913,3 +1928,4 @@ function ChanceBadge({ p, was, muted = false }) {
     </span>
   );
 }
+
