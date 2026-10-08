@@ -113,15 +113,24 @@ export interface RateLimitRule {
   limit: number;
 }
 
-// Route-prefix -> requests per minute. Auth/registration and the
-// Telegram link endpoints are the ones actually worth guarding: they're
-// unauthenticated and cheap to hammer. Everything else defaults to a
-// generous general-purpose limit further down in middleware.js.
+// Route-prefix -> requests per minute.
+//
+// Counted PER PLAYER when the request carries a session (middleware.js
+// reads the player from the session cookie — lib/sessionUser), and per
+// address only for visitors who are not logged in. On a tournament day
+// the whole beach sits on one Wi-Fi, i.e. one address: 100 players at
+// once must not share one counter.
 export const RATE_LIMITS: RateLimitRule[] = [
-  // On a tournament day the whole beach is often on one Wi-Fi, i.e. one
-  // address — so the limits are per address but roomy.
-  { prefix: '/api/auth/', limit: 30 },
-  { prefix: '/api/telegram/link/', limit: 20 },
-  { prefix: '/api/players/search', limit: 30 },
+  // Login / registration / password reset — before a session exists, so
+  // per address: roomy enough for a crowd logging in on one Wi-Fi, still
+  // a wall against a password-guessing script.
+  { prefix: '/api/auth/', limit: 150 },
+  { prefix: '/api/telegram/link/', limit: 60 },
+  // partner search as you type — per player
+  { prefix: '/api/players/search', limit: 90 },
 ];
-export const DEFAULT_API_LIMIT = 300;
+export const DEFAULT_API_LIMIT = 300; // per player (or per address without a session)
+
+// Logged-in traffic from ONE address, all players together — only a
+// ceiling against a forged-cookie flood; 150+ real players stay far below.
+export const ADDRESS_CEILING = 6000;

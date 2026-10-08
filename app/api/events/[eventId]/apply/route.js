@@ -169,6 +169,12 @@ export async function POST(request, { params }) {
     ? await supabaseAdmin.from('tournament_applications').update(appRow).eq('id', existing.id)
     : await supabaseAdmin.from('tournament_applications').insert(appRow);
 
+  // A double tap (or a retry on a slow beach Wi-Fi) races the first
+  // request: the database already holds this very application
+  // (unique event + player), so it's a success, not an error.
+  if (appError && appError.code === '23505' && !existing) {
+    return Response.json({ success: true, repeat: true });
+  }
   if (appError) {
     console.error('[apply] application error:', appError.message);
     return Response.json({ success: false, error: 'Не вдалося зберегти заявку' }, { status: 500 });

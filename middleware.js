@@ -1,7 +1,8 @@
 import { createServerClient } from '@supabase/ssr';
 import { PREVIEW_BOT_RE } from '@/lib/previewBots';
 import { NextResponse } from 'next/server';
-import { checkRateLimit, clientIp, RATE_LIMITS, DEFAULT_API_LIMIT } from '@/lib/rateLimit';
+import { checkRateLimit, clientIp, RATE_LIMITS, DEFAULT_API_LIMIT, ADDRESS_CEILING } from '@/lib/rateLimit';
+import { sessionUserId } from '@/lib/sessionUser';
 
 // Wrap any promise with a timeout so a slow/hanging Supabase call
 // can never block the entire site from loading.
@@ -32,8 +33,17 @@ export async function middleware(request) {
   if (pathname.startsWith('/api/') && pathname !== '/api/telegram/webhook') {
     const bucket = RATE_LIMITS.find((r) => pathname.startsWith(r.prefix));
     const limit = bucket?.limit ?? DEFAULT_API_LIMIT;
-    const key = `${clientIp(request)}:${bucket?.prefix ?? 'default'}`;
-    const { limited, resetAt } = await checkRateLimit(key, limit);
+    const ip = clientIp(request);
+    // Per player when logged in (a whole beach on one Wi-Fi is one
+    // address), per address otherwise. Login routes always per address.
+    const userId = bucket?.prefix === '/api/auth/' ? null : sessionUserId(request.cookies.getAll());
+    const name = bucket?.prefix ?? 'default';
+    const checks = userId
+      ? await Promise.all([checkRateLimit(`u:${userId}:${name}`, limit), checkRateLimit(`ip:${ip}:all-users`, ADDRESS_CEILING)])
+      : [await checkRateLimit(`${ip}:${name}`, limit)];
+    const hit = checks.find((c) => c.limited);
+    const limited = !!hit;
+    const resetAt = hit?.resetAt ?? Date.now();
 
     if (limited) {
       return NextResponse.json(
