@@ -42,10 +42,8 @@ export default function PlayerAvatar({ player, size = 34 }) {
           alt={player.full_name || ''}
           width={size}
           height={size}
-          // Avatars render at 26-44px all over the app; requesting the
-          // display size (instead of the ~1024px original the upload
-          // stores) is what actually cuts egress — Next resizes and
-          // re-encodes to WebP server-side and caches the result.
+          // Served as-is from Supabase Storage (images.unoptimized in
+          // next.config.js — Vercel's optimizer quota paused the site).
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
           onError={() => setBrokenUrl(player.photo_url)}
         />

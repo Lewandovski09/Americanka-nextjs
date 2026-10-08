@@ -30,6 +30,12 @@ const nextConfig = {
   // the dev server's .next and white-screen the running app.
   distDir: process.env.NEXT_DIST_DIR || '.next',
   images: {
+    // Vercel's image optimization is OFF: on the free (Hobby) plan it
+    // allows 5,000 transformations a month, and going over that paused
+    // the whole site (October 2026). Photos now load straight from
+    // Supabase Storage — the uploads are already ≤ ~1024px, so this only
+    // costs a little more Supabase traffic, never a paused site.
+    unoptimized: true,
     remotePatterns: [
       {
         // Supabase Storage public bucket URLs (player photos)
