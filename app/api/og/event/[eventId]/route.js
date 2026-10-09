@@ -21,8 +21,11 @@ const fonts = Promise.all([
   fetch(new URL('./Inter-ExtraBold.otf', import.meta.url)).then((r) => r.arrayBuffer()),
 ]);
 
-export async function GET(_request, { params }) {
-  const data = await loadEventCardData(createAdminClient(), params.eventId);
+export async function GET(request, { params }) {
+  // ?kind=schedule — the «Розклад готовий» picture: only the started
+  // categories, final rosters (lib/server/scheduleNotice)
+  const schedule = new URL(request.url).searchParams.get('kind') === 'schedule';
+  const data = await loadEventCardData(createAdminClient(), params.eventId, { schedule });
   if (!data) return new Response('Not found', { status: 404 });
 
   const [medium, semibold, bold, extrabold] = await fonts;
