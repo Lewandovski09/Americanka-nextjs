@@ -1,7 +1,7 @@
 'use client';
 
 import HomeInvites from '@/components/HomeInvites';
-import Image from 'next/image';
+import ThumbImage from '@/components/ThumbImage';
 import { useEffect, useRef, useState } from 'react';
 import { useRouter } from 'next/navigation';
 import Link from 'next/link';
@@ -389,12 +389,12 @@ export default function HomePage() {
           <div className={`${styles.nextTournamentCard} riseIn`} style={{ animationDelay: '0.1s' }}>
             {recentEvent.photo_url && (
               <a href={recentEvent.categories?.[0] ? `/tournaments/${recentEvent.categories[0].id}` : '/tournaments'}>
-                <Image
+                <ThumbImage
                   src={recentEvent.photo_url}
+                  kind="md"
                   alt={`Фото: ${recentEvent.name}`}
                   width={1200}
                   height={675}
-                  sizes="(max-width: 600px) 100vw, 560px"
                   className={styles.recentPhoto}
                 />
               </a>

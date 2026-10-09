@@ -1,5 +1,7 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { makeThumbs, removeThumbs } from '@/lib/server/thumbs';
+import { photoPath } from '@/lib/thumbs';
 import { getAuthUser } from '@/lib/server/authUser';
 
 // The tournament photo (migration 054): uploaded by the owner of the
@@ -51,6 +53,8 @@ export async function POST(request, { params }) {
     console.error('[event photo] upload:', upErr.message);
     return Response.json({ success: false, error: 'Не вдалося завантажити фото' }, { status: 500 });
   }
+  // the 800 px copy for cards and lists (lib/thumbs)
+  await makeThumbs(g.supabaseAdmin, path, buffer, ['md']);
   const { data: urlData } = g.supabaseAdmin.storage.from('player-photos').getPublicUrl(path);
   const photoUrl = `${urlData.publicUrl}?t=${Date.now()}`;
 
@@ -70,7 +74,10 @@ export async function DELETE(request, { params }) {
   const { eventId } = params;
   const g = await guard(eventId);
   if (g.error) return g.error;
+  const { data: before } = await g.supabaseAdmin.from('tournament_events').select('photo_url').eq('id', eventId).maybeSingle();
   const { error } = await g.supabaseAdmin.from('tournament_events').update({ photo_url: null }).eq('id', eventId);
+  const oldPath = photoPath(before?.photo_url);
+  if (!error && oldPath) await removeThumbs(g.supabaseAdmin, oldPath);
   if (error) return Response.json({ success: false, error: 'Не вдалося прибрати фото' }, { status: 500 });
   return Response.json({ success: true });
 }

@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import ThumbImage from '@/components/ThumbImage';
 import { useEffect, useState } from 'react';
 import { getCached, setCached } from '@/lib/clientCache';
 import Link from 'next/link';
@@ -252,12 +252,12 @@ export default function EventsPage() {
                   className={styles.cardPhotoLink}
                   aria-label="Фото турніру"
                 >
-                  <Image
+                  <ThumbImage
                     src={ev.photo_url}
+                    kind="md"
                     alt={`Фото: ${ev.name}`}
                     width={1200}
                     height={675}
-                    sizes="(max-width: 600px) 100vw, 560px"
                     className={styles.cardPhoto}
                   />
                 </Link>

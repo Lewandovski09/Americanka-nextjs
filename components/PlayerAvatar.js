@@ -1,7 +1,7 @@
 'use client';
 
 import { useState } from 'react';
-import Image from 'next/image';
+import ThumbImage from '@/components/ThumbImage';
 
 export default function PlayerAvatar({ player, size = 34 }) {
   // A photo_url can outlive its file (an upload that never landed, a
@@ -37,15 +37,15 @@ export default function PlayerAvatar({ player, size = 34 }) {
   if (player.photo_url && brokenUrl !== player.photo_url) {
     return (
       <div style={style}>
-        <Image
+        <ThumbImage
           src={player.photo_url}
+          kind="sm"
           alt={player.full_name || ''}
           width={size}
           height={size}
-          // Served as-is from Supabase Storage (images.unoptimized in
-          // next.config.js — Vercel's optimizer quota paused the site).
+          // the 128 px copy (~5 KB), not the ~1024 px original (lib/thumbs)
           style={{ width: '100%', height: '100%', objectFit: 'cover' }}
-          onError={() => setBrokenUrl(player.photo_url)}
+          onBroken={() => setBrokenUrl(player.photo_url)}
         />
       </div>
     );

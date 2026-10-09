@@ -1,6 +1,6 @@
 'use client';
 
-import Image from 'next/image';
+import ThumbImage from '@/components/ThumbImage';
 import Link from 'next/link';
 import { usePathname, useRouter } from 'next/navigation';
 import { useEffect, useRef, useState } from 'react';
@@ -46,8 +46,8 @@ function ProfileIcon({ active, photoUrl }) {
           border: '1.5px solid rgba(16,27,51,0.15)',
         }}
       >
-        {/* next/image: a 26 px copy instead of the full profile photo. */}
-        <Image src={photoUrl} alt="" width={22} height={22} sizes="26px" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
+        {/* the 128 px copy instead of the full profile photo (lib/thumbs) */}
+        <ThumbImage src={photoUrl} kind="sm" alt="" width={22} height={22} loading="eager" style={{ width: '100%', height: '100%', objectFit: 'cover' }} />
       </span>
     );
   }

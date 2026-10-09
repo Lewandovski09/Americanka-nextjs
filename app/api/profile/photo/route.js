@@ -1,5 +1,6 @@
 import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
+import { makeThumbs } from '@/lib/server/thumbs';
 import { getAuthUser } from '@/lib/server/authUser';
 
 // Avatar upload. The browser downscales the picked photo and sends it
@@ -60,6 +61,9 @@ export async function POST(request) {
     console.error('[profile photo] upload:', uploadError.message);
     return Response.json({ success: false, error: 'Не вдалося завантажити фото' }, { status: 500 });
   }
+
+  // the ~5 KB avatar copy the app actually shows (lib/thumbs)
+  await makeThumbs(supabaseAdmin, path, buffer, ['sm']);
 
   // The public URL never changes (same path), so without a cache-buster
   // the browser and the CDN keep serving the previous image.

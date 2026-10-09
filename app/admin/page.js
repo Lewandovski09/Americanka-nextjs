@@ -12,6 +12,7 @@ import PlayerAvatar from '@/components/PlayerAvatar';
 import styles from './admin.module.css';
 import SeasonAdminPanel from '@/components/SeasonAdminPanel';
 import TelegramWebhookPanel from '@/components/TelegramWebhookPanel';
+import ThumbsPanel from '@/components/ThumbsPanel';
 import { appConfirm, appAlert } from '@/components/AppDialog';
 import { getCached, setCached } from '@/lib/clientCache';
 import { scoreLabel, teamAWon } from '@/lib/formats/sets';
@@ -810,6 +811,7 @@ export default function AdminPage() {
           <SeasonAdminPanel styles={styles} kind="avp" />
           <SeasonAdminPanel styles={styles} kind="elo" />
           <TelegramWebhookPanel styles={styles} />
+          <ThumbsPanel styles={styles} />
 
           <button className={styles.sectionToggle} onClick={openTestTools} aria-pressed={testEventsOpen}>
             <span className={styles.sectionLabel} style={{ marginBottom: 0 }}>

@@ -1,4 +1,5 @@
 import { createAdminClient } from '@/lib/supabase/admin';
+import { makeThumbs } from '@/lib/server/thumbs';
 import { notifyOwners, newPlayerNoticeText } from '@/lib/server/ownerNotify';
 import { publicSiteUrl } from '@/lib/server/siteUrl';
 import { appLink, browserButton } from '@/lib/server/openInApp';
@@ -231,6 +232,9 @@ async function uploadProfilePhoto(supabaseAdmin, userId, dataUrl) {
     console.error('[register] Photo upload failed:', error.message);
     return null;
   }
+
+  // the ~5 KB avatar copy the app actually shows (lib/thumbs)
+  await makeThumbs(supabaseAdmin, path, buffer, ['sm']);
 
   const { data: publicUrlData } = supabaseAdmin.storage.from('player-photos').getPublicUrl(path);
   return publicUrlData.publicUrl;
