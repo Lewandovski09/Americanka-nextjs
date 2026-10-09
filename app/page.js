@@ -21,6 +21,7 @@ import { IconMapPin, IconMegaphone, IconX, IconChevronDown, IconRocket, IconMail
 import styles from './page.module.css';
 import { registrationState, registrationLabel, feeLabel } from '@/lib/registrationWindow';
 import RegistrationCountdown from '@/components/RegistrationCountdown';
+import { CLUB_TZ } from '@/lib/dates';
 
 const DAY_MS = 24 * 60 * 60 * 1000;
 const isFresh = (finishedAt) => !!finishedAt && Date.now() - new Date(finishedAt).getTime() < DAY_MS;
@@ -376,7 +377,7 @@ export default function HomePage() {
               </div>
               <div className={styles.announcementBody}>{a.body}</div>
               <div className={styles.announcementDate}>
-                {new Date(a.created_at).toLocaleDateString('uk', { day: 'numeric', month: 'long' })}
+                {new Date(a.created_at).toLocaleDateString('uk', { timeZone: CLUB_TZ, day: 'numeric', month: 'long' })}
               </div>
             </div>
           ))}
@@ -406,7 +407,7 @@ export default function HomePage() {
                 <span className={styles.doneBadge}>Завершено</span>
               </div>
               <div className={styles.nextTournamentMeta}>
-                {new Date(recentEvent.scheduled_at).toLocaleDateString('uk', { dateStyle: 'full' })}
+                {new Date(recentEvent.scheduled_at).toLocaleDateString('uk', { timeZone: CLUB_TZ, dateStyle: 'full' })}
               </div>
               <div className={styles.nextTournamentMeta}>
                 <VenueName code={recentEvent.location} />
@@ -463,7 +464,7 @@ export default function HomePage() {
               </div>
             </div>
             <div className={styles.nextTournamentMeta}>
-              {new Date(nextEvent.scheduled_at).toLocaleString('uk', { dateStyle: 'full', timeStyle: 'short' })}
+              {new Date(nextEvent.scheduled_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'full', timeStyle: 'short' })}
             </div>
             <div className={styles.nextTournamentMeta}>
               <VenueName code={nextEvent.location} />
@@ -580,13 +581,13 @@ export default function HomePage() {
           </p>
           <ul className={styles.formatsFacts}>
             <li>
-              <b>8 гравців</b> — з кожним ти граєш у парі <b>по одній партії</b>
+              <b>8 гравців</b> — з кожним ти граєш у парі <b>по одній партії</b>: разом <b>7 ігор</b> і <b>7 різних напарників</b>
             </li>
             <li>
-              Партія йде <b>до 31 очка в сумі</b> — рахунок може бути 25:6, 19:12 і так далі
+              Або <b>6 гравців</b> — <b>6 чи 4 гри</b> в кожного, напарник щогри інший
             </li>
             <li>
-              Разом <b>7 ігор</b> і <b>7 різних напарників</b>
+              Партія йде <b>до суми очок</b>, яку обрав організатор (29, 31 або 35) — напр. 25:6, 19:12
             </li>
             <li>
               Перемагає той, у кого <b>найкраща різниця</b> забитих і пропущених м’ячів

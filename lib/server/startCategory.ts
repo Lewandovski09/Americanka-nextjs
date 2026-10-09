@@ -11,7 +11,7 @@
 // started.
 
 import { getFormat, getBracketSystem } from '@/lib/formats';
-import { buildAmericanoMatches } from '@/lib/formats/americano';
+import { buildAmericanoMatches, buildAmericano6Matches, gamesOfPlan } from '@/lib/formats/americano';
 import { buildKingRound1, buildKingPlaceholders } from '@/lib/formats/kingOfBeach';
 import { buildTwoGroupStage, buildFourGroupStage } from '@/lib/formats/brackets';
 import { buildDoubleElimination, isPowerOfTwo, type SeedTeam } from '@/lib/formats/doubleElim';
@@ -69,7 +69,7 @@ export async function prepareCategoryStart(supabaseAdmin: SupabaseAdmin, categor
 
   let matchRows: Match[];
   if (format.kind === 'americanka') {
-    matchRows = await buildAmericankaMatches(supabaseAdmin, categoryId, courts);
+    matchRows = await buildAmericankaMatches(supabaseAdmin, categoryId, courts, category);
   } else if (format.kind === 'king_of_beach') {
     matchRows = await buildKingMatches(supabaseAdmin, categoryId, category, courts);
   } else {
@@ -238,20 +238,27 @@ function bySeed(a: Seedable, b: Seedable): number {
   return String(a.user_id || a.id).localeCompare(String(b.user_id || b.id));
 }
 
-async function buildAmericankaMatches(supabaseAdmin: SupabaseAdmin, categoryId: string, courts: number[]): Promise<Match[]> {
+async function buildAmericankaMatches(
+  supabaseAdmin: SupabaseAdmin,
+  categoryId: string,
+  courts: number[],
+  category: CategoryRow
+): Promise<Match[]> {
   const { data: tps } = await supabaseAdmin
     .from('tournament_players')
     .select('user_id, slot_index, created_at')
     .eq('category_id', categoryId);
 
-  if (!tps || tps.length !== 8) {
-    throw new Error(`Для Americanka потрібно рівно 8 гравців (зараз ${tps?.length || 0})`);
+  // 8 players (14 games), or 6 in the 9- or 6-game plan (lib/formats/americano)
+  const size = category.max_participants === 6 ? 6 : 8;
+  if (!tps || tps.length !== size) {
+    throw new Error(`Для Americanka потрібно рівно ${size} гравців (зараз ${tps?.length || 0})`);
   }
   // Americanka is seeded AT RANDOM at the moment it starts: who shares a
   // court with whom in which round is decided by a shuffle (crypto-strong),
-  // not by registration order or the «Посів» tab. Every player still
-  // partners every other exactly once — the schedule guarantees that; the
-  // shuffle only decides who gets which slot.
+  // not by registration order or the «Посів» tab. The plan's balance (who
+  // partners whom how often) is fixed by the schedule; the shuffle only
+  // decides who gets which slot.
   const playerIds: string[] = shuffle((tps as Seedable[]).map((t) => t.user_id as string));
 
   // Record the drawn order as the seeding, so «Посів» shows what was
@@ -268,6 +275,7 @@ async function buildAmericankaMatches(supabaseAdmin: SupabaseAdmin, categoryId: 
     if (r.error) console.error('[americanka random seed]', r.error.message);
   });
 
+  if (size === 6) return buildAmericano6Matches(playerIds, courts[0] || 1, gamesOfPlan(category.bracket_system) || 9);
   return buildAmericanoMatches(playerIds, courts);
 }
 

@@ -121,15 +121,15 @@ export const FORMAT_KINDS: Record<FormatKindId, FormatKind> = {
     kind: 'americanka',
     displayName: 'Americanka',
     description:
-      'Індивідуальна реєстрація, завжди 8 гравців у категорії. Кожен грає з кожним по 1 партії, рахунок до суми 31.',
+      'Індивідуальна реєстрація, 8 або 6 гравців у категорії. Пари змінюються щогри, рахунок до суми 29, 31 або 35.',
     registrationType: 'solo', // one player per application
     hasGender: true, // categories are split into men / women
-    fixedParticipants: 8, // always 8 per category
-    participantOptions: null, // not chosen — fixed
+    fixedParticipants: null, // 8 or 6 — chosen per category (lib/formats/americano)
+    participantOptions: [8, 6],
     countsPairs: false,
     needsBracketSystem: false,
     scoring: 'sum31',
-    maxSets: 1, // одна партія до суми 31
+    maxSets: 1, // одна партія до суми 29 / 31 / 35 (event.points_to_win)
   },
 
   single_gender: {

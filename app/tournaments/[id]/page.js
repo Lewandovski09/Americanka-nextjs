@@ -8,6 +8,7 @@ import { useCurrentPlayer } from '@/hooks/useCurrentPlayer';
 import { computeStandings, placeStandings } from '@/lib/tournamentEngine';
 import { getFormat } from '@/lib/formats';
 import { pointsTargetForStage, targetForSet, validateSumTo } from '@/lib/formats/scoring';
+import { americankaSum } from '@/lib/formats/americano';
 import { aggregateScore, pointsDiffA, teamAWon } from '@/lib/formats/sets';
 import { rankGroupDetailed } from '@/lib/formats/kingOfBeach';
 import { stageWeight, stageLabel, groupTitle, isSharedPlaceStage } from '@/lib/formats/stages';
@@ -23,6 +24,7 @@ import { pressable } from '@/lib/a11y';
 import { appAlert } from '@/components/AppDialog';
 import PublishScheduleBar from '@/components/PublishScheduleBar';
 import { winChances, chanceLabel, sideKey, forecastBasis } from '@/lib/winChance';
+import { CLUB_TZ, kyivTime, atKyivTime } from '@/lib/dates';
 
 // Parts not every visitor needs — the bracket, the zoomable table, the
 // poll, the partner board and the judge picker — load in their own
@@ -335,9 +337,10 @@ export default function TournamentDetailPage({ params }) {
     try {
       const pre = forecastBasis(matches, 'pre');
       const cur = forecastBasis(matches, 'rounds');
+      const total = americankaSum(tournament?.points_to_win ?? tournament?.tournament_events?.points_to_win);
       return {
-        pre: winChances({ sides, players: prePlayers, matches: pre.matches, sims: 3000, seed: 11 }),
-        now: winChances({ sides, players: nowPlayers, matches: cur.matches, sims: 3000, seed: 7 }),
+        pre: winChances({ sides, players: prePlayers, matches: pre.matches, sims: 3000, seed: 11, total }),
+        now: winChances({ sides, players: nowPlayers, matches: cur.matches, sims: 3000, seed: 7, total }),
         rounds: cur.completedRounds,
       };
     } catch (e) {
@@ -366,6 +369,8 @@ export default function TournamentDetailPage({ params }) {
   const event = tournament.tournament_events;
   const format = getFormat(event?.format_kind);
   const isSum = format?.scoring === 'sum31';
+  // americanka: the sum a game goes to — 29, 31 or 35 (lib/formats/americano)
+  const sumTotal = americankaSum(tournament.points_to_win ?? event?.points_to_win);
   const isPair = format?.registrationType === 'pair' || format?.registrationType === 'mix_pair';
   // How many sets a match may have (king of the beach: strictly one).
   const maxSets = isSum ? 1 : format?.maxSets ?? 3;
@@ -577,8 +582,8 @@ export default function TournamentDetailPage({ params }) {
       setSlotModal((prev) => ({ ...prev, error: 'Вкажіть час' }));
       return;
     }
-    const when = new Date(slotModal.day);
-    when.setHours(h, min, 0, 0);
+    // h:min Kyiv time on the game's Kyiv day — not the phone's zone
+    const when = atKyivTime(slotModal.day, h, min);
     saveSlot({ scheduledAt: when.toISOString() });
   }
 
@@ -704,7 +709,7 @@ export default function TournamentDetailPage({ params }) {
       >
         <td>{i + 1}</td>
         <td {...timeProps}>
-          {planned ? planned.toLocaleTimeString('uk', { hour: '2-digit', minute: '2-digit' }) : '—'}
+          {planned ? planned.toLocaleTimeString('uk', { timeZone: CLUB_TZ, hour: '2-digit', minute: '2-digit' }) : '—'}
         </td>
         <td {...courtProps}>{m.court || 1}</td>
         <td {...judgeProps} className={`${judgeProps.className || ''} ${styles.judgeCell}`}>
@@ -761,10 +766,10 @@ export default function TournamentDetailPage({ params }) {
       sets,
       visibleSets: Math.max(1, filled),
       mode: isSum ? 'sum' : 'free',
-      target: isSum ? 31 : pointsTargetForStage(scoringConfig, m.stage),
+      target: isSum ? sumTotal : pointsTargetForStage(scoringConfig, m.stage),
       // The deciding third set is the short one (15), whatever the
       // first two are played to.
-      decider: isSum ? 31 : targetForSet(pointsTargetForStage(scoringConfig, m.stage), 2),
+      decider: isSum ? sumTotal : targetForSet(pointsTargetForStage(scoringConfig, m.stage), 2),
     });
   }
 
@@ -1273,7 +1278,7 @@ export default function TournamentDetailPage({ params }) {
               <>
                 <label className={styles.slotLabel}>
                   Початок ·{' '}
-                  {slotModal.day.toLocaleDateString('uk', { day: 'numeric', month: 'long' })}
+                  {slotModal.day.toLocaleDateString('uk', { timeZone: CLUB_TZ, day: 'numeric', month: 'long' })}
                 </label>
                 <input
                   className={styles.slotInput}
@@ -1479,11 +1484,10 @@ export default function TournamentDetailPage({ params }) {
   );
 }
 
-// Date → value for <input type="time"> in local time.
+// Date → value for <input type="time"> — Kyiv time (lib/dates).
 function toTimeInput(date) {
   if (!date) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${pad(date.getHours())}:${pad(date.getMinutes())}`;
+  return kyivTime(date);
 }
 
 function groupByRound(matches) {

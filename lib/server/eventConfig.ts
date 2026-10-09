@@ -1,6 +1,7 @@
 // Shared validation/derivation for event create + update APIs.
 
 import { getBracketSystem, type FormatKind } from '@/lib/formats';
+import { AMERICANKA_SIZES, americankaPlanFor, americankaSum } from '@/lib/formats/americano';
 import { AVP_TIER_IDS } from '@/lib/avp/tiers';
 import { divisionsFor, getSport, sportOffersFormat, PRIMARY_SPORT_ID } from '@/lib/sports';
 import type { SupabaseAdmin } from './types';
@@ -13,6 +14,8 @@ export interface CategoryInput {
   gender?: 'M' | 'F' | null;
   bracketSystem?: string | null;
   maxParticipants?: number | null;
+  /** americanka with 6 players: 9 or 6 games */
+  gamesCount?: number | null;
   [key: string]: unknown;
 }
 
@@ -106,6 +109,10 @@ export function resolveAvpTier(avpTier: unknown): { tier: number | null; error?:
 // the chosen bracket size; group systems use their 6–12 cap (12).
 export function capacityFor(format: FormatKind, c: CategoryInput): number | null {
   if (format.fixedParticipants) return format.fixedParticipants;
+  // americanka: 8 or 6 (an old client that sends nothing — 8)
+  if (format.kind === 'americanka') {
+    return (AMERICANKA_SIZES as readonly number[]).includes(Number(c.maxParticipants)) ? Number(c.maxParticipants) : 8;
+  }
   if (format.needsBracketSystem) {
     const sys = getBracketSystem(c.bracketSystem);
     return sys ? (sys.sizeChoice ? c.maxParticipants ?? null : sys.cap) : null;
@@ -128,7 +135,7 @@ export function validateCategory(format: FormatKind, c: CategoryInput, sportId?:
     if (sys.sizeChoice && !sys.participantOptions.includes(c.maxParticipants as number)) {
       return `Розмір сітки: ${sys.participantOptions.join(' або ')}`;
     }
-  } else if (format.participantOptions) {
+  } else if (format.participantOptions && !(format.kind === 'americanka' && c.maxParticipants == null)) {
     if (!format.participantOptions.includes(c.maxParticipants as number)) {
       return `Кількість учасників має бути однією з: ${format.participantOptions.join(', ')}`;
     }
@@ -148,9 +155,14 @@ export function categoryRow(format: FormatKind, event: EventInput, c: CategoryIn
     name: `${event.name} · ${c.categoryLabel}${c.gender ? (c.gender === 'M' ? ' (Ч)' : ' (Ж)') : ''}`,
     category_label: c.categoryLabel,
     gender: format.hasGender ? c.gender : null,
-    bracket_system: format.needsBracketSystem ? c.bracketSystem : null,
+    // americanka on 6: the plan (9 or 6 games) — lib/formats/americano
+    bracket_system: format.needsBracketSystem
+      ? c.bracketSystem
+      : format.kind === 'americanka'
+      ? americankaPlanFor(capacityFor(format, c), c.gamesCount)
+      : null,
     max_participants: capacityFor(format, c),
-    points_to_win: format.scoring === 'first_to' ? event.points_to_win : 31,
+    points_to_win: format.scoring === 'first_to' ? event.points_to_win : americankaSum(event.points_to_win),
     final_points_to_win: event.final_points_to_win,
     courts: event.courts,
     scheduled_at: event.scheduled_at,
@@ -167,10 +179,10 @@ export type ScoringResult =
   | { error: string; points?: undefined; mode?: undefined; finalPoints?: undefined }
   | { points: number; mode: 'whole' | 'from_semifinal'; finalPoints: number | null; error?: undefined };
 
-// Scoring config from the request body (americanka is always sum-to-31,
-// handled in code — its event points fields are unused).
+// Scoring config from the request body. Americanka: the sum a game goes
+// to — 29, 31 (default) or 35 (lib/formats/americano).
 export function resolveScoring(format: FormatKind, { pointsToWin, pointsMode, finalPointsToWin }: ScoringInput, FIRST_TO_OPTIONS: number[]): ScoringResult {
-  let points = 31;
+  let points = format.scoring === 'sum31' ? americankaSum(pointsToWin) : 31;
   let mode: 'whole' | 'from_semifinal' = 'whole';
   let finalPoints: number | null = null;
   if (format.scoring === 'first_to') {

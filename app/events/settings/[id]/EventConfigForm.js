@@ -20,17 +20,16 @@ import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useV
 import { divisionsFor } from '@/lib/sports';
 import RegistrationFields from '@/components/RegistrationFields';
 import { TestEventSwitch } from '@/components/AnnounceSwitch';
+import { fromKyivInput, toKyivInput } from '@/lib/dates';
+import { AMERICANKA_SUMS, AMERICANKA_GAMES_6, americankaGames, americankaSum, gamesOfPlan } from '@/lib/formats/americano';
 
 function catKey(gender, label) {
   return `${gender || 'X'}:${label}`;
 }
 
-// ISO timestamp → value for <input type="datetime-local"> in local time.
+// ISO timestamp → value for <input type="datetime-local"> — Kyiv time (lib/dates).
 function toLocalInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toKyivInput(iso);
 }
 
 export default function EventConfigForm({ event, categories: categoryRows, format, isPair, busy, post }) {
@@ -46,6 +45,8 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
   const [courts, setCourts] = useState(event.courts?.length ? event.courts : [1]);
 
   const [pointsToWin, setPointsToWin] = useState(event.points_to_win ?? 21);
+  // americanka: the sum a game goes to (lib/formats/americano)
+  const [sumPoints, setSumPoints] = useState(americankaSum(event.points_to_win));
   const [useFinalPoints, setUseFinalPoints] = useState(event.points_mode === 'from_semifinal');
   const [finalPointsToWin, setFinalPointsToWin] = useState(event.final_points_to_win ?? 15);
   const [avpTier, setAvpTier] = useState(event.avp_tier ?? null);
@@ -73,6 +74,7 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
     setLocation(event.location);
     setCourts(event.courts?.length ? event.courts : [1]);
     setPointsToWin(event.points_to_win ?? 21);
+    setSumPoints(americankaSum(event.points_to_win));
     setUseFinalPoints(event.points_mode === 'from_semifinal');
     setFinalPointsToWin(event.final_points_to_win ?? 15);
     setAvpTier(event.avp_tier ?? null);
@@ -147,23 +149,23 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
 
     if (opensMode === 'later') {
       if (!opensAt) return setError('Вкажіть, коли відкриється прийом заявок');
-      if (new Date(opensAt) >= new Date(scheduledAt)) return setError('Прийом заявок має початися раніше за турнір');
+      if (new Date(fromKyivInput(opensAt)) >= new Date(fromKyivInput(scheduledAt))) return setError('Прийом заявок має початися раніше за турнір');
     }
 
     const ok = await post(`/api/events/${event.id}/update`, {
       name,
       location,
       courts,
-      scheduledAt: new Date(scheduledAt).toISOString(),
-      pointsToWin: format.scoring === 'first_to' ? pointsToWin : null,
+      scheduledAt: fromKyivInput(scheduledAt),
+      pointsToWin: format.scoring === 'first_to' ? pointsToWin : format.scoring === 'sum31' ? sumPoints : null,
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
       avpTier,
       entryFee: entryFee === '' ? null : Number(entryFee),
-      registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
+      registrationOpensAt: opensMode === 'later' && opensAt ? fromKyivInput(opensAt) : null,
       // sent only when there is something (works before SQL 068 as well)
-      ...(closesAt || event.registration_closes_at ? { registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null } : {}),
-      ...(scheduleAt || event.schedule_at ? { scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null } : {}),
+      ...(closesAt || event.registration_closes_at ? { registrationClosesAt: closesAt ? fromKyivInput(closesAt) : null } : {}),
+      ...(scheduleAt || event.schedule_at ? { scheduleAt: scheduleAt ? fromKyivInput(scheduleAt) : null } : {}),
       ...(isTest !== !!event.is_test ? { isTest } : {}),
       categories: categories.map(({ hasMembers, ...c }) => c),
     });
@@ -249,7 +251,17 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
         </>
       )}
       {format.scoring === 'sum31' && (
-        <div className={styles.infoBox}>Americanka — рахунок завжди до суми 31.</div>
+        <>
+          <label className={styles.label}>Партія до суми</label>
+          <div className={styles.chipsRow}>
+            {AMERICANKA_SUMS.map((p) => (
+              <button key={p} className={`${styles.chip} ${sumPoints === p ? styles.chipOn : ''}`} onClick={() => setSumPoints(p)} aria-pressed={sumPoints === p}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className={styles.fieldNote}>Одна партія, очки двох пар разом дають {sumPoints} (напр. {Math.ceil(sumPoints / 2) + 4}:{Math.floor(sumPoints / 2) - 4}).</div>
+        </>
       )}
 
       <label className={styles.label}>Рівень AVP</label>
@@ -360,6 +372,8 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                 ? 'Розмір сітки (пар)'
                 : format.countsPairs
                 ? 'Кількість пар'
+                : format.kind === 'americanka'
+                ? 'Гравців у категорії'
                 : 'Кількість учасників';
               return (
                 <>
@@ -376,6 +390,28 @@ export default function EventConfigForm({ event, categories: categoryRows, forma
                       </button>
                     ))}
                   </div>
+                  {format.kind === 'americanka' && c.maxParticipants === 6 && (
+                    <>
+                      <div className={styles.miniLabel}>Ігор у категорії</div>
+                      <div className={styles.chipsRow}>
+                        {AMERICANKA_GAMES_6.map((g) => (
+                          <button
+                            key={g}
+                            className={`${styles.chip} ${americankaGames(6, c.gamesCount) === g ? styles.chipOn : ''}`}
+                            onClick={() => updateCategory(key, { gamesCount: g })}
+                            aria-pressed={americankaGames(6, c.gamesCount) === g}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                      <div className={styles.fieldNote}>
+                        {americankaGames(6, c.gamesCount) === 6
+                          ? '6 ігор: по 4 у кожного, ~1 год 30 хв. Жодна пара не повторюється.'
+                          : '9 ігор: по 6 у кожного, ~2 год 15 хв. Кожен грає в парі з кожним; одна пара в кожного повторюється, але ніколи двічі поспіль.'}
+                      </div>
+                    </>
+                  )}
                 </>
               );
             })()}
@@ -402,6 +438,8 @@ function fromRows(rows, isPair) {
     categoryLabel: r.category_label,
     maxParticipants: r.max_participants,
     bracketSystem: r.bracket_system,
+    // americanka on 6 keeps its plan in bracket_system (lib/formats/americano)
+    gamesCount: gamesOfPlan(r.bracket_system),
     hasMembers: isPair
       ? (r.tournament_teams || []).length > 0
       : (r.tournament_players || []).length > 0,

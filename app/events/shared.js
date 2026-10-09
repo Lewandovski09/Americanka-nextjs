@@ -19,11 +19,13 @@ import { appConfirm, appAlert } from '@/components/AppDialog';
 // Re-exported for the pages that historically imported them from here.
 export { stageWeight, stageLabel, computePlaces };
 import PlayerAvatar from '@/components/PlayerAvatar';
+import { planLabel } from '@/lib/formats/americano';
 import styles from './event.module.css';
 
 
 export function bracketLabel(id) {
-  return BRACKET_SYSTEMS.find((b) => b.id === id)?.label || id;
+  // americanka on 6: «6 гравців · 9 ігор» (lib/formats/americano)
+  return BRACKET_SYSTEMS.find((b) => b.id === id)?.label || (planLabel(id) ? `6 гравців · ${planLabel(id)}` : id);
 }
 
 /**
@@ -374,16 +376,17 @@ export function StartEventButton({ event, categories, format, busy, post }) {
   if (pending.length === 0) return null;
 
   // Leagues that can't start as they are: empty ones, and Americanka
-  // without exactly 8 players. They don't hold the start back any more —
-  // after «Точно почати?» they are cancelled and the rest go on.
+  // without exactly its 8 (or 6) players. They don't hold the start back
+  // any more — after «Точно почати?» they are cancelled and the rest go on.
+  const sizeOf = (c) => (c.max_participants === 6 ? 6 : 8);
   const notReady = pending.filter(
-    (c) => rowsOf(c).length === 0 || (format?.kind === 'americanka' && rowsOf(c).length !== 8)
+    (c) => rowsOf(c).length === 0 || (format?.kind === 'americanka' && rowsOf(c).length !== sizeOf(c))
   );
   const ready = pending.filter((c) => !notReady.includes(c));
   const unseeded = ready.filter((c) => rowsOf(c).some((r) => r.slot_index == null));
   const label = (c) =>
     `${c.gender === 'M' ? 'Ч · ' : c.gender === 'F' ? 'Ж · ' : ''}${c.category_label || 'Категорія'}`;
-  const count = (c) => (format?.kind === 'americanka' ? ` (${rowsOf(c).length}/8)` : ` (${rowsOf(c).length})`);
+  const count = (c) => (format?.kind === 'americanka' ? ` (${rowsOf(c).length}/${sizeOf(c)})` : ` (${rowsOf(c).length})`);
 
   async function start() {
     const lines = [

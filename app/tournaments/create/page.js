@@ -19,6 +19,8 @@ import styles from './create.module.css';
 import OptionBtn from '@/components/OptionBtn';
 import { useVenues, selectableVenues, findVenue, venueLabel } from '@/hooks/useVenues';
 import { listSports, getSport, divisionsFor, PRIMARY_SPORT_ID } from '@/lib/sports';
+import { fromKyivInput } from '@/lib/dates';
+import { AMERICANKA_SUMS, AMERICANKA_GAMES_6, americankaGames } from '@/lib/formats/americano';
 
 const GENDERS = [
   { id: 'M', label: 'Чоловіки' },
@@ -53,6 +55,8 @@ export default function CreateEventPage() {
   const [courts, setCourts] = useState([]);
 
   const [pointsToWin, setPointsToWin] = useState(21);
+  // americanka: the sum a game goes to (lib/formats/americano)
+  const [sumPoints, setSumPoints] = useState(31);
   const [useFinalPoints, setUseFinalPoints] = useState(false);
   const [finalPointsToWin, setFinalPointsToWin] = useState(15);
   const [avpTier, setAvpTier] = useState(null);
@@ -78,7 +82,7 @@ export default function CreateEventPage() {
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
 
-  const opensLater = opensMode === 'later' && !!opensAt && new Date(opensAt).getTime() > Date.now();
+  const opensLater = opensMode === 'later' && !!opensAt && new Date(fromKyivInput(opensAt)).getTime() > Date.now();
   const venue = findVenue(venues, location);
   const courtRange = venue?.courts || [];
   const gendersToShow = format.hasGender ? GENDERS.map((g) => g.id) : [null];
@@ -160,14 +164,14 @@ export default function CreateEventPage() {
     if (entryFee === '') return setError('Вкажіть внесок з гравця (0 — безкоштовно)');
     if (opensMode === 'later') {
       if (!opensAt) return setError('Вкажіть, коли відкриється прийом заявок');
-      if (new Date(opensAt) >= new Date(scheduledAt)) return setError('Прийом заявок має початися раніше за турнір');
+      if (new Date(fromKyivInput(opensAt)) >= new Date(fromKyivInput(scheduledAt))) return setError('Прийом заявок має початися раніше за турнір');
     }
     if (closesAt) {
-      const from = opensMode === 'later' && opensAt ? new Date(opensAt) : new Date();
-      if (new Date(closesAt) <= from) return setError('Прийом заявок має закритися пізніше, ніж відкриється');
-      if (new Date(closesAt) > new Date(scheduledAt)) return setError('Прийом заявок має закритися до початку турніру');
+      const from = opensMode === 'later' && opensAt ? new Date(fromKyivInput(opensAt)) : new Date();
+      if (new Date(fromKyivInput(closesAt)) <= from) return setError('Прийом заявок має закритися пізніше, ніж відкриється');
+      if (new Date(fromKyivInput(closesAt)) > new Date(fromKyivInput(scheduledAt))) return setError('Прийом заявок має закритися до початку турніру');
     }
-    if (scheduleAt && new Date(scheduleAt) > new Date(scheduledAt)) return setError('Розклад має бути готовий до початку турніру');
+    if (scheduleAt && new Date(fromKyivInput(scheduleAt)) > new Date(fromKyivInput(scheduledAt))) return setError('Розклад має бути готовий до початку турніру');
 
     if (format.needsBracketSystem && categories.some((c) => !c.bracketSystem)) {
       return setError('Виберіть систему турніру для кожної категорії');
@@ -182,15 +186,15 @@ export default function CreateEventPage() {
       name,
       location,
       courts,
-      scheduledAt: new Date(scheduledAt).toISOString(),
-      pointsToWin: format.scoring === 'first_to' ? pointsToWin : null,
+      scheduledAt: fromKyivInput(scheduledAt),
+      pointsToWin: format.scoring === 'first_to' ? pointsToWin : format.scoring === 'sum31' ? sumPoints : null,
       pointsMode: useFinalPoints ? 'from_semifinal' : 'whole',
       finalPointsToWin: useFinalPoints ? finalPointsToWin : null,
       avpTier,
       entryFee: Number(entryFee),
-      registrationOpensAt: opensMode === 'later' && opensAt ? new Date(opensAt).toISOString() : null,
-      registrationClosesAt: closesAt ? new Date(closesAt).toISOString() : null,
-      scheduleAt: scheduleAt ? new Date(scheduleAt).toISOString() : null,
+      registrationOpensAt: opensMode === 'later' && opensAt ? fromKyivInput(opensAt) : null,
+      registrationClosesAt: closesAt ? fromKyivInput(closesAt) : null,
+      scheduleAt: scheduleAt ? fromKyivInput(scheduleAt) : null,
       ...(isTest ? { isTest: true } : {}),
       categories,
     };
@@ -300,7 +304,7 @@ export default function CreateEventPage() {
         ))}
       </div>
 
-      {/* Scoring (americanka is always sum-to-31) */}
+      {/* Scoring: first-to N, or americanka's sum (29 / 31 / 35) */}
       {format.scoring === 'first_to' && (
         <>
           <label className={styles.label}>Партії до</label>
@@ -332,7 +336,17 @@ export default function CreateEventPage() {
         </>
       )}
       {format.scoring === 'sum31' && (
-        <div className={styles.infoBox}>Americanka — рахунок завжди до суми 31.</div>
+        <>
+          <label className={styles.label}>Партія до суми</label>
+          <div className={styles.chipsRow}>
+            {AMERICANKA_SUMS.map((p) => (
+              <button key={p} className={`${styles.chip} ${sumPoints === p ? styles.chipOn : ''}`} onClick={() => setSumPoints(p)} aria-pressed={sumPoints === p}>
+                {p}
+              </button>
+            ))}
+          </div>
+          <div className={styles.fieldNote}>Одна партія, очки двох пар разом дають {sumPoints} (напр. {Math.ceil(sumPoints / 2) + 4}:{Math.floor(sumPoints / 2) - 4}).</div>
+        </>
       )}
 
       <label className={styles.label}>Рівень AVP</label>
@@ -428,6 +442,8 @@ export default function CreateEventPage() {
                 ? 'Розмір сітки (пар)'
                 : format.countsPairs
                 ? 'Кількість пар'
+                : format.kind === 'americanka'
+                ? 'Гравців у категорії'
                 : 'Кількість учасників';
               return (
                 <>
@@ -444,6 +460,28 @@ export default function CreateEventPage() {
                       </button>
                     ))}
                   </div>
+                  {format.kind === 'americanka' && c.maxParticipants === 6 && (
+                    <>
+                      <div className={styles.miniLabel}>Ігор у категорії</div>
+                      <div className={styles.chipsRow}>
+                        {AMERICANKA_GAMES_6.map((g) => (
+                          <button
+                            key={g}
+                            className={`${styles.chip} ${americankaGames(6, c.gamesCount) === g ? styles.chipOn : ''}`}
+                            onClick={() => updateCategory(key, { gamesCount: g })}
+                            aria-pressed={americankaGames(6, c.gamesCount) === g}
+                          >
+                            {g}
+                          </button>
+                        ))}
+                      </div>
+                      <div className={styles.fieldNote}>
+                        {americankaGames(6, c.gamesCount) === 6
+                          ? '6 ігор: по 4 у кожного, ~1 год 30 хв. Жодна пара не повторюється.'
+                          : '9 ігор: по 6 у кожного, ~2 год 15 хв. Кожен грає в парі з кожним; одна пара в кожного повторюється, але ніколи двічі поспіль.'}
+                      </div>
+                    </>
+                  )}
                 </>
               );
             })()}
@@ -467,7 +505,7 @@ export default function CreateEventPage() {
 
       <div className={styles.infoBox}>
         {opensLater
-          ? `Прийом заявок відкриється ${opensLabel(new Date(opensAt))}.`
+          ? `Прийом заявок відкриється ${opensLabel(new Date(fromKyivInput(opensAt)))}.`
           : 'Після створення категорії одразу відкриваються для заявок.'}{' '}
         Гравці реєструються в застосунку
         {format.registrationType === 'solo' ? ' (індивідуально)' : ' (парою або в пошуку напарника)'}, а сітки/групи
@@ -490,7 +528,7 @@ export default function CreateEventPage() {
         sub={
           opensLater
             ? `Зараз — афіша турніру (з внеском і часом прийому заявок) у канал і всім гравцям у бот. ${opensLabel(
-                new Date(opensAt)
+                new Date(fromKyivInput(opensAt))
               )} — повідомлення «Заявки приймаються» з кнопкою «Записатися».`
             : 'Афіша турніру (з усією інформацією та внеском) піде в канал і всім гравцям у бот, з кнопкою «Записатися».'
         }

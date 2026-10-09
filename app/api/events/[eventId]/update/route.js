@@ -4,6 +4,7 @@ import { getFormat, FIRST_TO_OPTIONS } from '@/lib/formats';
 import {
   validateCategory,
   categoryRow,
+  capacityFor,
   resolveScoring,
   resolveAvpTier,
   resolveVenue,
@@ -148,6 +149,23 @@ export async function POST(request, { params }) {
     .from('tournament_categories')
     .select('id, category_label, gender, tournament_players(count), tournament_teams(count)')
     .eq('event_id', eventId);
+
+  // A smaller category (e.g. americanka 8 → 6) must still fit who is in it.
+  for (const c of categories) {
+    if (!c.id) continue;
+    const row = (existing || []).find((r) => r.id === c.id);
+    const members = (row?.tournament_players?.[0]?.count || 0) + (row?.tournament_teams?.[0]?.count || 0);
+    const cap = capacityFor(format, c);
+    if (row && cap != null && members > cap) {
+      return Response.json(
+        {
+          success: false,
+          error: `У категорії «${row.category_label}» вже ${members} — більше, ніж ${cap}. Спершу перенесіть зайвих у резерв`,
+        },
+        { status: 400 }
+      );
+    }
+  }
 
   const keptIds = new Set(categories.filter((c) => c.id).map((c) => c.id));
   const removed = (existing || []).filter((row) => !keptIds.has(row.id));

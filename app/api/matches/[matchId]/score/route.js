@@ -2,6 +2,7 @@ import { createClient } from '@/lib/supabase/server';
 import { createAdminClient } from '@/lib/supabase/admin';
 import { getFormat } from '@/lib/formats';
 import { validateSumTo, validateSetsFirstTo, pointsTargetForStage } from '@/lib/formats/scoring';
+import { americankaSum } from '@/lib/formats/americano';
 import { teamAWon } from '@/lib/formats/sets';
 import { matchDeltas } from '@/lib/elo';
 import { readRatings, addRating } from '@/lib/server/ratings';
@@ -623,7 +624,8 @@ async function correctEloForAmericanka(supabaseAdmin, match, sets) {
 }
 
 // Pick the scoring rule from the event's format. Eventless categories
-// (none should exist after the rewrite) default to americanka sum-to-31.
+// (none should exist after the rewrite) default to americanka sum-to-31;
+// americanka itself goes to the category's sum (29 / 31 / 35).
 // Americanka is always exactly one set; first-to formats take 1–3 sets.
 function validateForMatch(match, sets) {
   const category = match.tournament_categories;
@@ -635,7 +637,8 @@ function validateForMatch(match, sets) {
     if (sets.length !== 1) {
       return { valid: false, error: 'Americanka грається в одну партію' };
     }
-    return validateSumTo(sets[0][0], sets[0][1], 31);
+    // the sum the organizer chose: 29, 31 or 35 (lib/formats/americano)
+    return validateSumTo(sets[0][0], sets[0][1], americankaSum(category?.points_to_win));
   }
 
   // Single-set first-to formats (king of the beach).
