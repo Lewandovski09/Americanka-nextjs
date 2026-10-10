@@ -25,6 +25,8 @@ import { teamAWon } from '@/lib/formats/sets';
 import { recalcAvpForCategory, type RecalcAvpResult } from '@/lib/server/avpAward';
 import type { SupabaseAdmin } from './types';
 import type { Match, PlacementRow } from '@/lib/types';
+import { sendResultsNotice } from '@/lib/server/resultsNotice';
+import { publicSiteUrl } from '@/lib/server/siteUrl';
 
 export interface FinishCategoryResult {
   ok: boolean;
@@ -372,5 +374,15 @@ async function finishEventIfLastCategory(supabaseAdmin: SupabaseAdmin, eventId: 
     .from('tournament_events')
     .update({ status: 'done', finished_at: new Date().toISOString() })
     .eq('id', eventId);
-  if (error) console.error('[finishCategory] event rollup:', error.message);
+  if (error) {
+    console.error('[finishCategory] event rollup:', error.message);
+    return;
+  }
+  // «🏁 Турнір завершено» — the winners to the channel and every
+  // participant, once (lib/server/resultsNotice). Never throws; a test
+  // tournament or a missing bot just sends nothing.
+  if (process.env.TELEGRAM_BOT_TOKEN) {
+    const r = await sendResultsNotice(supabaseAdmin, eventId, { siteUrl: publicSiteUrl(null) });
+    if (r?.error) console.error('[finishCategory] results notice:', r.error);
+  }
 }

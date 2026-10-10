@@ -27,12 +27,14 @@ import {
 import JudgesTab from '@/app/events/JudgesTab';
 import PaymentsTab from '@/app/events/PaymentsTab';
 import PublishScheduleBar from '@/components/PublishScheduleBar';
+import ResultsNoticeBar from '@/components/ResultsNoticeBar';
 import { useVenues, selectableVenues, venueLabel } from '@/hooks/useVenues';
 import AvpTierPicker from '@/components/AvpTierPicker';
 import createStyles from '@/app/tournaments/create/create.module.css';
 import styles from '@/app/events/event.module.css';
 import VenueName from '@/components/VenueName';
 import { appAlert } from '@/components/AppDialog';
+import { fromKyivInput, toKyivInput, CLUB_TZ } from '@/lib/dates';
 
 const TABS = { MAIN: 'main', JUDGES: 'judges', PAY: 'pay' };
 
@@ -70,7 +72,7 @@ export default function TournamentSettingsPage({ params }) {
       <h2 className={styles.title}>⚙ {event.name}</h2>
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
-        {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+        {new Date(event.scheduled_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
         <VenueName code={event.location} />
       </div>
 
@@ -104,6 +106,8 @@ export default function TournamentSettingsPage({ params }) {
       {event.status !== 'scheduled' && event.schedule_published_at === null && (
         <PublishScheduleBar eventId={event.id} onPublished={load} americanka={format?.scoring === 'sum31'} />
       )}
+      {/* «🏁 Турнір завершено» to Telegram (074) — finished tournaments */}
+      <ResultsNoticeBar event={event} onSent={load} />
 
       {tab === TABS.JUDGES ? (
         <JudgesTab event={event} judges={judges} busy={busy} post={post} />
@@ -146,12 +150,9 @@ export default function TournamentSettingsPage({ params }) {
   );
 }
 
-// ISO timestamp → value for <input type="datetime-local"> in local time.
+// ISO timestamp → value for <input type="datetime-local"> — Kyiv time (lib/dates).
 function toLocalInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toKyivInput(iso);
 }
 
 const STATUS_LABEL = { scheduled: 'Не розпочато', live: 'Триває', done: 'Завершено' };
@@ -186,7 +187,7 @@ function MainTab({ event, category, format, isPair, busy, post }) {
     const ok = await post(`/api/events/${event.id}/basics`, {
       name,
       location,
-      scheduledAt: new Date(scheduledAt).toISOString(),
+      scheduledAt: fromKyivInput(scheduledAt),
       avpTier,
     });
     if (ok) setSaved(true);

@@ -24,8 +24,9 @@ const fonts = Promise.all([
 export async function GET(request, { params }) {
   // ?kind=schedule — the «Розклад готовий» picture: only the started
   // categories, final rosters (lib/server/scheduleNotice)
-  const schedule = new URL(request.url).searchParams.get('kind') === 'schedule';
-  const data = await loadEventCardData(createAdminClient(), params.eventId, { schedule });
+  // ?kind=results — «Турнір завершено»: the finished categories, top three (lib/server/resultsNotice)
+  const kind = new URL(request.url).searchParams.get('kind');
+  const data = await loadEventCardData(createAdminClient(), params.eventId, { schedule: kind === 'schedule', results: kind === 'results' });
   if (!data) return new Response('Not found', { status: 404 });
 
   const [medium, semibold, bold, extrabold] = await fonts;

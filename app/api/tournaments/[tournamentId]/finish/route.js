@@ -7,6 +7,10 @@ import { createAdminClient } from '@/lib/supabase/admin';
 import { finishCategory } from '@/lib/server/finishCategory';
 import { getAuthUser, adminRow } from '@/lib/server/authUser';
 
+// The last game of a tournament also sends «🏁 Турнір завершено» to
+// Telegram (lib/server/resultsNotice) — give it time.
+export const maxDuration = 60;
+
 export async function POST(request, { params }) {
   const { tournamentId } = params;
 

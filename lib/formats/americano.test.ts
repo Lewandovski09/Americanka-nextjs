@@ -59,10 +59,21 @@ describe('americanka for 6', () => {
       expect(new Set(sig).size).toBe(sig.length);
     }
   });
-  it('8 players: 14 games, everyone partners everyone once', () => {
-    const s = stats(games(AMERICANO_SCHEDULE), 8);
+  it('8 players: 14 games, everyone partners everyone once and faces everyone exactly twice', () => {
+    const list = games(AMERICANO_SCHEDULE);
+    const s = stats(list, 8);
+    expect(list.length).toBe(14);
     expect([...s.partners.values()].every((c) => c === 1)).toBe(true);
     expect(s.partners.size).toBe(28);
+    const opp = new Map<string, number>();
+    for (const g of list) for (const a of g.teamA) for (const b of g.teamB) opp.set(key(a, b), (opp.get(key(a, b)) || 0) + 1);
+    expect(opp.size).toBe(28);
+    expect([...opp.values()].every((c) => c === 2)).toBe(true);
+    // each round: all 8 play, nobody twice
+    for (const r of AMERICANO_SCHEDULE) {
+      const on = r.matches.flatMap((m) => [...m.teamA, ...m.teamB]);
+      expect(new Set(on).size).toBe(8);
+    }
   });
   it('rows, sums, sizes', () => {
     const rows = buildAmericano6Matches(['a', 'b', 'c', 'd', 'e', 'f'], 3, 6);

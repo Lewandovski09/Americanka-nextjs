@@ -2,7 +2,7 @@
 // 9-game or a 6-game plan (below).
 //
 // Every player partners every other player exactly once across the 7
-// rounds — no repeated pairings. Two games run in parallel each round.
+// rounds and meets every other player across the net exactly twice.
 // Scoring is sum-to-31 (see scoring.js), enforced elsewhere.
 //
 // The schedule uses SLOT indices 0..7; the concrete player IDs are
@@ -52,14 +52,18 @@ export function planLabel(plan: unknown): string | null {
 }
 
 // [{ round, matches: [{ teamA: [slot, slot], teamB: [slot, slot] }] }]
+// A perfect plan (a «whist» schedule): everyone partners every other
+// player exactly once AND plays against every other player exactly twice.
+// (The plan before October 2026 kept the partners right but not the
+// opponents — some pairs never met across the net, others met 4 times.)
 export const AMERICANO_SCHEDULE: ScheduleRoundDef[] = [
   { round: 1, matches: [{ teamA: [0, 1], teamB: [2, 3] }, { teamA: [4, 5], teamB: [6, 7] }] },
   { round: 2, matches: [{ teamA: [0, 2], teamB: [4, 6] }, { teamA: [1, 3], teamB: [5, 7] }] },
-  { round: 3, matches: [{ teamA: [0, 3], teamB: [5, 6] }, { teamA: [1, 2], teamB: [4, 7] }] },
-  { round: 4, matches: [{ teamA: [0, 4], teamB: [1, 6] }, { teamA: [2, 5], teamB: [3, 7] }] },
+  { round: 3, matches: [{ teamA: [0, 3], teamB: [4, 7] }, { teamA: [1, 2], teamB: [5, 6] }] },
+  { round: 4, matches: [{ teamA: [0, 4], teamB: [1, 5] }, { teamA: [2, 6], teamB: [3, 7] }] },
   { round: 5, matches: [{ teamA: [0, 5], teamB: [2, 7] }, { teamA: [1, 4], teamB: [3, 6] }] },
   { round: 6, matches: [{ teamA: [0, 6], teamB: [3, 5] }, { teamA: [1, 7], teamB: [2, 4] }] },
-  { round: 7, matches: [{ teamA: [0, 7], teamB: [1, 5] }, { teamA: [2, 6], teamB: [3, 4] }] },
+  { round: 7, matches: [{ teamA: [0, 7], teamB: [1, 6] }, { teamA: [2, 5], teamB: [3, 4] }] },
 ];
 
 /**

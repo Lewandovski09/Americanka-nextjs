@@ -15,6 +15,10 @@ import { finishCategory, refreshFinishedCategory } from '@/lib/server/finishCate
 import { saveScore } from '@/lib/server/matchScore';
 import { getAuthUser } from '@/lib/server/authUser';
 
+// The last game of a tournament also sends «🏁 Турнір завершено» to
+// Telegram (lib/server/resultsNotice) — give it time.
+export const maxDuration = 60;
+
 export async function POST(request, { params }) {
   const { matchId } = params;
   const body = await request.json();
