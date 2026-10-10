@@ -7,14 +7,11 @@
 
 import OptionBtn from '@/components/OptionBtn';
 import { feeLabel, opensLabel } from '@/lib/registrationWindow';
+import { fromKyivInput, toKyivInput } from '@/lib/dates';
 
-/** «2026-10-07T12:00» for a datetime-local input, in the device's time. */
+/** «2026-10-07T12:00» for a datetime-local input — Kyiv time, whatever the phone's zone. */
 export function toLocalInput(iso) {
-  if (!iso) return '';
-  const d = new Date(iso);
-  if (Number.isNaN(d.getTime())) return '';
-  const pad = (n) => String(n).padStart(2, '0');
-  return `${d.getFullYear()}-${pad(d.getMonth() + 1)}-${pad(d.getDate())}T${pad(d.getHours())}:${pad(d.getMinutes())}`;
+  return toKyivInput(iso);
 }
 
 export default function RegistrationFields({
@@ -32,7 +29,7 @@ export default function RegistrationFields({
 }) {
   const shownFee = feeLabel(fee === '' ? null : fee);
   const later = opensMode === 'later';
-  const opensText = later && opensAt ? opensLabel(new Date(opensAt)) : '';
+  const opensText = later && opensAt ? opensLabel(new Date(fromKyivInput(opensAt))) : '';
   return (
     <>
       <label className={styles.label} htmlFor="entry-fee">
@@ -96,7 +93,7 @@ export default function RegistrationFields({
           </div>
           <div className={styles.fieldNote}>
             {closesAt
-              ? `${opensLabel(new Date(closesAt))} заявки перестануть прийматися самі; до того гравці бачать відлік.`
+              ? `${opensLabel(new Date(fromKyivInput(closesAt)))} заявки перестануть прийматися самі; до того гравці бачать відлік.`
               : 'Не вказано — заявки приймаються, доки ви не закриєте їх або не запустите турнір.'}
           </div>
         </>
@@ -123,7 +120,7 @@ export default function RegistrationFields({
           </div>
           <div className={styles.fieldNote}>
             {scheduleAt
-              ? `На афіші: «Розклад — ${opensLabel(new Date(scheduleAt))}». Сам розклад піде в канал і учасникам у бот, коли ви запустите турнір.`
+              ? `На афіші: «Розклад — ${opensLabel(new Date(fromKyivInput(scheduleAt)))}». Сам розклад піде в канал і учасникам у бот, коли ви запустите турнір.`
               : 'Не обовʼязково. Розклад піде в канал і учасникам у бот, коли ви запустите турнір.'}
           </div>
         </>

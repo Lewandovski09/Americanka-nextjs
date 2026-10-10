@@ -10,10 +10,38 @@ import { appAlert, appConfirm } from '@/components/AppDialog';
 import { CLUB_TZ } from '@/lib/dates';
 import styles from './ResultsNoticeBar.module.css';
 
-export default function ResultsNoticeBar({ event, onSent }) {
+const G = { M: 'Ч · ', F: 'Ж · ' };
+
+export default function ResultsNoticeBar({ event, categories = [], onSent }) {
   const [busy, setBusy] = useState(false);
   const [result, setResult] = useState(null);
-  if (!event || event.status !== 'done') return null;
+  if (!event || event.status === 'scheduled') return null;
+
+  // Not over yet: say which categories still need «Зберегти результати турніру» — the
+  // results go out by themselves once the last one is finished.
+  if (event.status !== 'done') {
+    const open = categories.filter((c) => c.status === 'live');
+    if (open.length === 0) return null;
+    const allPlayed = (c) => (c.tournament_matches || []).length > 0 && (c.tournament_matches || []).every((m) => m.played);
+    return (
+      <div className={styles.bar} style={{ background: '#f8fafc', borderColor: '#cbd5e1' }}>
+        <div className={styles.text} style={{ color: '#334155' }}>
+          🏁 <b>Результати в Telegram</b> підуть самі, щойно завершите всі категорії. Ще не завершено:
+          <ul style={{ margin: '6px 0 0', paddingLeft: 18 }}>
+            {open.map((c) => (
+              <li key={c.id}>
+                <a href={`/tournaments/${c.id}`} style={{ color: 'inherit', fontWeight: 700 }}>
+                  {G[c.gender] || ''}
+                  {c.category_label}
+                </a>
+                {allPlayed(c) ? ' — усі ігри зіграні: відкрийте «Таблиця» → «Зберегти результати турніру»' : ' — ще йдуть ігри'}
+              </li>
+            ))}
+          </ul>
+        </div>
+      </div>
+    );
+  }
   const sentAt = result?.at || event.results_announced_at;
   const when = sentAt
     ? new Date(sentAt).toLocaleString('uk', { timeZone: CLUB_TZ, day: 'numeric', month: 'long', hour: '2-digit', minute: '2-digit' })

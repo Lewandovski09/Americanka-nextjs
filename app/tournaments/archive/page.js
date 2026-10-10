@@ -13,12 +13,13 @@ import { getFormat } from '@/lib/formats';
 import { invalidate, setCached } from '@/lib/clientCache';
 import styles from './archive.module.css';
 import { appConfirm, appAlert } from '@/components/AppDialog';
+import { CLUB_TZ } from '@/lib/dates';
 
 const STATUS = { scheduled: 'Не почався', live: 'Йшов', done: 'Завершений', cancelled: 'Скасований' };
 
 function fmt(d, withTime = true) {
   if (!d) return '—';
-  return new Date(d).toLocaleString('uk', withTime ? { dateStyle: 'medium', timeStyle: 'short' } : { dateStyle: 'medium' });
+  return new Date(d).toLocaleString('uk', withTime ? { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' } : { timeZone: CLUB_TZ, dateStyle: 'medium' });
 }
 
 export default function DeletedArchivePage() {

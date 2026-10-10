@@ -7,6 +7,7 @@ import BottomNav from './BottomNav';
 import GlobalNotice from './GlobalNotice';
 import SideCourtDecor from './SideCourtDecor';
 import TelegramGate, { needsTelegram } from './TelegramGate';
+import VisitTracker from './VisitTracker';
 
 // Pages where the bottom nav AND the dark background card should
 // NEVER show — these are the public/auth screens, which have their
@@ -61,18 +62,32 @@ export default function AppShell({ children }) {
     }
   }, [loading, player, isGatedPath, router]);
 
+  // visitor statistics for admin → Огляд (migration 073)
+  const tracker = <VisitTracker pathname={pathname} userId={player?.id || null} ready={!loading} />;
+
   if (isAuthPage) {
     // Auth screens render full-bleed with their own background.
-    return <>{children}</>;
+    return (
+      <>
+        {tracker}
+        {children}
+      </>
+    );
   }
 
   // No Telegram — no app (components/TelegramGate).
   if (!loading && needsTelegram(player)) {
-    return <TelegramGate player={player} onLinked={refresh} />;
+    return (
+      <>
+        {tracker}
+        <TelegramGate player={player} onLinked={refresh} />
+      </>
+    );
   }
 
   return (
     <div style={{ display: 'flex', flexDirection: 'column', minHeight: '100vh', position: 'relative', background: 'var(--bg-light)' }}>
+      {tracker}
       <SideCourtDecor />
       <GlobalNotice player={player} />
       <div style={{ flex: 1, position: 'relative', zIndex: 1, maxWidth: 900, width: '100%', margin: '0 auto' }}>

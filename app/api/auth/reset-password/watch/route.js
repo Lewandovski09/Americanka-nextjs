@@ -40,11 +40,21 @@ export async function GET(request) {
 
   const stream = new ReadableStream({
     async start(controller) {
+      // A poll still in flight when the client leaves must not write to
+      // the closed stream («Invalid state: Controller is already closed»).
+      let closed = false;
       const send = (payload) => {
-        controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        if (closed) return;
+        try {
+          controller.enqueue(encoder.encode(`data: ${JSON.stringify(payload)}\n\n`));
+        } catch {
+          closed = true;
+        }
       };
 
       const close = () => {
+        if (closed) return;
+        closed = true;
         clearInterval(intervalId);
         clearTimeout(timeoutId);
         try {
@@ -55,6 +65,7 @@ export async function GET(request) {
       };
 
       const tick = async () => {
+        if (closed) return;
         const status = await fetchStatus(supabaseAdmin, nonce);
         send(status);
         if (!status.success || status.confirmed || status.expired || status.noAccount) close();

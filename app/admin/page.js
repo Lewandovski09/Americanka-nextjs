@@ -13,10 +13,12 @@ import styles from './admin.module.css';
 import SeasonAdminPanel from '@/components/SeasonAdminPanel';
 import TelegramWebhookPanel from '@/components/TelegramWebhookPanel';
 import ThumbsPanel from '@/components/ThumbsPanel';
+import VisitsPanel from '@/components/VisitsPanel';
 import { appConfirm, appAlert } from '@/components/AppDialog';
 import { getCached, setCached } from '@/lib/clientCache';
 import { scoreLabel, teamAWon } from '@/lib/formats/sets';
 import { registrationLabel, registrationState } from '@/lib/registrationWindow';
+import { CLUB_TZ } from '@/lib/dates';
 
 const CATEGORY_LETTERS = ['D', 'C', 'B', 'A'];
 
@@ -48,8 +50,8 @@ function matchesPlayerSearch(player, query) {
 function formatActivityDate(isoString) {
   if (!isoString) return '';
   const d = new Date(isoString);
-  const datePart = d.toLocaleDateString('uk-UA', { day: 'numeric', month: 'short' });
-  const timePart = d.toLocaleTimeString('uk-UA', { hour: '2-digit', minute: '2-digit' });
+  const datePart = d.toLocaleDateString('uk-UA', { timeZone: CLUB_TZ, day: 'numeric', month: 'short' });
+  const timePart = d.toLocaleTimeString('uk-UA', { timeZone: CLUB_TZ, hour: '2-digit', minute: '2-digit' });
   return `${datePart}, ${timePart}`;
 }
 
@@ -541,6 +543,8 @@ export default function AdminPage() {
             </div>
           )}
 
+          <VisitsPanel styles={styles} />
+
           <div className={styles.sectionLabel}>Ігри по тижнях</div>
           <div className={styles.card}>
             <div className={styles.chart} role="img" aria-label={`Зіграні ігри за останні ${WEEKS} тижнів`}>
@@ -554,7 +558,7 @@ export default function AdminPage() {
                     />
                   </div>
                   <div className={styles.chartLabel}>
-                    {new Date(w.start + 7 * DAY - 1).toLocaleDateString('uk-UA', { day: 'numeric', month: 'numeric' })}
+                    {new Date(w.start + 7 * DAY - 1).toLocaleDateString('uk-UA', { timeZone: CLUB_TZ, day: 'numeric', month: 'numeric' })}
                   </div>
                 </div>
               ))}
@@ -913,7 +917,7 @@ function EventList({ title, events, empty }) {
                     {e.name}
                   </Link>
                   <div className={styles.eventMeta}>
-                    {new Date(e.scheduled_at).toLocaleString('uk-UA', { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
+                    {new Date(e.scheduled_at).toLocaleString('uk-UA', { timeZone: CLUB_TZ, day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' })}
                     {' · '}
                     {getFormat(e.format_kind)?.displayName || e.format_kind}
                     {' · '}

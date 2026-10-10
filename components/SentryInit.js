@@ -1,6 +1,7 @@
 'use client';
 
 import { useEffect } from 'react';
+import { dropForeignErrors } from '@/lib/sentryFilter';
 
 let initialized = false;
 
@@ -18,6 +19,10 @@ export default function SentryInit() {
           dsn: process.env.NEXT_PUBLIC_SENTRY_DSN,
           tracesSampleRate: 0.05,
           environment: process.env.NEXT_PUBLIC_VERCEL_ENV || process.env.NODE_ENV,
+          // Not the app's errors: browser extensions and scripts a browser
+          // puts into the page (lib/sentryFilter). Our own files never are.
+          denyUrls: [/^(chrome|moz|safari|safari-web|ms-browser|edge)-extension:/i, /\/executors\/\d+\.js/i],
+          beforeSend: dropForeignErrors,
         });
       });
     if (typeof window.requestIdleCallback === 'function') window.requestIdleCallback(start, { timeout: 4000 });

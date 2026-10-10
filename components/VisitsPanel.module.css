@@ -1,0 +1,160 @@
+.kpiLive .liveDot {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 50%;
+  background: #22c55e;
+  box-shadow: 0 0 0 3px #dcfce7;
+  margin-right: 8px;
+  vertical-align: middle;
+  animation: live 1.6s ease-in-out infinite;
+}
+
+@keyframes live {
+  50% {
+    box-shadow: 0 0 0 6px rgba(34, 197, 94, 0.15);
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .kpiLive .liveDot {
+    animation: none;
+  }
+}
+
+.head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  gap: 8px;
+  flex-wrap: wrap;
+}
+
+.title {
+  font-size: 13px;
+  font-weight: 800;
+  color: var(--text);
+}
+
+.legend {
+  display: flex;
+  gap: 12px;
+  font-size: 11.5px;
+  color: var(--text2);
+}
+
+.key {
+  display: inline-flex;
+  align-items: center;
+  gap: 5px;
+}
+
+.swPlayers,
+.swGuests {
+  display: inline-block;
+  width: 10px;
+  height: 10px;
+  border-radius: 3px;
+}
+
+.swPlayers {
+  background: #2a4d94;
+}
+
+.swGuests {
+  background: #e85d4a;
+}
+
+.readout {
+  font-size: 12.5px;
+  color: var(--text2);
+  margin: 6px 0 4px;
+  min-height: 18px;
+}
+
+.readout b {
+  color: var(--text);
+}
+
+.chart {
+  display: flex;
+  align-items: stretch;
+  gap: 2px;
+  height: 120px;
+  border-bottom: 1px solid var(--border-light);
+}
+
+.chartHours {
+  height: 90px;
+}
+
+.col {
+  flex: 1;
+  min-width: 0;
+  display: flex;
+  align-items: flex-end;
+  justify-content: center;
+  padding: 0;
+  border: none;
+  background: transparent;
+  cursor: pointer;
+  border-radius: 4px 4px 0 0;
+}
+
+.colOn {
+  background: var(--surface-alt);
+}
+
+.stack {
+  width: 78%;
+  max-width: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  transition: height 0.25s ease;
+}
+
+.segPlayers,
+.segGuests {
+  display: block;
+  min-height: 2px;
+  flex-basis: 0;
+}
+
+/* the top segment carries the rounded data-end */
+.stack > :first-child {
+  border-radius: 4px 4px 0 0;
+}
+
+.segPlayers {
+  background: #2a4d94;
+}
+
+.segGuests {
+  background: #e85d4a;
+}
+
+.axis {
+  display: flex;
+  gap: 2px;
+  margin-top: 4px;
+}
+
+.tick {
+  flex: 1;
+  min-width: 0;
+  font-size: 9.5px;
+  color: var(--text2);
+  white-space: nowrap;
+  overflow: visible;
+}
+
+.card {
+  margin-top: 12px;
+}
+
+/* the last date sits at the right edge, growing inwards */
+.tick:last-child {
+  display: flex;
+  justify-content: flex-end;
+}

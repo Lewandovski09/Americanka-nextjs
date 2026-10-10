@@ -9,6 +9,7 @@ import { runAnnouncement, announcementSummary } from '@/lib/announceClient';
 import styles from './Announce.module.css';
 import { appConfirm } from '@/components/AppDialog';
 import { opensLabel } from '@/lib/registrationWindow';
+import { CLUB_TZ } from '@/lib/dates';
 
 export default function AnnounceButton({ event, onDone }) {
   // A test tournament (070) never goes to Telegram.
@@ -51,7 +52,7 @@ function AnnounceButtonInner({ event, onDone }) {
     : '⏳ «Заявки приймаються» надсилається…';
 
   const when = event.announced_at
-    ? new Date(event.announced_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })
+    ? new Date(event.announced_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' })
     : null;
 
   return (

@@ -16,6 +16,7 @@ import VenueName from '@/components/VenueName';
 import { useVenues, findVenue } from '@/hooks/useVenues';
 import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
 import RegistrationCountdown from '@/components/RegistrationCountdown';
+import { CLUB_TZ } from '@/lib/dates';
 
 const TABS = { SCHEDULED: 'scheduled', LIVE: 'live', DONE: 'done' };
 const DONE_PAGE = 15;
@@ -213,7 +214,7 @@ export default function EventsPage() {
           const fee = ev.status === TABS.SCHEDULED ? feeLabel(ev.entry_fee) : null;
           const meta = (
             <div className={styles.cardMeta}>
-              {new Date(ev.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+              {new Date(ev.scheduled_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
               <VenueName code={ev.location} />
               {(soon || fee) && (
                 <div className={styles.cardMetaLine}>

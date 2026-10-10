@@ -11,6 +11,7 @@ import { createClient } from '@/lib/supabase/client';
 import { buildPoints, buildPointsFromLog } from '@/lib/eloSeries';
 import { IconX } from '@/components/Icons';
 import styles from './EloTrend.module.css';
+import { CLUB_TZ } from '@/lib/dates';
 
 const W = 330;
 const H = 96;
@@ -21,7 +22,7 @@ function monthsAgo(n) {
   return d;
 }
 
-const dayLabel = (d) => d.toLocaleDateString('uk', { day: 'numeric', month: 'short' });
+const dayLabel = (d) => d.toLocaleDateString('uk', { timeZone: CLUB_TZ, day: 'numeric', month: 'short' });
 
 // Points inside [from, to]; the last point before the window is carried to
 // its left edge, so the line starts from the rating the period began with.

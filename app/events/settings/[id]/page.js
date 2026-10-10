@@ -36,6 +36,7 @@ import styles from '../../event.module.css';
 import VenueName from '@/components/VenueName';
 import AnnounceButton from '@/components/AnnounceButton';
 import { registrationState, opensLabel, feeLabel } from '@/lib/registrationWindow';
+import { CLUB_TZ } from '@/lib/dates';
 
 const TABS = { QUEUE: 'queue', SEEDING: 'seeding', JUDGES: 'judges', PAY: 'pay', CONFIG: 'config' };
 
@@ -115,7 +116,7 @@ export default function EventSettingsPage({ params }) {
       </div>
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
-        {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+        {new Date(event.scheduled_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
         <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>

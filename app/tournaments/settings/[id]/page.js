@@ -107,7 +107,7 @@ export default function TournamentSettingsPage({ params }) {
         <PublishScheduleBar eventId={event.id} onPublished={load} americanka={format?.scoring === 'sum31'} />
       )}
       {/* «🏁 Турнір завершено» to Telegram (074) — finished tournaments */}
-      <ResultsNoticeBar event={event} onSent={load} />
+      <ResultsNoticeBar event={event} categories={categories} onSent={load} />
 
       {tab === TABS.JUDGES ? (
         <JudgesTab event={event} judges={judges} busy={busy} post={post} />

@@ -22,6 +22,7 @@ import { notifyInvite } from '@/lib/inviteNotify';
 import { appAlert } from '@/components/AppDialog';
 import { registrationState, msUntilOpen, msUntilClose, opensLabel, feeLabel } from '@/lib/registrationWindow';
 import RegistrationCountdown from '@/components/RegistrationCountdown';
+import { CLUB_TZ } from '@/lib/dates';
 
 
 export default function EventRegisterPage({ params, searchParams }) {
@@ -182,7 +183,7 @@ export default function EventRegisterPage({ params, searchParams }) {
       </div>
       <div className={styles.meta}>
         {format?.displayName} ·{' '}
-        {new Date(event.scheduled_at).toLocaleString('uk', { dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
+        {new Date(event.scheduled_at).toLocaleString('uk', { timeZone: CLUB_TZ, dateStyle: 'medium', timeStyle: 'short' })} ·{' '}
         <VenueName code={event.location} />
       </div>
       <div className={styles.meta}>

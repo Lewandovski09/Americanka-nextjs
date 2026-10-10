@@ -6,6 +6,7 @@
 // (an old host, an old domain), new players cannot finish registering.
 
 import { useEffect, useState } from 'react';
+import { CLUB_TZ } from '@/lib/dates';
 
 export default function TelegramWebhookPanel({ styles }) {
   const [info, setInfo] = useState(null);
@@ -57,7 +58,7 @@ export default function TelegramWebhookPanel({ styles }) {
               <>
                 <br />
                 Остання помилка доставки: {info.lastError}
-                {info.lastErrorAt ? ` (${new Date(info.lastErrorAt).toLocaleString('uk')})` : ''}
+                {info.lastErrorAt ? ` (${new Date(info.lastErrorAt).toLocaleString('uk', { timeZone: CLUB_TZ })})` : ''}
               </>
             )}
           </div>

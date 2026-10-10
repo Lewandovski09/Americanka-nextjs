@@ -24,6 +24,8 @@ export const metadata = {
     type: 'website',
   },
   description: `Турніри Americanka для пляжного волейболу. ${VENUE.fullLocation}.`,
+  // Google Translate / Chrome: don't offer to translate (see <html translate>)
+  other: { google: 'notranslate' },
   icons: {
     icon: [
       { url: '/icons/favicon-32.png', sizes: '32x32', type: 'image/png' },
@@ -50,7 +52,10 @@ export const viewport = {
 
 export default function RootLayout({ children }) {
   return (
-    <html lang="uk">
+    // translate="no": the browser's «Перекласти сторінку» rewrote the page
+    // under React and crashed it (Sentry: «Failed to execute 'insertBefore'
+    // / 'removeChild' on 'Node'» — the most frequent error).
+    <html lang="uk" translate="no">
       <body>
         <SentryInit />
         <RegisterSW />
